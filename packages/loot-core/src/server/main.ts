@@ -21,6 +21,7 @@ import * as db from './db';
 import * as encryption from './encryption';
 import { app as encryptionApp } from './encryption/app';
 import { DocumentDirError, withErrorCode } from './errors';
+import { app as exchangeRatesApp } from './exchange-rates/app';
 import { app as filtersApp } from './filters/app';
 import { app as forecastApp } from './forecast/app';
 import { app as formulasApp } from './formulas/app';
@@ -146,6 +147,7 @@ app.combine(
   transactionsApp,
   accountsApp,
   accountGroupsApp,
+  exchangeRatesApp,
   payeesApp,
   spreadsheetApp,
   syncApp,

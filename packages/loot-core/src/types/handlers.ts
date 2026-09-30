@@ -6,6 +6,7 @@ import type { BudgetHandlers } from '#server/budget/app';
 import type { BudgetFileHandlers } from '#server/budgetfiles/app';
 import type { DashboardHandlers } from '#server/dashboard/app';
 import type { EncryptionHandlers } from '#server/encryption/app';
+import type { ExchangeRatesHandlers } from '#server/exchange-rates/app';
 import type { FiltersHandlers } from '#server/filters/app';
 import type { ForecastHandlers } from '#server/forecast/app';
 import type { FormulasHandlers } from '#server/formulas/app';
@@ -41,6 +42,7 @@ export type Handlers = {} & ServerHandlers &
   ToolsHandlers &
   AccountHandlers &
   AccountGroupsHandlers &
+  ExchangeRatesHandlers &
   PayeesHandlers &
   SpreadsheetHandlers &
   SyncHandlers &

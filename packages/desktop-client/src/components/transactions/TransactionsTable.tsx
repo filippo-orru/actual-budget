@@ -865,6 +865,7 @@ function PayeeCell({
         <PayeeAutocomplete
           payees={payees}
           accounts={accounts}
+          currentAccountId={transaction.account}
           value={payee?.id ?? null}
           shouldSaveFromKey={shouldSaveFromKey}
           inputProps={{

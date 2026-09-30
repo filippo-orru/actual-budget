@@ -34,6 +34,7 @@ import { byLengthAsc, byStartAsc, Fzf } from 'fzf';
 
 import { useAccounts } from '#hooks/useAccounts';
 import { useCommonPayees } from '#hooks/useCommonPayees';
+import { useCurrencyFeature } from '#hooks/useCurrencyFeature';
 import { useLocationPermission } from '#hooks/useLocationPermission';
 import { useNearbyPayees } from '#hooks/useNearbyPayees';
 import { usePayees } from '#hooks/usePayees';
@@ -105,6 +106,33 @@ function filterActivePayees<T extends PayeeEntity>(
 
 function filterTransferPayees<T extends PayeeEntity>(payees: T[]): T[] {
   return payees.filter(payee => !!payee.transfer_acct);
+}
+
+// Transfers are only allowed between accounts with the same effective
+// currency, so hide transfer payees of accounts in another currency.
+export function filterCurrencyIncompatibleTransferPayees<
+  T extends Pick<PayeeEntity, 'transfer_acct'>,
+>(
+  payees: T[],
+  accounts: Pick<AccountEntity, 'id' | 'currency'>[],
+  currentAccountId: AccountEntity['id'] | undefined,
+  globalCurrency: string,
+): T[] {
+  const currentAccount = accounts.find(a => a.id === currentAccountId);
+  if (!currentAccount) {
+    return payees;
+  }
+  const currentCurrency = currentAccount.currency ?? globalCurrency;
+  const currencyById = new Map(
+    accounts.map(a => [a.id, a.currency ?? globalCurrency]),
+  );
+  return payees.filter(payee => {
+    if (!payee.transfer_acct) {
+      return true;
+    }
+    const targetCurrency = currencyById.get(payee.transfer_acct);
+    return targetCurrency === undefined || targetCurrency === currentCurrency;
+  });
 }
 
 function makeNew(id, rawPayee) {
@@ -359,6 +387,8 @@ export type PayeeAutocompleteProps = ComponentProps<
   accounts?: AccountEntity[];
   payees?: PayeeEntity[];
   nearbyPayees?: NearbyPayeeEntity[];
+  /** The account being edited, used to hide cross-currency transfer payees */
+  currentAccountId?: AccountEntity['id'];
 };
 
 export function PayeeAutocomplete({
@@ -379,9 +409,11 @@ export function PayeeAutocomplete({
   accounts,
   payees,
   nearbyPayees,
+  currentAccountId,
   ...props
 }: PayeeAutocompleteProps) {
   const { t } = useTranslation();
+  const { isCurrencyActive, globalCurrency } = useCurrencyFeature();
   const { data: commonPayees } = useCommonPayees();
   const { data: retrievedPayees = [] } = usePayees();
   const { isGranted } = useLocationPermission();
@@ -399,6 +431,7 @@ export function PayeeAutocomplete({
   }
 
   const { data: cachedAccounts = [] } = useAccounts();
+  const allAccounts = cachedAccounts;
   if (!accounts) {
     accounts = cachedAccounts;
   }
@@ -419,6 +452,15 @@ export function PayeeAutocomplete({
       filteredSuggestions = filterTransferPayees(filteredSuggestions);
     }
 
+    if (isCurrencyActive && currentAccountId) {
+      filteredSuggestions = filterCurrencyIncompatibleTransferPayees(
+        filteredSuggestions,
+        allAccounts,
+        currentAccountId,
+        globalCurrency,
+      );
+    }
+
     if (!hasPayeeInput) {
       return filteredSuggestions;
     }
@@ -434,6 +476,10 @@ export function PayeeAutocomplete({
     accounts,
     hasPayeeInput,
     showInactivePayees,
+    isCurrencyActive,
+    currentAccountId,
+    allAccounts,
+    globalCurrency,
   ]);
 
   // Process nearby payees separately from suggestions

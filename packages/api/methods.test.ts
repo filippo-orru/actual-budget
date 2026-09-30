@@ -391,7 +391,7 @@ describe('API CRUD operations', () => {
     expect(await api.getAccountBalance(accountId1)).toEqual(1000);
     expect(await api.getAccountBalance(accountId2)).toEqual(0);
 
-    await api.updateAccount(accountId1, { offbudget: false });
+    await api.updateAccount(accountId1, { name: 'test-account1' });
     await api.closeAccount(accountId1, accountId2);
     await api.deleteAccount(accountId2);
 
@@ -403,7 +403,7 @@ describe('API CRUD operations', () => {
           id: accountId1,
           name: 'test-account1',
           closed: true,
-          offbudget: false,
+          offbudget: true,
         }),
         expect.not.objectContaining({ id: accountId2 }),
       ]),

@@ -1,3 +1,5 @@
+.agents/plans/*
+
 # Sample Data
 /data/*
 !data/.gitkeep

@@ -5,6 +5,7 @@ export type FeatureFlag =
   | 'actionTemplating'
   | 'formulaMode'
   | 'currency'
+  | 'multiCurrency'
   | 'balanceForecastReport'
   | 'customThemes'
   | 'budgetAnalysisReport'

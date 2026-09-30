@@ -47,7 +47,66 @@ const syncNotifications: Partial<
   }),
 };
 
+const CROSS_CURRENCY_NOTIFICATION_ID = 'cross-currency-transfers';
+
+function navigateToSettings() {
+  // Notifications live outside the router, so push the URL and let
+  // BrowserRouter pick up the popstate event
+  window.history.pushState({}, '', '/settings');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+// Warn (once per set of transfers) when a sync brought in transfers between
+// accounts with different currencies
+export function createCrossCurrencyTransferChecker(store: AppStore) {
+  let lastNotifiedKey = '';
+
+  return async function checkCrossCurrencyTransfers() {
+    if (store.getState().prefs.synced['flags.multiCurrency'] !== 'true') {
+      return;
+    }
+
+    const status: {
+      crossCurrencyTransfers: { transactionId: string }[];
+    } = await send('multi-currency-status');
+    const transfers = status?.crossCurrencyTransfers ?? [];
+    const key = transfers
+      .map(transfer => transfer.transactionId)
+      .sort()
+      .join(',');
+
+    if (key === lastNotifiedKey) {
+      return;
+    }
+    lastNotifiedKey = key;
+
+    if (transfers.length === 0) {
+      return;
+    }
+
+    store.dispatch(
+      addNotification({
+        notification: {
+          id: CROSS_CURRENCY_NOTIFICATION_ID,
+          type: 'warning',
+          sticky: true,
+          title: t('Transfers between different currencies'),
+          message: t(
+            'Transfers between accounts in different currencies were found. They are not supported and balances may be wrong.',
+          ),
+          button: {
+            title: t('Open settings'),
+            action: navigateToSettings,
+          },
+        },
+      }),
+    );
+  };
+}
+
 export function listenForSyncEvent(store: AppStore, queryClient: QueryClient) {
+  const checkCrossCurrencyTransfers = createCrossCurrencyTransferChecker(store);
+
   // TODO: Should this run on mobile too?
   const unlistenUnauthorized = listen('sync-event', async ({ type }) => {
     if (type === 'unauthorized') {
@@ -132,6 +191,14 @@ export function listenForSyncEvent(store: AppStore, queryClient: QueryClient) {
         void queryClient.invalidateQueries({
           queryKey: accountQueries.lists(),
         });
+      }
+
+      if (
+        tables.includes('transactions') ||
+        tables.includes('accounts') ||
+        tables.includes('payees')
+      ) {
+        void checkCrossCurrencyTransfers();
       }
 
       if (tables.includes('account_groups')) {

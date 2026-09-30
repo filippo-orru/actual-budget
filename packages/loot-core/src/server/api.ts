@@ -633,6 +633,7 @@ handlers['api/account-create'] = withMutation(async function ({
     name: account.name,
     offBudget: account.offbudget,
     closed: account.closed,
+    currency: account.currency ?? null,
     // Current the API expects an amount but it really should expect
     // an integer
     balance: initialBalance != null ? integerToAmount(initialBalance) : null,
@@ -641,8 +642,34 @@ handlers['api/account-create'] = withMutation(async function ({
 
 handlers['api/account-update'] = withMutation(async function ({ id, fields }) {
   checkFileOpen();
-  // @ts-expect-error - fix me
-  return db.updateAccount({ id, ...accountModel.fromExternal(fields) });
+  const { id: _ignoredId, name, account_group_id, currency, ...rest } = fields;
+
+  const hints: Record<string, string> = {
+    closed: "Use closeAccount/reopenAccount to change 'closed'",
+    offbudget: "Field 'offbudget' cannot be updated",
+  };
+  const rejected = Object.keys(rest);
+  if (rejected.length > 0) {
+    throw APIError(
+      rejected
+        .map(field => hints[field] ?? `Field '${field}' cannot be updated`)
+        .join('; '),
+    );
+  }
+
+  if (name !== undefined || account_group_id !== undefined) {
+    await handlers['account-update']({
+      id,
+      ...(name !== undefined && { name }),
+      ...(account_group_id !== undefined && { account_group_id }),
+    });
+  }
+  if (currency !== undefined) {
+    if (currency === null) {
+      throw APIError("Field 'currency' cannot be cleared");
+    }
+    await handlers['account-set-currency']({ id, currency });
+  }
 });
 
 handlers['api/account-close'] = withMutation(async function ({

@@ -19,6 +19,7 @@ export type APIAccountEntity = Pick<AccountEntity, 'id' | 'name'> & {
   closed?: boolean;
   balance_current?: number | null;
   account_group_id?: string | null;
+  currency?: string | null;
 };
 
 export const accountModel = {
@@ -32,6 +33,7 @@ export const accountModel = {
       closed: account.closed ? true : false,
       balance_current: account.balance_current ?? null,
       account_group_id: account.account_group_id ?? null,
+      currency: account.currency ?? null,
     };
   },
 

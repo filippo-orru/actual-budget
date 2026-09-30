@@ -14,6 +14,7 @@ import {
   createTestQueryClient,
   TestProviders,
 } from '#mocks';
+import { mergeSyncedPrefs } from '#prefs/prefsSlice';
 import * as bindings from '#spreadsheet/bindings';
 
 import { Account } from './Account';
@@ -117,5 +118,76 @@ describe('sidebar Account context menu', () => {
 
     expect(store.getState().contextMenu.isOpen).toBe(true);
     expect(contextMenuItemNames()).toEqual(['account-rename', 'account-close']);
+  });
+
+  describe('with the currency feature', () => {
+    beforeEach(() => {
+      store.dispatch(
+        mergeSyncedPrefs({
+          'flags.currency': 'true',
+          defaultCurrencyCode: 'USD',
+        }),
+      );
+    });
+
+    async function openMenuFor(account: ReturnType<typeof generateAccount>) {
+      await renderRow(
+        <Account
+          name={account.name}
+          account={account}
+          to={`/accounts/${account.id}`}
+          query={bindings.accountBalance(account.id)}
+        />,
+      );
+      fireEvent.contextMenu(screen.getByText(account.name));
+    }
+
+    it('shows Edit currency for off-budget accounts', async () => {
+      await openMenuFor(generateAccount('Broker', false, true));
+      expect(contextMenuItemNames()).toEqual([
+        'account-rename',
+        'account-currency',
+        'account-close',
+      ]);
+    });
+
+    it('does not show Edit currency for on-budget accounts', async () => {
+      await openMenuFor(generateAccount('Checking'));
+      expect(contextMenuItemNames()).not.toContain('account-currency');
+    });
+
+    it('does not show Edit currency when the feature is inactive', async () => {
+      store.dispatch(mergeSyncedPrefs({ 'flags.currency': 'false' }));
+      await openMenuFor(generateAccount('Broker', false, true));
+      expect(contextMenuItemNames()).not.toContain('account-currency');
+    });
+
+    it('shows the currency code only when it differs from the global currency', async () => {
+      const eur = { ...generateAccount('Euro', false, true), currency: 'EUR' };
+      const { unmount } = await renderRow(
+        <Account
+          name={eur.name}
+          account={eur}
+          to={`/accounts/${eur.id}`}
+          query={bindings.accountBalance(eur.id)}
+        />,
+      );
+      expect(screen.getByText('EUR')).toBeTruthy();
+      unmount();
+
+      const usd = {
+        ...generateAccount('Dollar', false, true),
+        currency: 'USD',
+      };
+      await renderRow(
+        <Account
+          name={usd.name}
+          account={usd}
+          to={`/accounts/${usd.id}`}
+          query={bindings.accountBalance(usd.id)}
+        />,
+      );
+      expect(screen.queryByText('USD')).toBeNull();
+    });
   });
 });

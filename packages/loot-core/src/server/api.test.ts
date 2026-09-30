@@ -72,6 +72,7 @@ describe('API handlers', () => {
       handlers['account-group-delete'] =
         accountGroupsApp.handlers['account-group-delete'];
       handlers['accounts-get'] = accountsApp.handlers['accounts-get'];
+      handlers['account-update'] = accountsApp.handlers['account-update'];
     });
 
     it('round-trips account groups and exposes account_group_id on accounts', async () => {

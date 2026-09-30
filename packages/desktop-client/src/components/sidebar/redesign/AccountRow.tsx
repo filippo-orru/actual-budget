@@ -15,7 +15,9 @@ import { css } from '@emotion/css';
 
 import { useReopenAccountMutation, useUpdateAccountMutation } from '#accounts';
 import { isAccountFailedSync } from '#accounts/syncStatus';
+import { AccountCurrencyBadge } from '#components/sidebar/AccountCurrencyBadge';
 import { useContextMenu } from '#hooks/useContextMenu';
+import { useEditAccountCurrencyMenuItem } from '#hooks/useEditAccountCurrencyMenuItem';
 import { useUpdatedAccounts } from '#hooks/useUpdatedAccounts';
 import { openAccountCloseModal, pushModal } from '#modals/modalsSlice';
 import { useDispatch, useSelector } from '#redux';
@@ -60,6 +62,7 @@ export function AccountRow({
     ),
   );
   const [rowElement, setRowElement] = useState<HTMLDivElement | null>(null);
+  const currencyMenuItems = useEditAccountCurrencyMenuItem(account);
   useContextMenu({
     triggerRef: { current: rowElement },
     enabled: !isTouchDevice(),
@@ -69,6 +72,7 @@ export function AccountRow({
         text: t('Rename'),
         onClick: () => setIsEditing(true),
       },
+      ...currencyMenuItems,
       isClosed
         ? {
             name: 'account-reopen',
@@ -191,6 +195,7 @@ export function AccountRow({
               ) : (
                 <Text style={{ flex: 1, ...styles.ellipsisText }}>
                   {account.name}
+                  <AccountCurrencyBadge account={account} />
                 </Text>
               )}
               <Text style={styles.visuallyHidden}>{statusLabel}</Text>

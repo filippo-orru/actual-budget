@@ -1,6 +1,10 @@
 // @ts-strict-ignore
 
 import * as connection from '#platform/server/connection';
+import {
+  getCurrencyFeatureState,
+  getEffectiveCurrency,
+} from '#server/accounts/currency';
 import * as db from '#server/db';
 import { incrFetch, whereIn } from '#server/db/util';
 import { batchMessages } from '#server/sync';
@@ -37,6 +41,83 @@ async function getTransactionsByIds(
   );
 }
 
+// Transfers are only allowed between accounts with the same effective
+// currency. Runs before anything is written so a failure leaves no trace.
+async function validateTransferCurrencies(
+  added: Partial<TransactionEntity>[] | undefined,
+  updated: Partial<TransactionEntity>[] | undefined,
+) {
+  if (!added?.length && !updated?.length) {
+    return;
+  }
+  const { isCurrencyActive, globalCurrency } = await getCurrencyFeatureState();
+  if (!isCurrencyActive) {
+    return;
+  }
+
+  const existing = new Map<string, TransactionEntity>();
+  if (updated?.length) {
+    const rows = await getTransactionsByIds(updated.map(u => u.id));
+    rows.forEach(row => existing.set(row.id, row));
+  }
+
+  const candidates: { account: string; payee: string }[] = [];
+  for (const t of added ?? []) {
+    if (t.account && t.payee) {
+      candidates.push({ account: t.account, payee: t.payee });
+    }
+  }
+  for (const t of updated ?? []) {
+    const old = existing.get(t.id);
+    if (!old) {
+      continue;
+    }
+    const account = t.account ?? old.account;
+    const payee = t.payee !== undefined ? t.payee : old.payee;
+    // Only re-check when the account or the payee actually changes, so
+    // legacy cross-currency transfers can still be edited.
+    if (account === old.account && payee === old.payee) {
+      continue;
+    }
+    if (account && payee) {
+      candidates.push({ account, payee });
+    }
+  }
+  if (candidates.length === 0) {
+    return;
+  }
+
+  const payeeIds = [...new Set(candidates.map(c => c.payee))];
+  const payees = await db.all<{ id: string; transfer_acct: string | null }>(
+    `SELECT id, transfer_acct FROM v_payees WHERE ${whereIn(payeeIds, 'id')}`,
+  );
+  const transferAcctByPayee = new Map(
+    payees.filter(p => p.transfer_acct).map(p => [p.id, p.transfer_acct]),
+  );
+  const transferring = candidates.filter(c => transferAcctByPayee.has(c.payee));
+  if (transferring.length === 0) {
+    return;
+  }
+
+  const accountRows = await db.all<Pick<db.DbAccount, 'id' | 'currency'>>(
+    'SELECT id, currency FROM accounts',
+  );
+  const currencyById = new Map(
+    accountRows.map(a => [a.id, getEffectiveCurrency(a, globalCurrency)]),
+  );
+
+  for (const { account, payee } of transferring) {
+    const from = currencyById.get(account) ?? globalCurrency;
+    const to =
+      currencyById.get(transferAcctByPayee.get(payee)) ?? globalCurrency;
+    if (from !== to) {
+      throw new Error(
+        `Transfers between accounts with different currencies (${from} → ${to}) are not supported.`,
+      );
+    }
+  }
+}
+
 export async function batchUpdateTransactions({
   added,
   deleted,
@@ -55,6 +136,10 @@ export async function batchUpdateTransactions({
   const deletedIds = deleted
     ? await idsWithChildren(deleted.map(d => d.id))
     : [];
+
+  if (runTransfers) {
+    await validateTransferCurrencies(added, updated);
+  }
 
   const oldPayees = new Set<PayeeEntity['id']>();
 

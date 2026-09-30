@@ -19,6 +19,7 @@ import { getPrefs } from '#server/prefs';
 import { getServer } from '#server/server-config';
 import { batchMessages } from '#server/sync';
 import { undoable, withUndo } from '#server/undo';
+import { getCurrency } from '#shared/currencies';
 import { isNonProductionEnvironment } from '#shared/environment';
 import { dayFromDate } from '#shared/months';
 import * as monthUtils from '#shared/months';
@@ -40,6 +41,11 @@ import type {
   TransactionEntity,
 } from '#types/models';
 
+import {
+  getCrossCurrencyTransfers,
+  getCurrencyFeatureState,
+  validateAccountCurrency,
+} from './currency';
 import * as link from './link';
 import { getStartingBalancePayee } from './payees';
 import * as bankSync from './sync';
@@ -63,6 +69,10 @@ export type AccountHandlers = {
   'akahu-accounts-link': typeof linkAkahuAccount;
   'enablebanking-accounts-link': typeof linkEnableBankingAccount;
   'account-create': typeof createAccount;
+  'account-set-currency': typeof setAccountCurrency;
+  'account-currency-conflicts': typeof getAccountCurrencyConflicts;
+  'multi-currency-status': typeof getMultiCurrencyStatus;
+  'multi-currency-assign-default': typeof assignDefaultCurrency;
   'account-close': typeof closeAccount;
   'account-reopen': typeof reopenAccount;
   'account-move': typeof moveAccount;
@@ -110,6 +120,85 @@ async function updateAccount({
   return {};
 }
 
+async function setAccountCurrency({
+  id,
+  currency,
+}: {
+  id: AccountEntity['id'];
+  currency: string;
+}) {
+  const account = await db.first<db.DbAccount>(
+    'SELECT * FROM accounts WHERE id = ? AND tombstone = 0',
+    [id],
+  );
+  if (!account) {
+    throw new Error(`Account not found: ${id}`);
+  }
+  await validateAccountCurrency({ account, currency });
+  await db.update('accounts', { id, currency });
+  return {};
+}
+
+// Transfers that would become cross-currency if `id` got `currency`
+async function getAccountCurrencyConflicts({
+  id,
+  currency,
+}: {
+  id: AccountEntity['id'];
+  currency: string;
+}) {
+  const { globalCurrency } = await getCurrencyFeatureState();
+  return getCrossCurrencyTransfers({
+    globalCurrency,
+    accountId: id,
+    assumeCurrency: { accountId: id, currency },
+  });
+}
+
+async function getUnassignedOffBudgetAccounts() {
+  return db.all<{ id: string; name: string }>(
+    `SELECT id, name FROM accounts
+       WHERE offbudget = 1 AND currency IS NULL AND tombstone = 0
+       ORDER BY sort_order, name`,
+  );
+}
+
+async function getMultiCurrencyStatus() {
+  const { isCurrencyActive, globalCurrency } = await getCurrencyFeatureState();
+  if (!isCurrencyActive) {
+    return {
+      isCurrencyActive,
+      globalCurrency,
+      unassignedAccounts: [] as { id: string; name: string }[],
+      crossCurrencyTransfers: [] as Awaited<
+        ReturnType<typeof getCrossCurrencyTransfers>
+      >,
+    };
+  }
+  return {
+    isCurrencyActive,
+    globalCurrency,
+    unassignedAccounts: await getUnassignedOffBudgetAccounts(),
+    crossCurrencyTransfers: await getCrossCurrencyTransfers({ globalCurrency }),
+  };
+}
+
+async function assignDefaultCurrency() {
+  const { isCurrencyActive, globalCurrency } = await getCurrencyFeatureState();
+  if (!isCurrencyActive) {
+    throw new Error(
+      'Account currencies require the currency feature and a default currency to be set.',
+    );
+  }
+  const accounts = await getUnassignedOffBudgetAccounts();
+  await batchMessages(async () => {
+    for (const { id } of accounts) {
+      await db.update('accounts', { id, currency: globalCurrency });
+    }
+  });
+  return { count: accounts.length };
+}
+
 async function getAccounts(): Promise<AccountEntity[]> {
   const dbAccounts = await db.getAccounts();
   return dbAccounts.map(
@@ -135,6 +224,7 @@ async function getAccounts(): Promise<AccountEntity[]> {
         last_sync: dbAccount.last_sync ?? null,
         bank_sync_status: dbAccount.bank_sync_status ?? null,
         account_group_id: dbAccount.account_group_id ?? null,
+        currency: dbAccount.currency ?? null,
       }) satisfies AccountEntity,
   );
 }
@@ -558,16 +648,27 @@ async function createAccount({
   balance = 0,
   offBudget = false,
   closed = false,
+  currency = null,
 }: {
   name: string;
   balance?: number | undefined;
   offBudget?: boolean | undefined;
   closed?: boolean | undefined;
+  currency?: string | null | undefined;
 }) {
+  if (currency != null) {
+    await validateAccountCurrency({
+      account: { offbudget: offBudget ? 1 : 0 },
+      currency,
+      isNewAccount: true,
+    });
+  }
+
   const id: AccountEntity['id'] = await db.insertAccount({
     name,
     offbudget: offBudget ? 1 : 0,
     closed: closed ? 1 : 0,
+    ...(currency != null && { currency }),
   });
 
   await db.insertPayee({
@@ -580,7 +681,10 @@ async function createAccount({
 
     await db.insertTransaction({
       account: id,
-      amount: amountToInteger(balance),
+      amount: amountToInteger(
+        balance,
+        currency != null ? getCurrency(currency).decimalPlaces : undefined,
+      ),
       category: offBudget ? null : payee.category,
       payee: payee.id,
       date: monthUtils.currentDay(),
@@ -1783,6 +1887,13 @@ app.method('pluggyai-accounts-link', linkPluggyAiAccount);
 app.method('akahu-accounts-link', linkAkahuAccount);
 app.method('enablebanking-accounts-link', linkEnableBankingAccount);
 app.method('account-create', mutator(undoable(createAccount)));
+app.method('account-set-currency', mutator(undoable(setAccountCurrency)));
+app.method('account-currency-conflicts', getAccountCurrencyConflicts);
+app.method('multi-currency-status', getMultiCurrencyStatus);
+app.method(
+  'multi-currency-assign-default',
+  mutator(undoable(assignDefaultCurrency)),
+);
 app.method('account-close', mutator(closeAccount));
 app.method('account-reopen', mutator(undoable(reopenAccount)));
 app.method('account-move', mutator(undoable(moveAccount)));

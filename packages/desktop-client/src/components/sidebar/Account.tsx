@@ -29,6 +29,7 @@ import type { OnDragChangeCallback, OnDropCallback } from '#components/sort';
 import { CellValue } from '#components/spreadsheet/CellValue';
 import { useContextMenu } from '#hooks/useContextMenu';
 import { useDragRef } from '#hooks/useDragRef';
+import { useEditAccountCurrencyMenuItem } from '#hooks/useEditAccountCurrencyMenuItem';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useNotes } from '#hooks/useNotes';
 import { useSyncedPref } from '#hooks/useSyncedPref';
@@ -36,6 +37,8 @@ import { openAccountCloseModal } from '#modals/modalsSlice';
 import { useDispatch, useSelector } from '#redux';
 import type { Binding, SheetFields } from '#spreadsheet';
 import { isTouchDevice } from '#util/isTouchDevice';
+
+import { AccountCurrencyBadge } from './AccountCurrencyBadge';
 
 export const accountNameStyle: CSSProperties = {
   marginTop: -2,
@@ -132,6 +135,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
         typeof i === 'object' && 'name' in i && i.name.startsWith('account-'),
     ),
   );
+  const currencyMenuItems = useEditAccountCurrencyMenuItem(account);
   useContextMenu({
     triggerRef,
     enabled: account != null && needsTooltip,
@@ -141,6 +145,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
         text: t('Rename'),
         onClick: () => setIsEditing(true),
       },
+      ...currencyMenuItems,
       account?.closed
         ? {
             name: 'account-reopen',
@@ -254,7 +259,10 @@ export function Account<FieldName extends SheetFields<'account'>>({
                     />
                   </InitialFocus>
                 ) : (
-                  name
+                  <>
+                    {name}
+                    <AccountCurrencyBadge account={account} />
+                  </>
                 )
               }
               right={

@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Trans } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
+import { Button } from '@actual-app/components/button';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
 import type { FeatureFlag, ServerPrefs } from '@actual-app/core/types/prefs';
+import type { TransObjectLiteral } from '@actual-app/core/types/util';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '#auth/AuthProvider';
 import { Permissions } from '#auth/types';
@@ -28,7 +32,7 @@ type FeatureToggleProps = {
   note?: ReactNode;
 };
 
-function FeatureToggle({
+export function FeatureToggle({
   flag: flagName,
   disableToggle = false,
   feedbackLink,
@@ -74,6 +78,95 @@ function FeatureToggle({
         {note && <Text style={{ color: theme.warningText }}>{note}</Text>}
       </View>
     </label>
+  );
+}
+
+type MultiCurrencyStatus = {
+  isCurrencyActive: boolean;
+  globalCurrency: string;
+  unassignedAccounts: { id: string; name: string }[];
+  crossCurrencyTransfers: {
+    transactionId: string;
+    date: string;
+    accountName: string;
+    otherAccountName: string;
+  }[];
+};
+
+export function MultiCurrencyToggle() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const isEnabled = useFeatureFlag('multiCurrency');
+  const { data: status } = useQuery({
+    queryKey: ['multi-currency-status'],
+    queryFn: async (): Promise<MultiCurrencyStatus> =>
+      send('multi-currency-status'),
+    staleTime: 0,
+  });
+
+  const unassigned = status?.unassignedAccounts ?? [];
+  const transfers = status?.crossCurrencyTransfers ?? [];
+  // Turning the flag off is always allowed
+  const disableToggle =
+    !isEnabled && (unassigned.length > 0 || transfers.length > 0);
+
+  const assignDefault = async () => {
+    await send('multi-currency-assign-default');
+    await queryClient.invalidateQueries({
+      queryKey: ['multi-currency-status'],
+    });
+    await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+  };
+
+  return (
+    <View style={{ gap: 5 }}>
+      <FeatureToggle
+        flag="multiCurrency"
+        disableToggle={disableToggle}
+        error={
+          <View style={{ gap: 5, fontWeight: 400 }}>
+            {unassigned.length > 0 && (
+              <View style={{ gap: 5, alignItems: 'flex-start' }}>
+                <Text>
+                  <Trans>
+                    These off-budget accounts need a currency:{' '}
+                    {
+                      {
+                        accounts: unassigned.map(a => a.name).join(', '),
+                      } as TransObjectLiteral
+                    }
+                  </Trans>
+                </Text>
+                <Button onPress={assignDefault}>
+                  {t('Assign {{currency}} to {{count}} accounts', {
+                    currency: status?.globalCurrency,
+                    count: unassigned.length,
+                  })}
+                </Button>
+              </View>
+            )}
+            {transfers.length > 0 && (
+              <View>
+                <Text>
+                  <Trans>
+                    These transfers are between accounts with different
+                    currencies:
+                  </Trans>
+                </Text>
+                {transfers.map(transfer => (
+                  <Text key={transfer.transactionId}>
+                    {transfer.date}: {transfer.accountName} →{' '}
+                    {transfer.otherAccountName}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
+        }
+      >
+        <Trans>Multi-currency accounts</Trans>
+      </FeatureToggle>
+    </View>
   );
 }
 
@@ -157,6 +250,8 @@ export function ExperimentalFeatures() {
   const goalTemplatesUIEnabled = useFeatureFlag('goalTemplatesUIEnabled');
   const showGoalTemplatesUI = goalTemplatesEnabled || goalTemplatesUIEnabled;
 
+  const currencyEnabled = useFeatureFlag('currency');
+
   const showServerPrefs =
     localStorage.getItem('devEnableServerPrefs') === 'true';
 
@@ -202,6 +297,7 @@ export function ExperimentalFeatures() {
             >
               <Trans>Currency support</Trans>
             </FeatureToggle>
+            {currencyEnabled && <MultiCurrencyToggle />}
             <FeatureToggle
               flag="mobileCalculator"
               feedbackLink="https://github.com/actualbudget/actual/issues/8255"

@@ -39,7 +39,7 @@ app.post('/rates', async (req, res) => {
   if (typeof quote !== 'string' || !CURRENCY_RE.test(quote)) {
     return invalid('invalid-quote');
   }
-  if (base >= quote) {
+  if (base !== quote && base >= quote) {
     return invalid('non-canonical-pair');
   }
   if (!Array.isArray(dates) || dates.length === 0) {

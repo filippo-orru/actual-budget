@@ -2,12 +2,12 @@ import { createMutex } from '#util/mutex';
 
 import { getRows, upsertRows } from './exchange-rates-db';
 import type { ExchangeRateRow } from './exchange-rates-db';
-import { HardcodedProvider } from './providers/hardcoded';
+import { FrankfurterProvider } from './providers/frankfurter';
 import type { ExchangeRateProvider } from './providers/types';
 
 const PENDING_TTL_MS = 12 * 60 * 60 * 1000;
 
-export const defaultProvider: ExchangeRateProvider = new HardcodedProvider();
+export const defaultProvider: ExchangeRateProvider = new FrankfurterProvider();
 
 const mutexes = new Map<string, ReturnType<typeof createMutex>>();
 
@@ -36,7 +36,10 @@ export type GetRatesOptions = {
   now?: () => Date;
 };
 
-/** Returns one row per requested date, in request order. */
+/**
+ * Returns one row per requested date, in request order.
+ * Uses the Frankfurter API provider to fetch real exchange rates.
+ */
 export function getRatesForDates(
   base: string,
   quote: string,

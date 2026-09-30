@@ -1,4 +1,6 @@
 import { send } from '@actual-app/core/platform/client/connection';
+import { convertAmount } from '@actual-app/core/server/exchange-rates/convert';
+import { getDecimalPlaces } from '@actual-app/core/shared/currencies';
 import * as monthUtils from '@actual-app/core/shared/months';
 import { q } from '@actual-app/core/shared/query';
 import type {
@@ -41,6 +43,50 @@ type IntervalRange = {
   firstDayOfWeekIdx: string;
 };
 
+export type NetWorthConversion = {
+  globalCurrency: string;
+  /** Currency of each foreign account (accounts in the global currency are absent). */
+  currencyByAccount: Record<string, string>;
+  /**
+   * Exchange rate into the global currency at the end of an interval.
+   * `index` -1 is the starting balance (the day before `startDate`).
+   * Null when unavailable.
+   */
+  rateFor: (accountId: string, index: number) => number | null;
+};
+
+export function getIntervals(
+  startDate: string,
+  endDate: string,
+  interval: string,
+  firstDayOfWeekIdx: string,
+) {
+  return interval === 'Weekly'
+    ? monthUtils.weekRangeInclusive(startDate, endDate, firstDayOfWeekIdx)
+    : interval === 'Daily'
+      ? monthUtils.dayRangeInclusive(startDate, endDate)
+      : interval === 'Yearly'
+        ? monthUtils.yearRangeInclusive(startDate, endDate)
+        : monthUtils.rangeInclusive(
+            monthUtils.getMonth(startDate),
+            monthUtils.getMonth(endDate),
+          );
+}
+
+/** The last day covered by an interval item (as returned by `getIntervals`). */
+export function getIntervalEndDate(intervalItem: string, interval: string) {
+  if (interval === 'Daily') {
+    return intervalItem;
+  }
+  if (interval === 'Weekly') {
+    return monthUtils.dayFromDate(d.addDays(d.parseISO(intervalItem), 6));
+  }
+  if (interval === 'Yearly') {
+    return `${intervalItem}-12-31`;
+  }
+  return monthUtils.lastDayOfMonth(intervalItem);
+}
+
 export function createSpreadsheet(
   start: string,
   end: string,
@@ -52,6 +98,9 @@ export function createSpreadsheet(
   firstDayOfWeekIdx: string = '0',
   format: (value: unknown, type?: FormatType) => string,
   dateFormat?: string,
+  // Set only when multi-currency is enabled: foreign accounts are converted
+  // into this currency.
+  globalCurrency?: string,
 ) {
   return async (
     spreadsheet: ReturnType<typeof useSpreadsheet>,
@@ -248,6 +297,17 @@ export function createSpreadsheet(
       firstDayOfWeekIdx,
     });
 
+    const conversion = globalCurrency
+      ? await loadConversion({
+          accounts,
+          globalCurrency,
+          startDate,
+          endDate,
+          interval,
+          firstDayOfWeekIdx,
+        })
+      : undefined;
+
     setData(
       recalculate(
         data,
@@ -258,8 +318,69 @@ export function createSpreadsheet(
         firstDayOfWeekIdx,
         format,
         dateFormat,
+        conversion,
       ),
     );
+  };
+}
+
+// Fetches the rates once per foreign currency, covering every interval end
+// date plus the starting date.
+async function loadConversion({
+  accounts,
+  globalCurrency,
+  startDate,
+  endDate,
+  interval,
+  firstDayOfWeekIdx,
+}: {
+  accounts: AccountEntity[];
+  globalCurrency: string;
+  startDate: string;
+  endDate: string;
+  interval: string;
+  firstDayOfWeekIdx: string;
+}): Promise<NetWorthConversion | undefined> {
+  const currencyByAccount: Record<string, string> = {};
+  for (const account of accounts) {
+    if (account.currency && account.currency !== globalCurrency) {
+      currencyByAccount[account.id] = account.currency;
+    }
+  }
+  const currencies = [...new Set(Object.values(currencyByAccount))];
+  if (currencies.length === 0) {
+    return undefined;
+  }
+
+  const startingDate = monthUtils.subDays(startDate, 1);
+  const endDates = getIntervals(
+    startDate,
+    endDate,
+    interval,
+    firstDayOfWeekIdx,
+  ).map(item => getIntervalEndDate(item, interval));
+  const dates = [startingDate, ...endDates];
+
+  const ratesByCurrency: Record<string, Record<string, number | null>> = {};
+  await Promise.all(
+    currencies.map(async from => {
+      const result = await send('exchange-rates-get', {
+        from,
+        to: globalCurrency,
+        dates,
+      });
+      ratesByCurrency[from] = result.rates;
+    }),
+  );
+
+  return {
+    globalCurrency,
+    currencyByAccount,
+    rateFor: (accountId, index) => {
+      const currency = currencyByAccount[accountId];
+      const date = index === -1 ? startingDate : endDates[index];
+      return ratesByCurrency[currency]?.[date] ?? null;
+    },
   };
 }
 
@@ -370,21 +491,42 @@ function recalculate(
   firstDayOfWeekIdx: string = '0',
   format: (value: unknown, type?: FormatType) => string,
   dateFormat?: string,
+  conversion?: NetWorthConversion,
 ) {
-  // Get intervals using the same pattern as other working spreadsheets
-  const intervals =
-    interval === 'Weekly'
-      ? monthUtils.weekRangeInclusive(startDate, endDate, firstDayOfWeekIdx)
-      : interval === 'Daily'
-        ? monthUtils.dayRangeInclusive(startDate, endDate)
-        : interval === 'Yearly'
-          ? monthUtils.yearRangeInclusive(startDate, endDate)
-          : monthUtils.rangeInclusive(
-              monthUtils.getMonth(startDate),
-              monthUtils.getMonth(endDate),
-            );
+  const intervals = getIntervals(
+    startDate,
+    endDate,
+    interval,
+    firstDayOfWeekIdx,
+  );
 
-  const accountBalances = data.map(account => {
+  const missingPairs = new Set<string>();
+  // Converts a native balance into the global currency. Returns null (and
+  // records the pair) when the rate is unavailable. Accounts in the global
+  // currency are returned as they are.
+  const convert = (
+    account: AccountBalanceData,
+    native: number,
+    index: number,
+  ): number | null => {
+    const currency = conversion?.currencyByAccount[account.id];
+    if (!conversion || !currency) {
+      return native;
+    }
+    const rate = conversion.rateFor(account.id, index);
+    if (rate == null) {
+      missingPairs.add(`${currency} → ${conversion.globalCurrency}`);
+      return null;
+    }
+    return convertAmount(
+      native,
+      rate,
+      getDecimalPlaces(currency),
+      getDecimalPlaces(conversion.globalCurrency),
+    );
+  };
+
+  const nativeBalances = data.map(account => {
     let balance = account.starting;
     return intervals.map(intervalItem => {
       if (account.balances[intervalItem]) {
@@ -394,47 +536,63 @@ function recalculate(
     });
   });
 
-  const priorPeriodNetWorth = data.reduce(
-    (sum, account) => sum + account.starting,
-    0,
+  const accountBalances = data.map((account, i) =>
+    nativeBalances[i].map((native, idx) => convert(account, native, idx)),
   );
 
+  let priorPeriodNetWorth: number | null = 0;
+  for (const account of data) {
+    const converted = convert(account, account.starting, -1);
+    priorPeriodNetWorth =
+      priorPeriodNetWorth == null || converted == null
+        ? null
+        : priorPeriodNetWorth + converted;
+  }
+
   let hasNegative = false;
-  let startNetWorth = 0;
-  let endNetWorth = 0;
+  let startNetWorth: number | null = 0;
+  let endNetWorth: number | null = 0;
   let lowestNetWorth: number | null = null;
   let highestNetWorth: number | null = null;
 
   const graphData = intervals.reduce<
     Array<{
       x: string;
-      y: number;
+      /** Null when an exchange rate is missing for this interval. */
+      y: number | null;
       assets: string;
       debt: string;
       change: string;
       networth: string;
       date: string;
+      hasMissingRate: boolean;
     }>
   >((arr, intervalItem, idx) => {
     let debt = 0;
     let assets = 0;
-    let total = 0;
+    let total: number | null = 0;
     const last = arr.length === 0 ? null : arr[arr.length - 1];
 
-    const balances: Record<string, number> = {};
+    const balances: Record<string, number | null> = {};
     accountBalances.forEach((acctBalances, i) => {
       const balance = acctBalances[idx];
       balances[data[i].id] = balance;
 
+      if (balance == null) {
+        total = null;
+        return;
+      }
       if (balance < 0) {
         debt += -balance;
       } else {
         assets += balance;
       }
-      total += balance;
+      if (total != null) {
+        total += balance;
+      }
     });
 
-    if (total < 0) {
+    if (total != null && total < 0) {
       hasNegative = true;
     }
 
@@ -448,7 +606,9 @@ function recalculate(
       x = d.parseISO(intervalItem + '-01');
     }
 
-    const change = last ? total - last.y : total - priorPeriodNetWorth;
+    const previousTotal = last ? last.y : priorPeriodNetWorth;
+    const change =
+      total == null || previousTotal == null ? null : total - previousTotal;
 
     if (arr.length === 0) {
       startNetWorth = total;
@@ -471,28 +631,31 @@ function recalculate(
     const graphPoint = {
       x: d.format(x, displayFormat, { locale }),
       y: total,
-      assets: format(assets, 'financial'),
-      debt: `-${format(debt, 'financial')}`,
-      change: format(change, 'financial'),
-      networth: format(total, 'financial'),
+      assets: total == null ? '—' : format(assets, 'financial'),
+      debt: total == null ? '—' : `-${format(debt, 'financial')}`,
+      change: change == null ? '—' : format(change, 'financial'),
+      networth: total == null ? '—' : format(total, 'financial'),
       date: d.format(x, tooltipFormat, { locale }),
+      hasMissingRate: total == null,
       ...balances,
     };
 
     arr.push(graphPoint);
 
     // Track min/max for the current point only
-    if (lowestNetWorth === null || graphPoint.y < lowestNetWorth) {
-      lowestNetWorth = graphPoint.y;
-    }
-    if (highestNetWorth === null || graphPoint.y > highestNetWorth) {
-      highestNetWorth = graphPoint.y;
+    if (graphPoint.y != null) {
+      if (lowestNetWorth === null || graphPoint.y < lowestNetWorth) {
+        lowestNetWorth = graphPoint.y;
+      }
+      if (highestNetWorth === null || graphPoint.y > highestNetWorth) {
+        highestNetWorth = graphPoint.y;
+      }
     }
 
     return arr;
   }, []);
 
-  const hasBalance = accountBalances.map(balances =>
+  const hasBalance = nativeBalances.map(balances =>
     balances.some(b => b !== 0),
   );
 
@@ -504,7 +667,12 @@ function recalculate(
       end: endDate,
     },
     netWorth: endNetWorth,
-    totalChange: endNetWorth - startNetWorth,
+    totalChange:
+      endNetWorth == null || startNetWorth == null
+        ? null
+        : endNetWorth - startNetWorth,
+    /** Currency pairs whose exchange rate is unavailable for some periods. */
+    missingPairs: [...missingPairs],
     lowestNetWorth,
     highestNetWorth,
     accounts: data

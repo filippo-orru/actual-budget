@@ -26,6 +26,7 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import type { Query } from '@actual-app/core/shared/query';
 import { tsToRelativeTime } from '@actual-app/core/shared/util';
 import type {
   AccountEntity,
@@ -75,6 +76,7 @@ type AccountHeaderProps = {
   reconcileAmount?: number | null;
   isFiltered: boolean;
   filteredAmount?: number | null;
+  filteredQuery?: Query | null;
   isSorted: boolean;
   search: string;
   filterConditions: RuleConditionEntity[];
@@ -147,6 +149,7 @@ export function AccountHeader({
   reconcileAmount,
   isFiltered,
   filteredAmount,
+  filteredQuery,
   isSorted,
   search,
   filterConditions,
@@ -315,8 +318,10 @@ export function AccountHeader({
               showExtraBalances={showExtraBalances}
               onToggleExtraBalances={onToggleExtraBalances}
               account={account}
+              accountId={accountId}
               isFiltered={isFiltered}
               filteredAmount={filteredAmount}
+              filteredQuery={filteredQuery}
             />
           </View>
 

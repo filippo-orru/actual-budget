@@ -25,8 +25,10 @@ import {
   asMonthSlidingTimeFrame,
   calculateTimeRange,
 } from '#components/reports/reportRanges';
+import { withoutForeignAccounts } from '#components/reports/spreadsheets/foreignAccountFilter';
 import { bootstrapHyperFormula } from '#util/bootstrapHyperFormula';
 
+import { useForeignAccountExclusion } from './useForeignAccountExclusion';
 import { useGlobalPref } from './useGlobalPref';
 import { useLocale } from './useLocale';
 
@@ -144,6 +146,11 @@ export function useFormulaExecution(
 ) {
   const locale = useLocale();
   const [language] = useGlobalPref('language');
+  // Formulas don't convert currencies: with multi-currency on, foreign-currency
+  // accounts are left out of query sums/counts and account balances.
+  const { globalCurrency: excludeForeignFrom, excludedAccountIds } =
+    useForeignAccountExclusion();
+  const excludedAccountsKey = excludedAccountIds.join(',');
   const [result, setResult] = useState<number | string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -209,10 +216,15 @@ export function useFormulaExecution(
           throwOnCellError: false,
         });
 
-        await prefetchFormulaQueries(formulaQueryContext, currentQueries);
+        await prefetchFormulaQueries(
+          formulaQueryContext,
+          currentQueries,
+          excludeForeignFrom,
+        );
         await prefetchAccountBalances(
           formulaQueryContext,
           currentAccounts ?? [],
+          excludedAccountsKey === '' ? [] : excludedAccountsKey.split(','),
         );
 
         formulaQueryContext.budgetQueryRequests.clear();
@@ -262,6 +274,8 @@ export function useFormulaExecution(
     queriesKey,
     namedExpressionsKey,
     accountsKey,
+    excludeForeignFrom,
+    excludedAccountsKey,
   ]);
 
   return { result, isLoading, error };
@@ -270,6 +284,7 @@ export function useFormulaExecution(
 async function prefetchFormulaQueries(
   formulaQueryContext: Required<FormulaQueryContext>,
   queries: QueriesMap,
+  excludeForeignFrom?: string,
 ) {
   for (const queryName of formulaQueryContext.queryNames) {
     const queryConfig = queries[queryName];
@@ -280,7 +295,7 @@ async function prefetchFormulaQueries(
       continue;
     }
 
-    const data = await fetchQuerySum(queryConfig);
+    const data = await fetchQuerySum(queryConfig, excludeForeignFrom);
     formulaQueryContext.querySumPrefetch.set(
       queryName,
       integerToAmount(data, 2),
@@ -298,7 +313,7 @@ async function prefetchFormulaQueries(
 
     formulaQueryContext.queryCountPrefetch.set(
       queryName,
-      await fetchQueryCount(queryConfig),
+      await fetchQueryCount(queryConfig, excludeForeignFrom),
     );
   }
 
@@ -327,13 +342,14 @@ async function prefetchFormulaQueries(
 async function prefetchAccountBalances(
   formulaQueryContext: Required<FormulaQueryContext>,
   accounts: SimpleAccount[],
+  excludedAccountIds: string[] = [],
 ) {
   for (const literal of formulaQueryContext.balanceOfNames) {
     const account =
       accounts.find(candidate => candidate.id === literal) ??
       accounts.find(candidate => candidate.name === literal);
 
-    if (!account) {
+    if (!account || excludedAccountIds.includes(account.id)) {
       formulaQueryContext.balanceOfPrefetch.set(literal, 0);
       continue;
     }
@@ -388,6 +404,8 @@ async function prefetchBudgetQueries(
 
 export async function buildFilteredTransactionsQuery(
   config: QueryConfig,
+  // Set when multi-currency is on: excludes foreign-currency accounts
+  excludeForeignFrom?: string,
 ): Promise<Query> {
   const conditions = config.conditions || [];
   const conditionsOp = config.conditionsOp || 'and';
@@ -401,7 +419,10 @@ export async function buildFilteredTransactionsQuery(
   const conditionsOpKey = conditionsOp === 'or' ? '$or' : '$and';
 
   // Start building the query
-  let transQuery = q('transactions');
+  let transQuery = withoutForeignAccounts(
+    q('transactions'),
+    excludeForeignFrom,
+  );
 
   // Add date range filter if provided
   if (timeFrame && timeFrame.mode) {
@@ -424,9 +445,15 @@ export async function buildFilteredTransactionsQuery(
   return transQuery;
 }
 
-async function fetchQuerySum(config: QueryConfig): Promise<number> {
+async function fetchQuerySum(
+  config: QueryConfig,
+  excludeForeignFrom?: string,
+): Promise<number> {
   try {
-    const transQuery = await buildFilteredTransactionsQuery(config);
+    const transQuery = await buildFilteredTransactionsQuery(
+      config,
+      excludeForeignFrom,
+    );
     const summedQuery = transQuery.calculate({ $sum: '$amount' });
     const { data } = await send('query', summedQuery.serialize());
     return data || 0;
@@ -436,9 +463,15 @@ async function fetchQuerySum(config: QueryConfig): Promise<number> {
   }
 }
 
-async function fetchQueryCount(config: QueryConfig): Promise<number> {
+async function fetchQueryCount(
+  config: QueryConfig,
+  excludeForeignFrom?: string,
+): Promise<number> {
   try {
-    const transQuery = await buildFilteredTransactionsQuery(config);
+    const transQuery = await buildFilteredTransactionsQuery(
+      config,
+      excludeForeignFrom,
+    );
     const countQuery = transQuery.calculate({ $count: '*' });
     const { data } = await send('query', countQuery.serialize());
     return data || 0;

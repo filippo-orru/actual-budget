@@ -11,7 +11,7 @@ import { defaultProvider } from './service';
 let tmpDir: string;
 let dbPath: string;
 
-const post = (body: unknown) =>
+const post = (body: any) =>
   request(app).post('/rates').set('x-actual-token', 'valid-token').send(body);
 
 beforeEach(() => {

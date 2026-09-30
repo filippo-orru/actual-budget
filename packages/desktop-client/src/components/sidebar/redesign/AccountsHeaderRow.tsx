@@ -91,6 +91,7 @@ export function AccountsHeaderRow({
       >
         <SidebarBalance
           binding={bindings.allAccountBalance()}
+          scope={{ kind: 'all' }}
           testId="sidebar-all-accounts-balance"
           style={{ fontSize: 12, fontWeight: 600 }}
         />

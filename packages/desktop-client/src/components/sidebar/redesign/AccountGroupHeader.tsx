@@ -176,6 +176,11 @@ export function AccountGroupHeader({
                     group.id,
                     side === 'off',
                   )}
+                  scope={{
+                    kind: 'group',
+                    groupId: group.id,
+                    offbudget: side === 'off',
+                  }}
                   style={{ fontSize: 11, color: groupLabelStyle.color }}
                 />
               </>

@@ -24,6 +24,7 @@ export async function fetchSpreadsheetQueryData({
   conditionsOpKey,
   filters,
   budgetType,
+  globalCurrency,
 }: {
   balanceTypeOp: balanceTypeOpType | undefined;
   startDate: string;
@@ -36,6 +37,8 @@ export async function fetchSpreadsheetQueryData({
   conditionsOpKey: string;
   filters: unknown[];
   budgetType?: SyncedPrefs['budgetType'];
+  /** Set when multi-currency is on: excludes foreign-currency accounts. */
+  globalCurrency?: string;
 }): Promise<{ assets: QueryDataEntity[]; debts: QueryDataEntity[] }> {
   if (balanceTypeOp === 'totalBudgeted') {
     return fetchBudgetData({
@@ -59,6 +62,7 @@ export async function fetchSpreadsheetQueryData({
         interval,
         conditionsOpKey,
         filters,
+        globalCurrency,
       ),
     ).then(({ data }) => data),
     aqlQuery(
@@ -69,6 +73,7 @@ export async function fetchSpreadsheetQueryData({
         interval,
         conditionsOpKey,
         filters,
+        globalCurrency,
       ),
     ).then(({ data }) => data),
   ]);

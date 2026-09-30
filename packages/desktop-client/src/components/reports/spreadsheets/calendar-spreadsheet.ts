@@ -8,6 +8,8 @@ import * as d from 'date-fns';
 import type { useSpreadsheet } from '#hooks/useSpreadsheet';
 import { aqlQuery } from '#queries/aqlQuery';
 
+import { withoutForeignAccounts } from './foreignAccountFilter';
+
 export type CalendarDataType = {
   date: Date;
   incomeValue: number;
@@ -21,6 +23,8 @@ export function calendarSpreadsheet(
   conditions: RuleConditionEntity[] = [],
   conditionsOp: 'and' | 'or' = 'and',
   firstDayOfWeekIdx?: SyncedPrefs['firstDayOfWeekIdx'],
+  // Set when multi-currency is on: excludes foreign-currency accounts
+  globalCurrency?: string,
 ) {
   return async (
     spreadsheet: ReturnType<typeof useSpreadsheet>,
@@ -75,7 +79,7 @@ export function calendarSpreadsheet(
     }
 
     const makeRootQuery = () =>
-      q('transactions')
+      withoutForeignAccounts(q('transactions'), globalCurrency)
         .filter({
           $and: [
             { date: { $gte: d.format(startDay, 'yyyy-MM-dd') } },

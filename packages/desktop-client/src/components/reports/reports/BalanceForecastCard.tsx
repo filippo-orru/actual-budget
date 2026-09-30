@@ -22,11 +22,13 @@ import {
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { Container } from '#components/reports/Container';
 import { DateRange } from '#components/reports/DateRange';
+import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { ReportCard } from '#components/reports/ReportCard';
 import { ReportCardName } from '#components/reports/ReportCardName';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { useBalanceForecast } from '#hooks/useBalanceForecast';
+import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 
@@ -74,9 +76,14 @@ export function BalanceForecastCard({
 
   const [start, end] = calculateTimeRange(meta?.timeFrame, defaultTimeFrame);
 
+  const { excludedAccounts, excludedAccountIds } = useForeignAccountExclusion();
+  // Foreign-currency accounts are excluded when multi-currency is on
   const selectedAccountIds = useMemo(
-    () => meta?.accounts ?? accounts.map(a => a.id),
-    [accounts, meta?.accounts],
+    () =>
+      (meta?.accounts ?? accounts.map(a => a.id)).filter(
+        id => !excludedAccountIds.includes(id),
+      ),
+    [accounts, meta?.accounts, excludedAccountIds],
   );
 
   // `start` may be `yyyy-MM` or `yyyy-MM-dd`; `firstDayOfMonth` handles both.
@@ -176,6 +183,9 @@ export function BalanceForecastCard({
               onClose={() => setNameMenuOpen(false)}
             />
             <DateRange start={start} end={end} />
+            <ForeignAccountsNote
+              accounts={isTrackingBudgetForecast ? [] : excludedAccounts}
+            />
           </View>
           {endingPoint && (
             <View style={{ textAlign: 'right' }}>

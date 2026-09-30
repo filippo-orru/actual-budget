@@ -6,6 +6,8 @@ import * as d from 'date-fns';
 import type { useSpreadsheet } from '#hooks/useSpreadsheet';
 import { aqlQuery } from '#queries/aqlQuery';
 
+import { withoutForeignAccounts } from './foreignAccountFilter';
+
 type MonthlyAgg = { date: string; amount: number };
 
 // Utility functions for Hampel identifier
@@ -82,6 +84,7 @@ export type CrossoverParams = {
   expectedContribution?: number | null; // optional monthly contribution to project future balances
   projectionType: 'hampel' | 'median' | 'mean'; // expense projection method
   expenseAdjustmentFactor?: number; // multiplier for expenses (default 1.0)
+  globalCurrency?: string; // set when multi-currency is on: foreign-currency accounts are excluded
 };
 
 export function createCrossoverSpreadsheet({
@@ -94,6 +97,7 @@ export function createCrossoverSpreadsheet({
   expectedContribution,
   projectionType,
   expenseAdjustmentFactor,
+  globalCurrency,
 }: CrossoverParams) {
   return async (
     _spreadsheet: ReturnType<typeof useSpreadsheet>,
@@ -126,7 +130,7 @@ export function createCrossoverSpreadsheet({
           .map(date => ({ date, amount: 0 }));
       }
 
-      const query = q('transactions')
+      const query = withoutForeignAccounts(q('transactions'), globalCurrency)
         .filter({
           $and: [
             { $or: expenseCategoryIds.map(id => ({ category: id })) },
@@ -149,7 +153,7 @@ export function createCrossoverSpreadsheet({
       incomeAccountIds.map(async accountId => {
         // Get the account balance at the end of the first month (start month)
         const startingBalance = await aqlQuery(
-          q('transactions')
+          withoutForeignAccounts(q('transactions'), globalCurrency)
             .filter({ account: accountId })
             .filter({
               date: { $lte: monthUtils.lastDayOfMonth(start) },
@@ -160,7 +164,7 @@ export function createCrossoverSpreadsheet({
         // We need to exclude the first month since we already have its ending balance as starting
         // Instead of adding months (which can cause invalid month strings), we'll filter out the first month later
         const balances = await aqlQuery(
-          q('transactions')
+          withoutForeignAccounts(q('transactions'), globalCurrency)
             .filter({
               account: accountId,
               date: { $gte: monthUtils.firstDayOfMonth(start) },

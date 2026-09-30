@@ -17,11 +17,13 @@ import { EditablePageHeaderTitle } from '#components/EditablePageHeaderTitle';
 import { QueryManager } from '#components/formula/QueryManager';
 import { MobileBackButton } from '#components/mobile/MobileBackButton';
 import { MobilePageHeader, Page, PageHeader } from '#components/Page';
+import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { FormulaResult } from '#components/reports/FormulaResult';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { useAccounts } from '#hooks/useAccounts';
 import { useCategories } from '#hooks/useCategories';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
+import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormulaExecution } from '#hooks/useFormulaExecution';
 import { useNavigate } from '#hooks/useNavigate';
 import { useThemeColors } from '#hooks/useThemeColors';
@@ -106,6 +108,7 @@ function FormulaInner({ widget }: FormulaInnerProps) {
     undefined,
     simpleAccounts,
   );
+  const { excludedAccounts } = useForeignAccountExclusion();
 
   const colorVariables = useMemo(
     () => ({
@@ -260,6 +263,10 @@ function FormulaInner({ widget }: FormulaInnerProps) {
       }
       padding={0}
     >
+      <ForeignAccountsNote
+        accounts={excludedAccounts}
+        style={{ padding: '0 20px' }}
+      />
       {widget && (
         <View
           style={{

@@ -18,6 +18,7 @@ import { Change } from '#components/reports/Change';
 import { DateRange } from '#components/reports/DateRange';
 import { NetWorthGraph } from '#components/reports/graphs/NetWorthGraph';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { NetWorthRateWarning } from '#components/reports/NetWorthRateWarning';
 import { ReportCard } from '#components/reports/ReportCard';
 import { ReportCardName } from '#components/reports/ReportCardName';
 import { calculateTimeRange } from '#components/reports/reportRanges';
@@ -26,6 +27,7 @@ import { useReport } from '#components/reports/useReport';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
+import { useMultiCurrency } from '#hooks/useMultiCurrency';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 
 type NetWorthCardProps = {
@@ -49,6 +51,7 @@ export function NetWorthCard({
   const [_firstDayOfWeekIdx] = useSyncedPref('firstDayOfWeekIdx');
   const firstDayOfWeekIdx = _firstDayOfWeekIdx || '0';
   const format = useFormat();
+  const { isEnabled: isMultiCurrency, globalCurrency } = useMultiCurrency();
   const dateFormat = useDateFormat() || 'MM/dd/yyyy';
 
   const [latestTransaction, setLatestTransaction] = useState<string>('');
@@ -86,8 +89,11 @@ export function NetWorthCard({
         firstDayOfWeekIdx,
         format,
         dateFormat,
+        isMultiCurrency ? globalCurrency : undefined,
       ),
     [
+      isMultiCurrency,
+      globalCurrency,
       start,
       end,
       accounts,
@@ -142,16 +148,27 @@ export function NetWorthCard({
               >
                 <PrivacyFilter activationFilters={[!isCardHovered]}>
                   <FinancialText>
-                    {format(data.netWorth, 'financial')}
+                    {data.netWorth == null
+                      ? '\u2014'
+                      : format(data.netWorth, 'financial')}
                   </FinancialText>
                 </PrivacyFilter>
               </Block>
               <PrivacyFilter activationFilters={[!isCardHovered]}>
-                <Change amount={data.totalChange} />
+                {data.totalChange == null ? (
+                  <FinancialText>{'\u2014'}</FinancialText>
+                ) : (
+                  <Change amount={data.totalChange} />
+                )}
               </PrivacyFilter>
             </View>
           )}
         </View>
+        {data && (
+          <View style={{ paddingInline: 20 }}>
+            <NetWorthRateWarning missingPairs={data.missingPairs} />
+          </View>
+        )}
 
         {data ? (
           <NetWorthGraph

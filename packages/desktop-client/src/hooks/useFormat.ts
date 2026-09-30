@@ -14,6 +14,8 @@ import {
 } from '@actual-app/core/shared/util';
 import type { IntegerAmount } from '@actual-app/core/shared/util';
 
+import { useCurrencyOverride } from '#components/CurrencyProvider';
+
 import { useSyncedPref } from './useSyncedPref';
 
 export type FormatType =
@@ -116,9 +118,19 @@ export function useFormat(): UseFormatResult {
     'currencySpaceBetweenAmountAndSymbol',
   );
 
+  const currencyOverride = useCurrencyOverride();
+  // An override equal to the global currency is a no-op, so that amounts in
+  // the global currency keep using the user's symbol position preference.
+  const hasOverride =
+    currencyOverride != null &&
+    currencyOverride !== '' &&
+    currencyOverride !== (defaultCurrencyCodePref || '');
+
   const activeCurrency = useMemo(() => {
-    return getCurrency(defaultCurrencyCodePref || '');
-  }, [defaultCurrencyCodePref]);
+    return getCurrency(
+      hasOverride ? currencyOverride : defaultCurrencyCodePref || '',
+    );
+  }, [hasOverride, currencyOverride, defaultCurrencyCodePref]);
 
   const numberFormatConfig = useMemo(
     () =>
@@ -151,7 +163,11 @@ export function useFormat(): UseFormatResult {
       }
 
       const space = spaceEnabledPref === 'true' ? '\u202F' : '';
-      const position = symbolPositionPref || 'before';
+      const position = hasOverride
+        ? activeCurrency.symbolFirst
+          ? 'before'
+          : 'after'
+        : symbolPositionPref || 'before';
 
       const styledAmount =
         position === 'after'
@@ -160,7 +176,7 @@ export function useFormat(): UseFormatResult {
 
       return sign + styledAmount;
     },
-    [symbolPositionPref, spaceEnabledPref],
+    [symbolPositionPref, spaceEnabledPref, hasOverride, activeCurrency],
   );
 
   const formatDisplay = useCallback(

@@ -21,7 +21,10 @@ import type { AccountEntity } from '@actual-app/core/types/models';
 import { css, cx } from '@emotion/css';
 
 import { useReopenAccountMutation, useUpdateAccountMutation } from '#accounts';
+import { AccountBalanceCell } from '#components/accounts/AccountBalanceCell';
 import { BalanceHistoryGraph } from '#components/accounts/BalanceHistoryGraph';
+import { ConvertedTotalCell } from '#components/accounts/ConvertedTotalCell';
+import type { AccountsScope } from '#components/accounts/ConvertedTotalCell';
 import { Link } from '#components/common/Link';
 import { Notes } from '#components/Notes';
 import { DropHighlight, useDraggable, useDroppable } from '#components/sort';
@@ -69,6 +72,8 @@ type AccountProps<FieldName extends SheetFields<'account'>> = {
   titleAccount?: boolean;
   isExactPathMatch?: boolean;
   balanceTestId?: string;
+  /** Set on aggregate rows whose total is converted when foreign accounts exist. */
+  totalScope?: AccountsScope;
 };
 
 export function Account<FieldName extends SheetFields<'account'>>({
@@ -87,6 +92,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
   titleAccount,
   isExactPathMatch,
   balanceTestId,
+  totalScope,
 }: AccountProps<FieldName>) {
   const isTestEnv = useIsTestEnv();
   const { t } = useTranslation();
@@ -127,7 +133,18 @@ export function Account<FieldName extends SheetFields<'account'>>({
   const reopenAccount = useReopenAccountMutation();
   const updateAccount = useUpdateAccountMutation();
 
-  const balanceCell = <CellValue binding={query} type="financial" />;
+  const nativeBalanceCell = <CellValue binding={query} type="financial" />;
+  const balanceCell = account ? (
+    <AccountBalanceCell account={account}>
+      {nativeBalanceCell}
+    </AccountBalanceCell>
+  ) : totalScope ? (
+    <ConvertedTotalCell scope={totalScope}>
+      {nativeBalanceCell}
+    </ConvertedTotalCell>
+  ) : (
+    nativeBalanceCell
+  );
 
   const isContextMenuOpen = useSelector(state =>
     state.contextMenu.items.some(

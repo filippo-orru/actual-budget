@@ -30,6 +30,7 @@ import { FinancialText } from '#components/FinancialText';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CalendarCardSkeleton } from '#components/reports/CalendarCardSkeleton';
 import { DateRange } from '#components/reports/DateRange';
+import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { CalendarGraph } from '#components/reports/graphs/CalendarGraph';
 import { ReportCard } from '#components/reports/ReportCard';
 import { ReportCardName } from '#components/reports/ReportCardName';
@@ -37,6 +38,7 @@ import { calculateTimeRange } from '#components/reports/reportRanges';
 import { calendarSpreadsheet } from '#components/reports/spreadsheets/calendar-spreadsheet';
 import type { CalendarDataType } from '#components/reports/spreadsheets/calendar-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import type { FormatType } from '#hooks/useFormat';
 import { useMergedRefs } from '#hooks/useMergedRefs';
@@ -82,6 +84,8 @@ export function CalendarCard({
     },
     latestTransaction,
   );
+  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
+    useForeignAccountExclusion();
   const params = useMemo(
     () =>
       calendarSpreadsheet(
@@ -90,8 +94,16 @@ export function CalendarCard({
         meta?.conditions,
         meta?.conditionsOp,
         firstDayOfWeekIdx,
+        excludeForeignFrom,
       ),
-    [start, end, meta?.conditions, meta?.conditionsOp, firstDayOfWeekIdx],
+    [
+      start,
+      end,
+      meta?.conditions,
+      meta?.conditionsOp,
+      firstDayOfWeekIdx,
+      excludeForeignFrom,
+    ],
   );
 
   const [cardOrientation, setCardOrientation] = useState<'row' | 'column'>(
@@ -259,6 +271,7 @@ export function CalendarCard({
                 <DateRange start={start} end={end} />
               </Tooltip>
             </Block>
+            <ForeignAccountsNote accounts={excludedAccounts} />
           </View>
         </View>
         <View

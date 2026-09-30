@@ -14,6 +14,7 @@ import type {
 } from '@actual-app/core/types/models';
 
 import { PrivacyFilter } from '#components/PrivacyFilter';
+import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { CrossoverGraph } from '#components/reports/graphs/CrossoverGraph';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { ReportCard } from '#components/reports/ReportCard';
@@ -24,6 +25,7 @@ import { createCrossoverSpreadsheet } from '#components/reports/spreadsheets/cro
 import type { CrossoverData } from '#components/reports/spreadsheets/crossover-spreadsheet';
 import { useReport } from '#components/reports/useReport';
 import { useCategories } from '#hooks/useCategories';
+import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 
@@ -155,6 +157,9 @@ export function CrossoverCard({
     meta?.projectionType ?? 'hampel';
   const expenseAdjustmentFactor = meta?.expenseAdjustmentFactor ?? 1.0;
 
+  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
+    useForeignAccountExclusion();
+
   const params = useMemo(
     () =>
       createCrossoverSpreadsheet({
@@ -167,8 +172,10 @@ export function CrossoverCard({
         expectedContribution,
         projectionType,
         expenseAdjustmentFactor,
+        globalCurrency: excludeForeignFrom,
       }),
     [
+      excludeForeignFrom,
       start,
       end,
       expenseCategoryIds,
@@ -214,6 +221,7 @@ export function CrossoverCard({
               onClose={() => setNameMenuOpen(false)}
             />
             {/* Date range is now fixed and not configurable */}
+            <ForeignAccountsNote accounts={excludedAccounts} />
           </View>
           {data && (
             <View style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

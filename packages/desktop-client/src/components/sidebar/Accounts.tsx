@@ -96,6 +96,7 @@ export function Accounts() {
           query={bindings.allAccountBalance()}
           style={{ fontWeight, marginTop: 15 }}
           isExactPathMatch
+          totalScope={{ kind: 'all' }}
           balanceTestId="sidebar-all-accounts-balance"
         />
 
@@ -142,6 +143,7 @@ export function Accounts() {
               marginBottom: 5,
             }}
             titleAccount
+            totalScope={{ kind: 'offbudget' }}
             balanceTestId="sidebar-off-budget-balance"
           />
         )}

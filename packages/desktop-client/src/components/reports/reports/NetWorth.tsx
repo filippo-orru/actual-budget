@@ -31,6 +31,7 @@ import { Change } from '#components/reports/Change';
 import { NetWorthGraph } from '#components/reports/graphs/NetWorthGraph';
 import { Header } from '#components/reports/Header';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { NetWorthRateWarning } from '#components/reports/NetWorthRateWarning';
 import { ReportOptions } from '#components/reports/ReportOptions';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { createSpreadsheet as netWorthSpreadsheet } from '#components/reports/spreadsheets/net-worth-spreadsheet';
@@ -41,6 +42,7 @@ import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
+import { useMultiCurrency } from '#hooks/useMultiCurrency';
 import { useNavigate } from '#hooks/useNavigate';
 import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
 import { useSyncedPref } from '#hooks/useSyncedPref';
@@ -83,6 +85,7 @@ function NetWorthInner({ widget }: NetWorthInnerProps) {
   );
 
   const { data: accounts = [] } = useAccounts();
+  const { isEnabled: isMultiCurrency, globalCurrency } = useMultiCurrency();
   const {
     conditions,
     conditionsOp,
@@ -139,8 +142,11 @@ function NetWorthInner({ widget }: NetWorthInnerProps) {
         firstDayOfWeekIdx,
         format,
         dateFormat,
+        isMultiCurrency ? globalCurrency : undefined,
       ),
     [
+      isMultiCurrency,
+      globalCurrency,
       start,
       end,
       accounts,
@@ -369,14 +375,22 @@ function NetWorthInner({ widget }: NetWorthInnerProps) {
           >
             <PrivacyFilter>
               <FinancialText>
-                {format(data.netWorth, 'financial')}
+                {data.netWorth == null
+                  ? '\u2014'
+                  : format(data.netWorth, 'financial')}
               </FinancialText>
             </PrivacyFilter>
           </View>
           <PrivacyFilter>
-            <Change amount={data.totalChange} />
+            {data.totalChange == null ? (
+              <FinancialText>{'\u2014'}</FinancialText>
+            ) : (
+              <Change amount={data.totalChange} />
+            )}
           </PrivacyFilter>
         </View>
+
+        <NetWorthRateWarning missingPairs={data.missingPairs} />
 
         <NetWorthGraph
           graphData={data.graphData}

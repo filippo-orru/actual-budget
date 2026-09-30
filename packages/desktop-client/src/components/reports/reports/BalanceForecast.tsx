@@ -31,6 +31,7 @@ import {
 import { Page, PageHeader } from '#components/Page';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { Container } from '#components/reports/Container';
+import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { getCustomTick } from '#components/reports/getCustomTick';
 import { computePadding } from '#components/reports/graphs/util/computePadding';
 import { Header } from '#components/reports/Header';
@@ -38,6 +39,7 @@ import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { useAccounts } from '#hooks/useAccounts';
 import { useBalanceForecast } from '#hooks/useBalanceForecast';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
+import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 import { usePrivacyMode } from '#hooks/usePrivacyMode';
@@ -128,9 +130,14 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
     }
   }, [budgetType, source]);
 
+  const { excludedAccounts, excludedAccountIds } = useForeignAccountExclusion();
+  // Foreign-currency accounts are excluded when multi-currency is on
   const selectedAccountIds = useMemo(
-    () => widget?.meta?.accounts ?? accounts.map(a => a.id),
-    [accounts, widget?.meta?.accounts],
+    () =>
+      (widget?.meta?.accounts ?? accounts.map(a => a.id)).filter(
+        id => !excludedAccountIds.includes(id),
+      ),
+    [accounts, widget?.meta?.accounts, excludedAccountIds],
   );
   const hasMonthOptions = allMonths != null;
   // `start` may be `yyyy-MM` or `yyyy-MM-dd`; `firstDayOfMonth` handles both.
@@ -145,7 +152,7 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
   } = useBalanceForecast({
     accountIds: isTrackingBudgetForecast
       ? undefined
-      : widget
+      : widget || excludedAccounts.length > 0
         ? selectedAccountIds
         : undefined,
     conditions: isTrackingBudgetForecast ? undefined : conditions,
@@ -166,6 +173,9 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
         : null;
   const normalizedForecastData = forecastData ?? null;
   const hasFilters = !isTrackingBudgetForecast && conditions.length > 0;
+  const shownExcludedAccounts = isTrackingBudgetForecast
+    ? []
+    : excludedAccounts;
   const committedChartRange = useRef({ start, end });
 
   async function onSaveWidget() {
@@ -414,6 +424,10 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
           {headerChildren}
         </Header>
       )}
+      <ForeignAccountsNote
+        accounts={shownExcludedAccounts}
+        style={{ paddingInline: 20 }}
+      />
 
       <View
         style={{

@@ -73,6 +73,45 @@ describe('API handlers', () => {
         accountGroupsApp.handlers['account-group-delete'];
       handlers['accounts-get'] = accountsApp.handlers['accounts-get'];
       handlers['account-update'] = accountsApp.handlers['account-update'];
+      handlers['account-create'] = accountsApp.handlers['account-create'];
+    });
+
+    it('creates accounts without storing a currency field', async () => {
+      const id = await handlers['account-create']({
+        name: 'Off-budget account',
+        offBudget: true,
+      });
+      const account = await db.first('SELECT * FROM accounts WHERE id = ?', [
+        id,
+      ]);
+      expect(account).not.toHaveProperty('currency');
+    });
+
+    it('rejects currency updates while allowing name and group edits', async () => {
+      const groupId = await handlers['api/account-group-create']({
+        group: { name: 'Savings' },
+      });
+      await db.insertAccount({ id: 'acct1', name: 'Checking' });
+
+      await handlers['api/account-update']({
+        id: 'acct1',
+        fields: { name: 'Emergency fund', account_group_id: groupId },
+      });
+      const unsupportedFields = { name: undefined, currency: 'EUR' };
+      await expect(
+        handlers['api/account-update']({
+          id: 'acct1',
+          fields: unsupportedFields,
+        }),
+      ).rejects.toThrow("Field 'currency' cannot be updated");
+
+      const account = (await handlers['accounts-get']())[0];
+      expect(account).toMatchObject({
+        id: 'acct1',
+        name: 'Emergency fund',
+        account_group_id: groupId,
+      });
+      expect(account).not.toHaveProperty('currency');
     });
 
     it('round-trips account groups and exposes account_group_id on accounts', async () => {

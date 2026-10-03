@@ -20,7 +20,6 @@ import {
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
-import type { AccountEntity } from '@actual-app/core/types/models';
 import { css } from '@emotion/css';
 import { Command } from 'cmdk';
 
@@ -38,9 +37,6 @@ import {
   onBudgetAccountBalance,
 } from '#spreadsheet/bindings';
 
-import { AccountBalanceCell } from './accounts/AccountBalanceCell';
-import { ConvertedTotalCell } from './accounts/ConvertedTotalCell';
-import type { AccountsScope } from './accounts/ConvertedTotalCell';
 import { CellValue, CellValueText } from './spreadsheet/CellValue';
 import { useTour } from './tour/TourProvider';
 
@@ -70,25 +66,10 @@ function BalanceRow<
 >({
   label,
   binding,
-  scope,
-  account,
 }: {
   label: string;
   binding: Binding<SheetName, FieldName>;
-  scope?: AccountsScope;
-  account?: AccountEntity;
 }) {
-  const balanceStyle = {
-    ...styles.tnum,
-    whiteSpace: 'nowrap',
-    opacity: 0.9,
-  } as const;
-  const nativeBalance = (
-    <CellValue binding={binding} type="financial">
-      {props => <CellValueText {...props} style={balanceStyle} />}
-    </CellValue>
-  );
-
   return (
     <View
       style={{
@@ -99,17 +80,14 @@ function BalanceRow<
       }}
     >
       <Text>{label}</Text>
-      {account ? (
-        <AccountBalanceCell account={account}>
-          {nativeBalance}
-        </AccountBalanceCell>
-      ) : scope ? (
-        <ConvertedTotalCell scope={scope} style={balanceStyle}>
-          {nativeBalance}
-        </ConvertedTotalCell>
-      ) : (
-        nativeBalance
-      )}
+      <CellValue binding={binding} type="financial">
+        {props => (
+          <CellValueText
+            {...props}
+            style={{ ...styles.tnum, whiteSpace: 'nowrap', opacity: 0.9 }}
+          />
+        )}
+      </CellValue>
     </View>
   );
 }
@@ -150,7 +128,6 @@ export function CommandBar() {
           <BalanceRow<'account', 'accounts-balance'>
             label={t('All Accounts')}
             binding={allAccountBalance()}
-            scope={{ kind: 'all' }}
           />
         ),
         Icon: SvgLibrary,
@@ -227,7 +204,6 @@ export function CommandBar() {
             <BalanceRow<'account', 'offbudget-accounts-balance'>
               label={t('Off Budget')}
               binding={offBudgetAccountBalance()}
-              scope={{ kind: 'offbudget' }}
             />
           ),
           Icon: SvgLibrary,
@@ -238,7 +214,6 @@ export function CommandBar() {
             <BalanceRow<'account', 'balance'>
               label={account.name}
               binding={accountBalance(account.id)}
-              account={account}
             />
           ),
           Icon: SvgPiggyBank,

@@ -15,11 +15,6 @@ import { View } from '@actual-app/components/view';
 import { toRelaxedNumber } from '@actual-app/core/shared/util';
 
 import { useCreateAccountMutation } from '#accounts';
-import {
-  AccountCurrencyField,
-  resolveAccountCurrency,
-} from '#components/accounts/AccountCurrencyField';
-import type { AccountCurrencyValue } from '#components/accounts/AccountCurrencyField';
 import { Link } from '#components/common/Link';
 import {
   Modal,
@@ -31,7 +26,6 @@ import {
 import { Checkbox } from '#components/forms';
 import { validateAccountName } from '#components/util/accountValidation';
 import { useAccounts } from '#hooks/useAccounts';
-import { useCurrencyFeature } from '#hooks/useCurrencyFeature';
 import { useNavigate } from '#hooks/useNavigate';
 import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
 import { closeModal } from '#modals/modalsSlice';
@@ -46,12 +40,6 @@ export function CreateLocalAccountModal() {
   const [name, setName] = useState('');
   const [offbudget, setOffbudget] = useState(false);
   const [balance, setBalance] = useState('0');
-  const { isCurrencyActive, globalCurrency } = useCurrencyFeature();
-  const [currencyValue, setCurrencyValue] = useState<AccountCurrencyValue>({
-    useCustomCurrency: false,
-    currency: '',
-  });
-  const showCurrencyField = isCurrencyActive && offbudget;
 
   const [nameError, setNameError] = useState(null);
   const [balanceError, setBalanceError] = useState(false);
@@ -84,9 +72,6 @@ export function CreateLocalAccountModal() {
           name,
           balance: toRelaxedNumber(balance),
           offBudget: offbudget,
-          currency: showCurrencyField
-            ? resolveAccountCurrency(currencyValue, globalCurrency)
-            : null,
         },
         {
           onSuccess: id => {
@@ -216,14 +201,6 @@ export function CreateLocalAccountModal() {
                   </div>
                 </View>
               </View>
-
-              {showCurrencyField && (
-                <AccountCurrencyField
-                  value={currencyValue}
-                  onChange={setCurrencyValue}
-                  globalCurrency={globalCurrency}
-                />
-              )}
 
               <InlineField label={t('Balance')} width="100%">
                 <Input

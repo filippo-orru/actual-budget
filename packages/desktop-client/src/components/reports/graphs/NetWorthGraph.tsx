@@ -35,14 +35,13 @@ import { computePadding } from './util/computePadding';
 
 type NetWorthDataPoint = {
   x: string;
-  // Null when an exchange rate is missing, which leaves a gap in the chart
-  y: number | null;
+  y: number;
   assets: string;
   debt: string;
   change: string;
   networth: string;
   date: string;
-} & Record<string, string | number | boolean | null>;
+} & Record<string, string | number>;
 
 type TrendTooltipProps = TooltipContentProps & {
   style?: CSSProperties;
@@ -275,9 +274,8 @@ export function NetWorthGraph({
 
   // Trend Mode Logic
   const gradientOffset = () => {
-    const values = graphData.data.flatMap(i => (i.y == null ? [] : [i.y]));
-    const dataMax = Math.max(...values);
-    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...graphData.data.map(i => i.y));
+    const dataMin = Math.min(...graphData.data.map(i => i.y));
 
     if (dataMax <= 0) {
       return 0;
@@ -373,9 +371,7 @@ export function NetWorthGraph({
                 left: compact
                   ? 0
                   : computePadding(
-                      graphData.data.flatMap(item =>
-                        item.y == null ? [] : [item.y],
-                      ),
+                      graphData.data.map(item => item.y),
                       value => format(value, 'financial-no-decimals'),
                     ),
                 bottom: 0,

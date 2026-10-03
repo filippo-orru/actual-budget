@@ -66,12 +66,6 @@ export type Modal =
       };
     }
   | {
-      name: 'edit-account-currency';
-      options: {
-        account: AccountEntity;
-      };
-    }
-  | {
       name: 'close-account';
       options: {
         account: AccountEntity;

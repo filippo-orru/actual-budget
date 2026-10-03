@@ -40,7 +40,6 @@ import {
 import { Field, Row } from '#components/table';
 import { FinancialInput } from '#components/util/FinancialInput';
 import { useAccounts } from '#hooks/useAccounts';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 
 const POT_ROW_HEIGHT = 43;
 
@@ -70,8 +69,6 @@ export function MonteCarloPotConfiguration({
 }: MonteCarloPotConfigurationProps) {
   const { t } = useTranslation();
   const { data: accounts = [] } = useAccounts();
-  // Foreign-currency accounts can't be linked: the simulation doesn't convert
-  const { excludedAccountIds } = useForeignAccountExclusion();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Historical models derive this pot's returns from its allocation mix,
@@ -99,10 +96,7 @@ export function MonteCarloPotConfiguration({
   // open-accounts list; keep it represented so the stored link doesn't
   // display as a blank selection
   const openAccounts = accounts
-    .filter(
-      account =>
-        account.closed === 0 && !excludedAccountIds.includes(account.id),
-    )
+    .filter(account => account.closed === 0)
     // Budgeted accounts first, then off-budget, each keeping the user's
     // sidebar drag order (the query already sorts by sort_order) - the
     // same order the sidebar shows

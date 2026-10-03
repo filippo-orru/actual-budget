@@ -21,10 +21,7 @@ import type { AccountEntity } from '@actual-app/core/types/models';
 import { css, cx } from '@emotion/css';
 
 import { useReopenAccountMutation, useUpdateAccountMutation } from '#accounts';
-import { AccountBalanceCell } from '#components/accounts/AccountBalanceCell';
 import { BalanceHistoryGraph } from '#components/accounts/BalanceHistoryGraph';
-import { ConvertedTotalCell } from '#components/accounts/ConvertedTotalCell';
-import type { AccountsScope } from '#components/accounts/ConvertedTotalCell';
 import { Link } from '#components/common/Link';
 import { Notes } from '#components/Notes';
 import { DropHighlight, useDraggable, useDroppable } from '#components/sort';
@@ -32,7 +29,6 @@ import type { OnDragChangeCallback, OnDropCallback } from '#components/sort';
 import { CellValue } from '#components/spreadsheet/CellValue';
 import { useContextMenu } from '#hooks/useContextMenu';
 import { useDragRef } from '#hooks/useDragRef';
-import { useEditAccountCurrencyMenuItem } from '#hooks/useEditAccountCurrencyMenuItem';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useNotes } from '#hooks/useNotes';
 import { useSyncedPref } from '#hooks/useSyncedPref';
@@ -40,8 +36,6 @@ import { openAccountCloseModal } from '#modals/modalsSlice';
 import { useDispatch, useSelector } from '#redux';
 import type { Binding, SheetFields } from '#spreadsheet';
 import { isTouchDevice } from '#util/isTouchDevice';
-
-import { AccountCurrencyBadge } from './AccountCurrencyBadge';
 
 export const accountNameStyle: CSSProperties = {
   marginTop: -2,
@@ -72,8 +66,6 @@ type AccountProps<FieldName extends SheetFields<'account'>> = {
   titleAccount?: boolean;
   isExactPathMatch?: boolean;
   balanceTestId?: string;
-  /** Set on aggregate rows whose total is converted when foreign accounts exist. */
-  totalScope?: AccountsScope;
 };
 
 export function Account<FieldName extends SheetFields<'account'>>({
@@ -92,7 +84,6 @@ export function Account<FieldName extends SheetFields<'account'>>({
   titleAccount,
   isExactPathMatch,
   balanceTestId,
-  totalScope,
 }: AccountProps<FieldName>) {
   const isTestEnv = useIsTestEnv();
   const { t } = useTranslation();
@@ -133,18 +124,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
   const reopenAccount = useReopenAccountMutation();
   const updateAccount = useUpdateAccountMutation();
 
-  const nativeBalanceCell = <CellValue binding={query} type="financial" />;
-  const balanceCell = account ? (
-    <AccountBalanceCell account={account}>
-      {nativeBalanceCell}
-    </AccountBalanceCell>
-  ) : totalScope ? (
-    <ConvertedTotalCell scope={totalScope}>
-      {nativeBalanceCell}
-    </ConvertedTotalCell>
-  ) : (
-    nativeBalanceCell
-  );
+  const balanceCell = <CellValue binding={query} type="financial" />;
 
   const isContextMenuOpen = useSelector(state =>
     state.contextMenu.items.some(
@@ -152,7 +132,6 @@ export function Account<FieldName extends SheetFields<'account'>>({
         typeof i === 'object' && 'name' in i && i.name.startsWith('account-'),
     ),
   );
-  const currencyMenuItems = useEditAccountCurrencyMenuItem(account);
   useContextMenu({
     triggerRef,
     enabled: account != null && needsTooltip,
@@ -162,7 +141,6 @@ export function Account<FieldName extends SheetFields<'account'>>({
         text: t('Rename'),
         onClick: () => setIsEditing(true),
       },
-      ...currencyMenuItems,
       account?.closed
         ? {
             name: 'account-reopen',
@@ -276,10 +254,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
                     />
                   </InitialFocus>
                 ) : (
-                  <>
-                    {name}
-                    <AccountCurrencyBadge account={account} />
-                  </>
+                  name
                 )
               }
               right={

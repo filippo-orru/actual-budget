@@ -37,7 +37,6 @@ import {
   disabledLegendLabel,
   disabledList,
 } from '#components/reports/disabledList';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { getLiveRange } from '#components/reports/getLiveRange';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { ReportLegend } from '#components/reports/ReportLegend';
@@ -59,7 +58,6 @@ import { calculateHasWarning, fromDateRepr } from '#components/reports/util';
 import { useAccounts } from '#hooks/useAccounts';
 import { useCategories } from '#hooks/useCategories';
 import { useDateFormat } from '#hooks/useDateFormat';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 import { useLocalPref } from '#hooks/useLocalPref';
@@ -513,9 +511,6 @@ function CustomReportInner({
     });
   }, [balanceTypeOp, conditions, onApplyFilter]);
 
-  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
-    useForeignAccountExclusion();
-
   const getGroupData = useMemo(() => {
     return createGroupedSpreadsheet({
       startDate,
@@ -533,10 +528,8 @@ function CustomReportInner({
       balanceTypeOp,
       sortByOp,
       firstDayOfWeekIdx,
-      globalCurrency: excludeForeignFrom,
     });
   }, [
-    excludeForeignFrom,
     startDate,
     endDate,
     interval,
@@ -576,10 +569,8 @@ function CustomReportInner({
       graphType,
       firstDayOfWeekIdx,
       dateFormat,
-      globalCurrency: excludeForeignFrom,
     });
   }, [
-    excludeForeignFrom,
     startDate,
     endDate,
     interval,
@@ -1019,7 +1010,6 @@ function CustomReportInner({
                 padding: 10,
               }}
             >
-              <ForeignAccountsNote accounts={excludedAccounts} />
               {graphType !== 'TableGraph' && data && (
                 <View
                   style={{

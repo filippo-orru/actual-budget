@@ -19,7 +19,6 @@ import { LabeledCheckbox } from '#components/forms/LabeledCheckbox';
 import { MobileBackButton } from '#components/mobile/MobileBackButton';
 import { MobilePageHeader, Page, PageHeader } from '#components/Page';
 import { PrivacyFilter } from '#components/PrivacyFilter';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { MonteCarloCashflowGraph } from '#components/reports/graphs/MonteCarloCashflowGraph';
 import { MonteCarloGraph } from '#components/reports/graphs/MonteCarloGraph';
 import type { MonteCarloGraphView } from '#components/reports/graphs/MonteCarloGraphTooltip';
@@ -43,7 +42,6 @@ import type { MonteCarloConfig } from '#components/reports/reports/monte-carlo/m
 import { GROUP_HEADING_STYLE } from '#components/reports/reports/monte-carlo/monteCarloStyles';
 import { useResolvedMonteCarloConfig } from '#components/reports/reports/monte-carlo/useResolvedMonteCarloConfig';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
 import { addNotification } from '#notifications/notificationsSlice';
@@ -92,7 +90,6 @@ export function MonteCarlo() {
       : null;
 
   const resolvedConfig = useResolvedMonteCarloConfig(config);
-  const { excludedAccounts } = useForeignAccountExclusion();
 
   // reset when widget changes
   useEffect(() => {
@@ -299,7 +296,6 @@ export function MonteCarlo() {
           gap: 10,
         }}
       >
-        <ForeignAccountsNote accounts={excludedAccounts} />
         {/* Configuration */}
         <View style={{ flexShrink: 0 }}>
           <View

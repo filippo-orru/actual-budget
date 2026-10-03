@@ -31,7 +31,6 @@ import { MobilePageHeader, Page, PageHeader } from '#components/Page';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { AccountSelector } from '#components/reports/AccountSelector';
 import { CategorySelector } from '#components/reports/CategorySelector';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { CrossoverGraph } from '#components/reports/graphs/CrossoverGraph';
 import { Header } from '#components/reports/Header';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
@@ -42,7 +41,6 @@ import { useReport } from '#components/reports/useReport';
 import { useAccounts } from '#hooks/useAccounts';
 import { useCategories } from '#hooks/useCategories';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 import { useNavigate } from '#hooks/useNavigate';
@@ -330,9 +328,6 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
     [selectedExpenseCategories, showHiddenCategories],
   );
 
-  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
-    useForeignAccountExclusion();
-
   const params = useCallback(
     async (
       spreadsheet: ReturnType<typeof useSpreadsheet>,
@@ -355,12 +350,10 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
           : null,
         projectionType,
         expenseAdjustmentFactor,
-        globalCurrency: excludeForeignFrom,
       });
       await crossoverSpreadsheet(spreadsheet, setData);
     },
     [
-      excludeForeignFrom,
       start,
       end,
       swr,
@@ -472,10 +465,6 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
           </Button>
         )}
       </Header>
-      <ForeignAccountsNote
-        accounts={excludedAccounts}
-        style={{ paddingInline: 20 }}
-      />
 
       <View
         style={{

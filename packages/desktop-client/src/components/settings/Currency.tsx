@@ -10,15 +10,14 @@ import { css } from '@emotion/css';
 
 import { Checkbox } from '#components/forms';
 import { useCurrencyOptions } from '#hooks/useCurrencyOptions';
-import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 
 import { Column, Setting } from './UI';
 
 export function CurrencySettings() {
   const { t } = useTranslation();
+
   const { currencyOptions } = useCurrencyOptions();
-  const isMultiCurrencyEnabled = useFeatureFlag('multiCurrency');
 
   const [defaultCurrencyCode, setDefaultCurrencyCodePref] = useSyncedPref(
     'defaultCurrencyCode',
@@ -87,15 +86,7 @@ export function CurrencySettings() {
                 options={currencyOptions}
                 className={selectButtonClassName}
                 style={{ width: '100%' }}
-                disabled={isMultiCurrencyEnabled}
               />
-              {isMultiCurrencyEnabled && (
-                <Text style={{ color: theme.pageTextSubdued, marginTop: 5 }}>
-                  <Trans>
-                    Disable multi-currency to change the default currency.
-                  </Trans>
-                </Text>
-              )}
             </Column>
 
             <Column

@@ -10,7 +10,6 @@ import type {
 } from '@actual-app/core/types/models';
 
 import { DateRange } from '#components/reports/DateRange';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { ReportCard } from '#components/reports/ReportCard';
 import { ReportCardName } from '#components/reports/ReportCardName';
 import { ReportCardValueSkeleton } from '#components/reports/ReportCardValueSkeleton';
@@ -18,7 +17,6 @@ import { calculateTimeRange } from '#components/reports/reportRanges';
 import { summarySpreadsheet } from '#components/reports/spreadsheets/summary-spreadsheet';
 import { SummaryNumber } from '#components/reports/SummaryNumber';
 import { useReport } from '#components/reports/useReport';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useLocale } from '#hooks/useLocale';
 
 type SummaryCardProps = {
@@ -74,9 +72,6 @@ export function SummaryCard({
     [meta],
   );
 
-  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
-    useForeignAccountExclusion();
-
   const params = useMemo(
     () =>
       summarySpreadsheet(
@@ -86,17 +81,8 @@ export function SummaryCard({
         meta?.conditionsOp,
         content,
         locale,
-        excludeForeignFrom,
       ),
-    [
-      start,
-      end,
-      meta?.conditions,
-      meta?.conditionsOp,
-      content,
-      locale,
-      excludeForeignFrom,
-    ],
+    [start, end, meta?.conditions, meta?.conditionsOp, content, locale],
   );
 
   const data = useReport('summary', params);
@@ -125,7 +111,6 @@ export function SummaryCard({
             onClose={() => setNameMenuOpen(false)}
           />
           <DateRange start={start} end={end} />
-          <ForeignAccountsNote accounts={excludedAccounts} />
         </View>
         <View
           style={{

@@ -37,14 +37,12 @@ import { TransactionList as TransactionListMobile } from '#components/mobile/tra
 import { MobilePageHeader, Page, PageHeader } from '#components/Page';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { DateRange } from '#components/reports/DateRange';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { CalendarGraph } from '#components/reports/graphs/CalendarGraph';
 import { Header } from '#components/reports/Header';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { calendarSpreadsheet } from '#components/reports/spreadsheets/calendar-spreadsheet';
 import type { CalendarDataType } from '#components/reports/spreadsheets/calendar-spreadsheet';
-import { withoutForeignAccounts } from '#components/reports/spreadsheets/foreignAccountFilter';
 import { useReport } from '#components/reports/useReport';
 import { fromDateRepr } from '#components/reports/util';
 import type { TableHandleRef } from '#components/table';
@@ -55,7 +53,6 @@ import { useCategories } from '#hooks/useCategories';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { DisplayPayeeProvider } from '#hooks/useDisplayPayee';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import type { FormatType } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -176,9 +173,6 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
     }
   }, [widget?.meta?.conditions, onApplyFilter, parameters]);
 
-  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
-    useForeignAccountExclusion();
-
   const params = useMemo(() => {
     if (dirty === true) {
       setDirty(false);
@@ -190,17 +184,8 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
       conditions,
       conditionsOp,
       firstDayOfWeekIdx,
-      excludeForeignFrom,
     );
-  }, [
-    start,
-    end,
-    conditions,
-    conditionsOp,
-    firstDayOfWeekIdx,
-    dirty,
-    excludeForeignFrom,
-  ]);
+  }, [start, end, conditions, conditionsOp, firstDayOfWeekIdx, dirty]);
 
   const [sortField, setSortField] = useState('');
   const [ascDesc, setAscDesc] = useState<'asc' | 'desc'>('desc');
@@ -212,10 +197,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
       conditions: conditions.filter(cond => !cond.customName),
     })
       .then((data: { filters: unknown[] }) => {
-        let query = withoutForeignAccounts(
-          q('transactions'),
-          excludeForeignFrom,
-        )
+        let query = q('transactions')
           .filter({
             [conditionsOpKey]: data.filters,
           })
@@ -238,15 +220,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
       .catch((error: unknown) => {
         console.error('Error generating filters:', error);
       });
-  }, [
-    start,
-    end,
-    conditions,
-    conditionsOp,
-    sortField,
-    ascDesc,
-    excludeForeignFrom,
-  ]);
+  }, [start, end, conditions, conditionsOp, sortField, ascDesc]);
 
   const [flexAlignment, setFlexAlignment] = useState('center');
   const scrollbarContainer = useRef<HTMLDivElement>(null);
@@ -594,10 +568,6 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
             </Button>
           )}
         </Header>
-        <ForeignAccountsNote
-          accounts={excludedAccounts}
-          style={{ paddingInline: 20 }}
-        />
       </View>
       <View ref={refContainer as Ref<HTMLDivElement>} style={{ flexGrow: 1 }}>
         <View

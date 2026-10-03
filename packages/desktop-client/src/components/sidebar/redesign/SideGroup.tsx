@@ -106,7 +106,6 @@ export function SideGroup({
           <View style={{ flex: 1 }} />
           <SidebarBalance
             binding={totalBinding}
-            scope={side === 'off' ? { kind: 'offbudget' } : undefined}
             testId={balanceTestId}
             style={{ fontSize: 12, fontWeight: 600, color: 'inherit' }}
           />

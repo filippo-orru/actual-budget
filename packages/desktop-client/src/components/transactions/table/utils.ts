@@ -1,5 +1,4 @@
 import { evalArithmetic } from '@actual-app/core/shared/arithmetic';
-import { getDecimalPlaces } from '@actual-app/core/shared/currencies';
 import { currentDay } from '@actual-app/core/shared/months';
 import {
   amountToInteger,
@@ -29,12 +28,9 @@ export type TransactionUpdateFunction = <T extends keyof SerializedTransaction>(
   value: SerializedTransaction[T],
 ) => void;
 
-// `currencyCode` is only passed when multi-currency is enabled. Without it
-// the legacy (two decimals) behaviour is kept.
 export function serializeTransaction(
   transaction: TransactionEntity,
   showZeroInDeposit?: boolean,
-  currencyCode?: string,
 ): SerializedTransaction {
   const { amount, date: originalDate } = transaction;
 
@@ -65,17 +61,14 @@ export function serializeTransaction(
   return {
     ...transaction,
     date,
-    debit:
-      debit != null ? integerToCurrencyWithDecimal(debit, currencyCode) : '',
-    credit:
-      credit != null ? integerToCurrencyWithDecimal(credit, currencyCode) : '',
+    debit: debit != null ? integerToCurrencyWithDecimal(debit) : '',
+    credit: credit != null ? integerToCurrencyWithDecimal(credit) : '',
   };
 }
 
 export function deserializeTransaction(
   transaction: SerializedTransaction,
   originalTransaction: TransactionEntity,
-  currencyCode?: string,
 ) {
   const { debit, credit, date: originalDate, ...realTransaction } = transaction;
 
@@ -89,12 +82,7 @@ export function deserializeTransaction(
 
   amount =
     amount != null
-      ? amountToInteger(
-          amount,
-          currencyCode === undefined
-            ? undefined
-            : getDecimalPlaces(currencyCode),
-        )
+      ? amountToInteger(amount)
       : (realTransaction.amount ?? originalTransaction.amount);
   let date = originalDate;
   if (date == null) {

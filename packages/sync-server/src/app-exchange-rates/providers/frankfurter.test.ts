@@ -1,18 +1,23 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FrankfurterProvider } from './frankfurter';
 
 describe('FrankfurterProvider', () => {
   let provider: FrankfurterProvider;
   let mockNow: () => Date;
+  const fetchMock = vi.fn<typeof fetch>();
 
   beforeEach(() => {
     // Mock the current date to 2024-03-05 (Tuesday)
     mockNow = () => new Date('2024-03-05T12:00:00Z');
     provider = new FrankfurterProvider(mockNow);
 
-    // Mock global fetch
-    global.fetch = vi.fn();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe('supports', () => {
@@ -72,15 +77,12 @@ describe('FrankfurterProvider', () => {
     });
 
     it('fetches exchange rates for a date range using range query', async () => {
-      const mockResponse = {
-        ok: true,
-        json: async () => [
+      fetchMock.mockResolvedValue(
+        Response.json([
           { date: '2024-03-01', base: 'USD', quote: 'EUR', rate: 0.92 },
           { date: '2024-03-02', base: 'USD', quote: 'EUR', rate: 0.91 },
-        ],
-      };
-
-      (global.fetch as any).mockResolvedValue(mockResponse);
+        ]),
+      );
 
       const result = await provider.getRates(
         'USD',
@@ -96,7 +98,7 @@ describe('FrankfurterProvider', () => {
       expect(result.earliestDate).toBe('1999-01-04');
 
       // Verify the URL was constructed correctly
-      const callUrl = (global.fetch as any).mock.calls[0][0];
+      const callUrl = fetchMock.mock.calls[0][0];
       expect(callUrl).toContain('https://api.frankfurter.dev/v2/rates');
       expect(callUrl).toContain('from=2024-03-01');
       expect(callUrl).toContain('to=2024-03-02');
@@ -105,11 +107,12 @@ describe('FrankfurterProvider', () => {
     });
 
     it('handles API errors gracefully by returning empty rates', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      });
+      fetchMock.mockResolvedValue(
+        new Response(null, {
+          status: 500,
+          statusText: 'Internal Server Error',
+        }),
+      );
 
       const result = await provider.getRates(
         'USD',
@@ -124,32 +127,30 @@ describe('FrankfurterProvider', () => {
     });
 
     it('caps query to today when endDate is in the future', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => [
+      fetchMock.mockResolvedValue(
+        Response.json([
           { date: '2024-03-01', base: 'USD', quote: 'EUR', rate: 0.92 },
           { date: '2024-03-05', base: 'USD', quote: 'EUR', rate: 0.9 },
-        ],
-      });
+        ]),
+      );
 
       // Request dates beyond today (mocked as 2024-03-05)
       await provider.getRates('USD', 'EUR', '2024-03-01', '2024-03-10');
 
-      const callUrl = (global.fetch as any).mock.calls[0][0];
+      const callUrl = fetchMock.mock.calls[0][0];
       // Should cap to today (2024-03-05) instead of the requested 2024-03-10
       expect(callUrl).toContain('to=2024-03-05');
     });
 
     it('filters response to only include the requested quote currency', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => [
+      fetchMock.mockResolvedValue(
+        Response.json([
           { date: '2024-03-01', base: 'USD', quote: 'EUR', rate: 0.92 },
           { date: '2024-03-01', base: 'USD', quote: 'GBP', rate: 0.79 },
           { date: '2024-03-01', base: 'USD', quote: 'USD', rate: 1.0 },
           { date: '2024-03-02', base: 'USD', quote: 'EUR', rate: 0.91 },
-        ],
-      });
+        ]),
+      );
 
       const result = await provider.getRates(
         'USD',
@@ -167,10 +168,7 @@ describe('FrankfurterProvider', () => {
     });
 
     it('handles empty API response by using startDate as latestDate', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => [],
-      });
+      fetchMock.mockResolvedValue(Response.json([]));
 
       const result = await provider.getRates(
         'USD',
@@ -185,15 +183,12 @@ describe('FrankfurterProvider', () => {
     });
 
     it('constructs correct API URL with proper parameters', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => [],
-      });
+      fetchMock.mockResolvedValue(Response.json([]));
 
       // Using dates in the past (before today: 2024-03-05)
       await provider.getRates('GBP', 'JPY', '2024-01-15', '2024-01-31');
 
-      const callUrl = (global.fetch as any).mock.calls[0][0];
+      const callUrl = fetchMock.mock.calls[0][0];
       expect(callUrl).toContain('https://api.frankfurter.dev/v2/rates');
       expect(callUrl).toContain('from=2024-01-15');
       expect(callUrl).toContain('to=2024-01-31');

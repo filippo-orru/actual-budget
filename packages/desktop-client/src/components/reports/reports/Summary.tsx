@@ -31,7 +31,6 @@ import { Checkbox } from '#components/forms';
 import { MobileBackButton } from '#components/mobile/MobileBackButton';
 import { MobilePageHeader, Page, PageHeader } from '#components/Page';
 import { PrivacyFilter } from '#components/PrivacyFilter';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { Header } from '#components/reports/Header';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { calculateTimeRange } from '#components/reports/reportRanges';
@@ -40,7 +39,6 @@ import { useReport } from '#components/reports/useReport';
 import { fromDateRepr } from '#components/reports/util';
 import { FieldSelect } from '#components/rules/RuleEditor';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 import { useNavigate } from '#hooks/useNavigate';
@@ -115,9 +113,6 @@ function SummaryInner({ widget }: SummaryInnerProps) {
       : 'and',
   );
 
-  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
-    useForeignAccountExclusion();
-
   const params = useMemo(
     () =>
       summarySpreadsheet(
@@ -127,7 +122,6 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         dividendFilters.conditionsOp,
         content,
         locale,
-        excludeForeignFrom,
       ),
     [
       start,
@@ -136,7 +130,6 @@ function SummaryInner({ widget }: SummaryInnerProps) {
       dividendFilters.conditionsOp,
       content,
       locale,
-      excludeForeignFrom,
     ],
   );
 
@@ -378,10 +371,6 @@ function SummaryInner({ widget }: SummaryInnerProps) {
           </Button>
         )}
       </Header>
-      <ForeignAccountsNote
-        accounts={excludedAccounts}
-        style={{ paddingInline: 20 }}
-      />
       <View
         style={{
           width: '100%',

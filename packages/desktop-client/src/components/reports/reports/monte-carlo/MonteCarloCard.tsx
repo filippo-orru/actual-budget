@@ -10,7 +10,6 @@ import type { MonteCarloWidget } from '@actual-app/core/types/models';
 
 import { FinancialText } from '#components/FinancialText';
 import { PrivacyFilter } from '#components/PrivacyFilter';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { MonteCarloGraph } from '#components/reports/graphs/MonteCarloGraph';
 import { ReportCard } from '#components/reports/ReportCard';
 import { ReportCardName } from '#components/reports/ReportCardName';
@@ -20,7 +19,6 @@ import {
   runMonteCarloSimulation,
 } from '#components/reports/reports/monte-carlo/monteCarloSimulation';
 import { useResolvedMonteCarloConfig } from '#components/reports/reports/monte-carlo/useResolvedMonteCarloConfig';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 
 // Stable default so an unsaved widget doesn't bust the simulation's
 // memoization on every re-render (e.g. hover state changes)
@@ -49,7 +47,6 @@ export function MonteCarloCard({
   // re-run thousands of simulations
   const config = useMemo(() => monteCarloConfigFromMeta(meta), [meta]);
   const resolvedConfig = useResolvedMonteCarloConfig(config);
-  const { excludedAccounts } = useForeignAccountExclusion();
   const result = useMemo(
     () =>
       runMonteCarloSimulation({
@@ -90,7 +87,6 @@ export function MonteCarloCard({
               }}
               onClose={() => setNameMenuOpen(false)}
             />
-            <ForeignAccountsNote accounts={excludedAccounts} />
           </View>
           <View style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
             <Block

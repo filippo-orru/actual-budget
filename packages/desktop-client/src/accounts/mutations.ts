@@ -60,7 +60,6 @@ type CreateAccountPayload = {
   name: string;
   balance: number;
   offBudget: boolean;
-  currency?: string | null;
 };
 
 export function useCreateAccountMutation() {
@@ -69,17 +68,11 @@ export function useCreateAccountMutation() {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: async ({
-      name,
-      balance,
-      offBudget,
-      currency,
-    }: CreateAccountPayload) => {
+    mutationFn: async ({ name, balance, offBudget }: CreateAccountPayload) => {
       const id = await send('account-create', {
         name,
         balance,
         offBudget,
-        currency,
       });
       return id;
     },
@@ -181,26 +174,6 @@ export function useUpdateAccountMutation() {
         error,
       );
     },
-  });
-}
-
-type SetAccountCurrencyPayload = {
-  id: AccountEntity['id'];
-  currency: string;
-};
-
-export function useSetAccountCurrencyMutation() {
-  const queryClient = useQueryClient();
-
-  // Errors are surfaced by the caller (the dialog shows the backend message)
-  return useMutation({
-    mutationFn: async ({ id, currency }: SetAccountCurrencyPayload) => {
-      const result = await send('account-set-currency', { id, currency });
-      if (result && typeof result === 'object' && 'error' in result) {
-        throw new Error(String(result.error));
-      }
-    },
-    onSuccess: () => invalidateQueries(queryClient),
   });
 }
 

@@ -32,11 +32,7 @@ const accounts = [
   createAccount('savings', 'Savings'),
 ] satisfies AccountEntity[];
 
-function createAccount(
-  id: string,
-  name: string,
-  currency: string | null = null,
-): AccountEntity {
+function createAccount(id: string, name: string): AccountEntity {
   return {
     id,
     name,
@@ -46,7 +42,6 @@ function createAccount(
     last_reconciled: null,
     tombstone: 0,
     account_group_id: null,
-    currency,
     account_id: null,
     bank: null,
     bankName: null,
@@ -70,9 +65,6 @@ async function runReport({
   end = '2026-08',
   interval = 'Monthly',
   earliestTransactionDate = '2026-07-01',
-  globalCurrency,
-  rateAt,
-  requestedRates = [],
 }: {
   accounts: AccountEntity[];
   accountQueryResults: AccountQueryResult[];
@@ -81,11 +73,6 @@ async function runReport({
   end?: string;
   interval?: string;
   earliestTransactionDate?: string;
-  globalCurrency?: string;
-  /** Mocked exchange rate for a currency at a date; null = unavailable. */
-  rateAt?: (currency: string, date: string) => number | null;
-  /** Collects the exchange-rates-get requests. */
-  requestedRates?: Array<{ from: string; to: string; dates: string[] }>;
 }) {
   const remainingAccountResults = [...accountQueryResults];
 
@@ -94,17 +81,6 @@ async function runReport({
     'get-earliest-transaction': async () => ({
       date: earliestTransactionDate,
     }),
-    'exchange-rates-get': async ({ from, to, dates }) => {
-      requestedRates.push({ from, to, dates });
-      const rates = Object.fromEntries(
-        dates.map(date => [date, rateAt ? rateAt(from, date) : null]),
-      );
-      return {
-        rates,
-        isComplete: Object.values(rates).every(rate => rate != null),
-        offline: false,
-      };
-    },
     query: async query => {
       if (query.selectExpressions.includes('transfer_id')) {
         const transferFilter = query.filterExpressions.find(
@@ -145,8 +121,6 @@ async function runReport({
     interval,
     '0',
     value => String(value),
-    undefined,
-    globalCurrency,
   );
 
   // The net worth factory does not use its spreadsheet dependency.
@@ -399,223 +373,4 @@ describe('net worth transfers', () => {
       expect(totals).toEqual(totals.map(() => 100_000));
     },
   );
-});
-
-describe('net worth multi-currency conversion', () => {
-  const eurAccount = createAccount('eur', 'Euro savings', 'EUR');
-  const monthlyRates: Record<string, number> = {
-    '2026-06-30': 1,
-    '2026-07-31': 1.1,
-    '2026-08-31': 1.2,
-  };
-
-  it('converts a constant balance at each interval end date', async () => {
-    const report = await runReport({
-      accounts: [eurAccount],
-      // €1,000 before the range and no transactions in it
-      accountQueryResults: [100_000, []],
-      globalCurrency: 'USD',
-      rateAt: (_currency, date) => monthlyRates[date] ?? null,
-    });
-
-    expect(report.graphData.data.map(point => point.y)).toEqual([
-      110_000, 120_000,
-    ]);
-    // The net worth changes by exactly the converted difference
-    expect(report.netWorth).toBe(120_000);
-    expect(report.totalChange).toBe(10_000);
-    expect(report.missingPairs).toEqual([]);
-  });
-
-  it('converts the per-account balances map too', async () => {
-    const report = await runReport({
-      accounts: [eurAccount],
-      accountQueryResults: [100_000, []],
-      globalCurrency: 'USD',
-      rateAt: (_currency, date) => monthlyRates[date] ?? null,
-    });
-
-    expect(
-      report.graphData.data.map(
-        point => (point as Record<string, unknown>).eur,
-      ),
-    ).toEqual([110_000, 120_000]);
-  });
-
-  it('sums converted foreign accounts with global currency accounts', async () => {
-    const report = await runReport({
-      accounts: [accounts[0], eurAccount],
-      accountQueryResults: [50_000, [], 100_000, []],
-      globalCurrency: 'USD',
-      rateAt: (_currency, date) => monthlyRates[date] ?? null,
-    });
-
-    expect(report.graphData.data.map(point => point.y)).toEqual([
-      160_000, 170_000,
-    ]);
-  });
-
-  it('converts a 0-decimal currency (JPY) into USD', async () => {
-    const report = await runReport({
-      accounts: [createAccount('jpy', 'Yen', 'JPY')],
-      // ¥100,000 (JPY has no minor units)
-      accountQueryResults: [100_000, []],
-      globalCurrency: 'USD',
-      rateAt: () => 0.0065,
-    });
-
-    // ¥100,000 * 0.0065 = $650.00 = 65,000 cents
-    expect(report.graphData.data.map(point => point.y)).toEqual([
-      65_000, 65_000,
-    ]);
-  });
-
-  it('marks intervals with a missing rate and leaves the others alone', async () => {
-    const report = await runReport({
-      accounts: [eurAccount],
-      accountQueryResults: [100_000, []],
-      globalCurrency: 'USD',
-      rateAt: (_currency, date) =>
-        date === '2026-08-31' ? null : (monthlyRates[date] ?? null),
-    });
-
-    const [july, august] = report.graphData.data;
-    expect(july.y).toBe(110_000);
-    expect(july.hasMissingRate).toBe(false);
-    expect(august.y).toBeNull();
-    expect(august.hasMissingRate).toBe(true);
-    expect(august.networth).toBe('\u2014');
-    expect(report.missingPairs).toEqual(['EUR \u2192 USD']);
-    // The summary depends on the missing interval
-    expect(report.netWorth).toBeNull();
-    expect(report.totalChange).toBeNull();
-    expect(report.lowestNetWorth).toBe(110_000);
-    expect(report.highestNetWorth).toBe(110_000);
-  });
-
-  it('does not produce a total when the starting rate is missing', async () => {
-    const report = await runReport({
-      accounts: [eurAccount],
-      accountQueryResults: [100_000, []],
-      globalCurrency: 'USD',
-      rateAt: (_currency, date) =>
-        date === '2026-06-30' ? null : (monthlyRates[date] ?? null),
-    });
-
-    // Only the change of the first interval depends on the starting rate
-    expect(report.graphData.data.map(point => point.y)).toEqual([
-      110_000, 120_000,
-    ]);
-    expect(report.graphData.data[0].change).toBe('\u2014');
-    expect(report.graphData.data[1].change).toBe('10000');
-  });
-
-  it('requests the rates once per currency at the monthly end dates', async () => {
-    const requestedRates: Array<{ from: string; to: string; dates: string[] }> =
-      [];
-    await runReport({
-      accounts: [eurAccount, createAccount('eur2', 'Euro 2', 'EUR')],
-      accountQueryResults: [0, [], 0, []],
-      globalCurrency: 'USD',
-      rateAt: () => 1,
-      requestedRates,
-    });
-
-    expect(requestedRates).toEqual([
-      {
-        from: 'EUR',
-        to: 'USD',
-        dates: ['2026-06-30', '2026-07-31', '2026-08-31'],
-      },
-    ]);
-  });
-
-  // Note: "today" is fixed to 2017-01-01 in tests, so daily and weekly
-  // ranges in 2016 are not clamped.
-  it('requests the rates at the end of each day', async () => {
-    const requestedRates: Array<{ from: string; to: string; dates: string[] }> =
-      [];
-    await runReport({
-      accounts: [eurAccount],
-      accountQueryResults: [0, []],
-      globalCurrency: 'USD',
-      rateAt: () => 1,
-      requestedRates,
-      start: '2016-01',
-      end: '2016-01',
-      interval: 'Daily',
-      earliestTransactionDate: '2016-01-01',
-    });
-
-    const { dates } = requestedRates[0];
-    expect(dates[0]).toBe('2015-12-31');
-    expect(dates[1]).toBe('2016-01-01');
-    expect(dates.at(-1)).toBe('2016-01-31');
-    expect(dates).toHaveLength(32);
-  });
-
-  it('requests the rates at the end of each week (week start + 6 days)', async () => {
-    const requestedRates: Array<{ from: string; to: string; dates: string[] }> =
-      [];
-    await runReport({
-      accounts: [eurAccount],
-      accountQueryResults: [0, []],
-      globalCurrency: 'USD',
-      rateAt: () => 1,
-      requestedRates,
-      start: '2016-01',
-      end: '2016-01',
-      interval: 'Weekly',
-      earliestTransactionDate: '2016-01-01',
-    });
-
-    // Weeks start on Sunday: the first one begins on 2015-12-27
-    expect(requestedRates[0].dates).toEqual([
-      '2015-12-26',
-      '2016-01-02',
-      '2016-01-09',
-      '2016-01-16',
-      '2016-01-23',
-      '2016-01-30',
-      '2016-02-06',
-    ]);
-  });
-
-  it('requests the rates at the end of each year (December 31st)', async () => {
-    const requestedRates: Array<{ from: string; to: string; dates: string[] }> =
-      [];
-    await runReport({
-      accounts: [eurAccount],
-      accountQueryResults: [0, []],
-      globalCurrency: 'USD',
-      rateAt: () => 1,
-      requestedRates,
-      start: '2025-01',
-      end: '2026-01',
-      interval: 'Yearly',
-      earliestTransactionDate: '2025-01-01',
-    });
-
-    expect(requestedRates[0].dates).toEqual([
-      '2024-12-31',
-      '2025-12-31',
-      '2026-12-31',
-    ]);
-  });
-
-  it('does not request rates without a global currency (multiCurrency off)', async () => {
-    const requestedRates: Array<{ from: string; to: string; dates: string[] }> =
-      [];
-    const report = await runReport({
-      accounts: [eurAccount],
-      accountQueryResults: [100_000, []],
-      requestedRates,
-    });
-
-    expect(requestedRates).toEqual([]);
-    expect(report.graphData.data.map(point => point.y)).toEqual([
-      100_000, 100_000,
-    ]);
-    expect(report.missingPairs).toEqual([]);
-  });
 });

@@ -12,7 +12,6 @@ export type DbAccount = {
   closed: 1 | 0;
   tombstone: 1 | 0;
   sort_order: number;
-  currency?: string | null;
   account_id?: string | null;
   balance_current?: number | null;
   balance_available?: number | null;

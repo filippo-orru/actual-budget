@@ -7,12 +7,10 @@ import type {
   FormulaWidget,
 } from '@actual-app/core/types/models';
 
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { FormulaResult } from '#components/reports/FormulaResult';
 import { ReportCard } from '#components/reports/ReportCard';
 import { ReportCardName } from '#components/reports/ReportCardName';
 import { useAccounts } from '#hooks/useAccounts';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useFormulaExecution } from '#hooks/useFormulaExecution';
 import { useThemeColors } from '#hooks/useThemeColors';
 
@@ -59,7 +57,6 @@ export function FormulaCard({
     [accounts],
   );
 
-  const { excludedAccounts } = useForeignAccountExclusion();
   const { result, isLoading, error } = useFormulaExecution(
     formula,
     meta?.queries ?? EMPTY_QUERIES,
@@ -116,7 +113,6 @@ export function FormulaCard({
               }}
               onClose={() => setNameMenuOpen(false)}
             />
-            <ForeignAccountsNote accounts={excludedAccounts} />
           </View>
         )}
         <View

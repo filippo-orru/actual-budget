@@ -11,8 +11,6 @@ import type { Locale } from 'date-fns';
 import type { useSpreadsheet } from '#hooks/useSpreadsheet';
 import { aqlQuery } from '#queries/aqlQuery';
 
-import { withoutForeignAccounts } from './foreignAccountFilter';
-
 export function summarySpreadsheet(
   start: string,
   end: string,
@@ -20,8 +18,6 @@ export function summarySpreadsheet(
   conditionsOp: 'and' | 'or' = 'and',
   summaryContent: SummaryContent,
   locale: Locale,
-  // Set when multi-currency is on: excludes foreign-currency accounts
-  globalCurrency?: string,
 ) {
   return async (
     spreadsheet: ReturnType<typeof useSpreadsheet>,
@@ -88,7 +84,7 @@ export function summarySpreadsheet(
     };
 
     const makeRootQuery = () =>
-      withoutForeignAccounts(q('transactions'), globalCurrency)
+      q('transactions')
         .filter({
           $and: [
             {
@@ -178,7 +174,6 @@ export function summarySpreadsheet(
             summaryContent,
             startDay,
             endDay,
-            globalCurrency,
           )),
         });
         break;
@@ -265,7 +260,6 @@ async function calculatePercentage(
   summaryContent: SummaryContent,
   startDay: Date,
   endDay: Date,
-  globalCurrency?: string,
 ) {
   if (summaryContent.type !== 'percentage') {
     return {
@@ -295,7 +289,7 @@ async function calculatePercentage(
   }
 
   const makeDivisorQuery = () =>
-    withoutForeignAccounts(q('transactions'), globalCurrency)
+    q('transactions')
       .filter({
         [conditionsOpKey]: filters,
       })

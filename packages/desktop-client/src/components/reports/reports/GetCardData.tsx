@@ -17,7 +17,6 @@ import type {
 import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 
 import { ChooseGraph } from '#components/reports/ChooseGraph';
-import { ForeignAccountsNote } from '#components/reports/ForeignAccountsNote';
 import { getLiveRange } from '#components/reports/getLiveRange';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { ReportOptions } from '#components/reports/ReportOptions';
@@ -25,7 +24,6 @@ import { createCustomSpreadsheet } from '#components/reports/spreadsheets/custom
 import { createGroupedSpreadsheet } from '#components/reports/spreadsheets/grouped-spreadsheet';
 import { useReport } from '#components/reports/useReport';
 import { useDateFormat } from '#hooks/useDateFormat';
-import { useForeignAccountExclusion } from '#hooks/useForeignAccountExclusion';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 
 function ErrorFallback() {
@@ -125,9 +123,6 @@ export function GetCardData({
     intervals = monthUtils[rangeInclusive](intervalDateStart, intervalDateEnd);
   }
 
-  const { globalCurrency: excludeForeignFrom, excludedAccounts } =
-    useForeignAccountExclusion();
-
   const getGroupData = useMemo(() => {
     return createGroupedSpreadsheet({
       startDate,
@@ -145,17 +140,8 @@ export function GetCardData({
       balanceTypeOp: ReportOptions.balanceTypeMap.get(report.balanceType),
       firstDayOfWeekIdx,
       sortByOp: report.sortBy,
-      globalCurrency: excludeForeignFrom,
     });
-  }, [
-    report,
-    categories,
-    startDate,
-    endDate,
-    firstDayOfWeekIdx,
-    budgetType,
-    excludeForeignFrom,
-  ]);
+  }, [report, categories, startDate, endDate, firstDayOfWeekIdx, budgetType]);
   const getGraphData = useMemo(() => {
     return createCustomSpreadsheet({
       startDate,
@@ -178,10 +164,8 @@ export function GetCardData({
       firstDayOfWeekIdx,
       sortByOp: report.sortBy,
       dateFormat,
-      globalCurrency: excludeForeignFrom,
     });
   }, [
-    excludeForeignFrom,
     report,
     categories,
     payees,
@@ -202,10 +186,6 @@ export function GetCardData({
 
   return data?.data ? (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <ForeignAccountsNote
-        accounts={excludedAccounts}
-        style={{ paddingInline: 20, paddingBottom: 5 }}
-      />
       <ChooseGraph
         data={data}
         mode={report.mode}

@@ -60,8 +60,6 @@ export type createCustomSpreadsheetProps = {
   graphType?: string;
   firstDayOfWeekIdx?: SyncedPrefs['firstDayOfWeekIdx'];
   dateFormat?: SyncedPrefs['dateFormat'];
-  /** Set when multi-currency is on: excludes foreign-currency accounts. */
-  globalCurrency?: string;
 };
 
 export function createCustomSpreadsheet({
@@ -85,7 +83,6 @@ export function createCustomSpreadsheet({
   graphType,
   firstDayOfWeekIdx,
   dateFormat,
-  globalCurrency,
 }: createCustomSpreadsheetProps) {
   const [categoryList, categoryGroup] = categoryLists(categories);
 
@@ -135,7 +132,6 @@ export function createCustomSpreadsheet({
       conditionsOpKey,
       filters,
       budgetType,
-      globalCurrency,
     }));
 
     if (interval === 'Weekly' && balanceTypeOp !== 'totalBudgeted') {

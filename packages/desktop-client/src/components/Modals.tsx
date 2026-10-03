@@ -36,7 +36,6 @@ import { CreateAccountModal } from './modals/CreateAccountModal';
 import { CreateEncryptionKeyModal } from './modals/CreateEncryptionKeyModal';
 import { CreateLocalAccountModal } from './modals/CreateLocalAccountModal';
 import { EditUserAccess } from './modals/EditAccess';
-import { EditAccountCurrencyModal } from './modals/EditAccountCurrencyModal';
 import { EditFieldModal } from './modals/EditFieldModal';
 import { EditRuleModal } from './modals/EditRuleModal';
 import { EditUserFinanceApp } from './modals/EditUser';
@@ -141,9 +140,6 @@ export function Modals() {
 
         case 'account-groups':
           return <AccountGroupsModal key={key} {...modal.options} />;
-
-        case 'edit-account-currency':
-          return <EditAccountCurrencyModal key={key} {...modal.options} />;
 
         case 'close-account':
           return <CloseAccountModal key={key} {...modal.options} />;

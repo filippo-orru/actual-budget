@@ -48,7 +48,6 @@ import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
 import { send } from '@actual-app/core/platform/client/connection';
-import { getDecimalPlaces } from '@actual-app/core/shared/currencies';
 import { memoizeOne } from '@actual-app/core/shared/memoize';
 import * as monthUtils from '@actual-app/core/shared/months';
 import { q } from '@actual-app/core/shared/query';
@@ -66,7 +65,6 @@ import {
 } from '@actual-app/core/shared/transactions';
 import {
   amountToCurrency,
-  amountToInteger,
   currencyToAmount,
   integerToCurrency,
   titleFirst,
@@ -84,7 +82,6 @@ import type {
 import { format as formatDate, parseISO } from 'date-fns';
 
 import { getAccountsById } from '#accounts/accountsSlice';
-import { AccountCurrencyProvider } from '#components/accounts/AccountCurrencyProvider';
 import { AccountAutocomplete } from '#components/autocomplete/AccountAutocomplete';
 import { CategoryAutocomplete } from '#components/autocomplete/CategoryAutocomplete';
 import { PayeeAutocomplete } from '#components/autocomplete/PayeeAutocomplete';
@@ -127,10 +124,8 @@ import type {
   OnDragChangeCallback,
   OnDropCallback,
 } from '#hooks/useDragDrop';
-import { useFormat } from '#hooks/useFormat';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useMergedRefs } from '#hooks/useMergedRefs';
-import { useMultiCurrency } from '#hooks/useMultiCurrency';
 import { usePrevious } from '#hooks/usePrevious';
 import { useProperFocus } from '#hooks/useProperFocus';
 import { useResizeObserver } from '#hooks/useResizeObserver';
@@ -870,7 +865,6 @@ function PayeeCell({
         <PayeeAutocomplete
           payees={payees}
           accounts={accounts}
-          currentAccountId={transaction.account}
           value={payee?.id ?? null}
           shouldSaveFromKey={shouldSaveFromKey}
           inputProps={{
@@ -1048,7 +1042,7 @@ type TransactionProps = {
   amountColumnWidths: AmountColumnWidths;
 };
 
-const TransactionInner = memo(function TransactionInner({
+const Transaction = memo(function Transaction({
   allTransactions,
   transaction: originalTransaction,
   subtransactions,
@@ -1107,22 +1101,6 @@ const TransactionInner = memo(function TransactionInner({
   amountColumnWidths,
 }: TransactionProps) {
   const { t } = useTranslation();
-  const format = useFormat();
-  const { isEnabled: isMultiCurrency, getAccountCurrency } = useMultiCurrency();
-  // Only set when multi-currency is on, so nothing changes otherwise.
-  const currencyCode = isMultiCurrency
-    ? getAccountCurrency(originalTransaction.account)
-    : undefined;
-  const formatAmountInput = (value: string) => {
-    const amount = currencyToAmount(value) || 0;
-    if (currencyCode === undefined) {
-      return amountToCurrency(amount);
-    }
-    return format(
-      amountToInteger(amount, getDecimalPlaces(currencyCode)),
-      'financial',
-    );
-  };
 
   const dispatch = useDispatch();
   const dispatchSelected = useSelectedDispatch();
@@ -1131,7 +1109,7 @@ const TransactionInner = memo(function TransactionInner({
   const [prevShowZero, setPrevShowZero] = useState(showZeroInDeposit);
   const [prevTransaction, setPrevTransaction] = useState(originalTransaction);
   const [transaction, setTransaction] = useState(() =>
-    serializeTransaction(originalTransaction, showZeroInDeposit, currencyCode),
+    serializeTransaction(originalTransaction, showZeroInDeposit),
   );
   const isPreview = isPreviewId(transaction.id);
 
@@ -1140,11 +1118,7 @@ const TransactionInner = memo(function TransactionInner({
     showZeroInDeposit !== prevShowZero
   ) {
     setTransaction(
-      serializeTransaction(
-        originalTransaction,
-        showZeroInDeposit,
-        currencyCode,
-      ),
+      serializeTransaction(originalTransaction, showZeroInDeposit),
     );
     setPrevTransaction(originalTransaction);
     setPrevShowZero(showZeroInDeposit);
@@ -1297,13 +1271,10 @@ const TransactionInner = memo(function TransactionInner({
       const deserialized = deserializeTransaction(
         newTransaction,
         originalTransaction,
-        currencyCode,
       );
       // Run the transaction through the formatting so that we know
       // it's always showing the formatted result
-      setTransaction(
-        serializeTransaction(deserialized, showZeroInDeposit, currencyCode),
-      );
+      setTransaction(serializeTransaction(deserialized, showZeroInDeposit));
 
       const deserializedName = ['credit', 'debit'].includes(name)
         ? 'amount'
@@ -2005,7 +1976,7 @@ const TransactionInner = memo(function TransactionInner({
             value={debit === '' && credit === '' ? amountToCurrency(0) : debit}
             formatter={value =>
               // reformat value so since we might have kept decimals
-              value ? formatAmountInput(value) : ''
+              value ? amountToCurrency(currencyToAmount(value) || 0) : ''
             }
             valueStyle={valueStyle}
             textAlign="right"
@@ -2040,7 +2011,7 @@ const TransactionInner = memo(function TransactionInner({
             value={credit}
             formatter={value =>
               // reformat value so since we might have kept decimals
-              value ? formatAmountInput(value) : ''
+              value ? amountToCurrency(currencyToAmount(value) || 0) : ''
             }
             valueStyle={valueStyle}
             textAlign="right"
@@ -2070,9 +2041,7 @@ const TransactionInner = memo(function TransactionInner({
             value={
               runningBalance == null || isChild || isTemporaryId(id)
                 ? ''
-                : currencyCode === undefined
-                  ? integerToCurrency(runningBalance)
-                  : format(runningBalance, 'financial')
+                : integerToCurrency(runningBalance)
             }
             valueStyle={{
               color:
@@ -2246,16 +2215,6 @@ const TransactionInner = memo(function TransactionInner({
         )}
       </DragPreview>
     </View>
-  );
-});
-
-// Formats the row's amounts in the row's account currency (mixed views show
-// rows of several currencies). A no-op unless multi-currency is enabled.
-const Transaction = memo(function Transaction(props: TransactionProps) {
-  return (
-    <AccountCurrencyProvider account={props.transaction.account}>
-      <TransactionInner {...props} />
-    </AccountCurrencyProvider>
   );
 });
 

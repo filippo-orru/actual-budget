@@ -633,7 +633,6 @@ handlers['api/account-create'] = withMutation(async function ({
     name: account.name,
     offBudget: account.offbudget,
     closed: account.closed,
-    currency: account.currency ?? null,
     // Current the API expects an amount but it really should expect
     // an integer
     balance: initialBalance != null ? integerToAmount(initialBalance) : null,
@@ -642,7 +641,7 @@ handlers['api/account-create'] = withMutation(async function ({
 
 handlers['api/account-update'] = withMutation(async function ({ id, fields }) {
   checkFileOpen();
-  const { id: _ignoredId, name, account_group_id, currency, ...rest } = fields;
+  const { id: _ignoredId, name, account_group_id, ...rest } = fields;
 
   const hints: Record<string, string> = {
     closed: "Use closeAccount/reopenAccount to change 'closed'",
@@ -663,12 +662,6 @@ handlers['api/account-update'] = withMutation(async function ({ id, fields }) {
       ...(name !== undefined && { name }),
       ...(account_group_id !== undefined && { account_group_id }),
     });
-  }
-  if (currency !== undefined) {
-    if (currency === null) {
-      throw APIError("Field 'currency' cannot be cleared");
-    }
-    await handlers['account-set-currency']({ id, currency });
   }
 });
 

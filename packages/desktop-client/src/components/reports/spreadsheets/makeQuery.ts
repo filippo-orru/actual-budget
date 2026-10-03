@@ -2,8 +2,6 @@ import { q } from '@actual-app/core/shared/query';
 
 import { ReportOptions } from '#components/reports/ReportOptions';
 
-import { withoutForeignAccounts } from './foreignAccountFilter';
-
 export function makeQuery(
   name: string,
   startDate: string,
@@ -11,8 +9,6 @@ export function makeQuery(
   interval: string,
   conditionsOpKey: string,
   filters: unknown[],
-  // Set when multi-currency is on: excludes foreign-currency accounts
-  globalCurrency?: string,
 ) {
   const intervalGroup =
     interval === 'Monthly'
@@ -25,7 +21,7 @@ export function makeQuery(
       ? '$day'
       : '$' + ReportOptions.intervalMap.get(interval)?.toLowerCase() || 'month';
 
-  const query = withoutForeignAccounts(q('transactions'), globalCurrency)
+  const query = q('transactions')
     //Apply filters and split by "Group By"
     .filter({
       [conditionsOpKey]: filters,

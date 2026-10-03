@@ -10,7 +10,6 @@ export type AccountEntity = {
   last_reconciled: string | null;
   tombstone: 0 | 1;
   account_group_id: AccountGroupEntity['id'] | null;
-  currency: string | null;
 
   // Sync fields
   account_id: string | null;

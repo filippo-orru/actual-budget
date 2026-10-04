@@ -8,6 +8,7 @@ import type { Diff } from '@actual-app/core/shared/util';
 import type { NewRuleEntity, PayeeEntity } from '@actual-app/core/types/models';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useOrphanedPayees } from '#hooks/useOrphanedPayees';
 import { usePayeeRuleCounts } from '#hooks/usePayeeRuleCounts';
 import { usePayees } from '#hooks/usePayees';
@@ -29,6 +30,7 @@ export function ManagePayeesWithData({
   const { data: orphanedPayees = [], refetch: refetchOrphanedPayees } =
     useOrphanedPayees();
   const dispatch = useDispatch();
+  const budgetId = useBudgetSpaceId();
   const { data: ruleCounts = new Map(), refetch: refetchRuleCounts } =
     usePayeeRuleCounts();
 
@@ -85,6 +87,7 @@ export function ManagePayeesWithData({
 
   function onCreateRule(id: PayeeEntity['id']) {
     const rule: NewRuleEntity = {
+      budget_id: budgetId,
       stage: null,
       conditionsOp: 'and',
       conditions: [

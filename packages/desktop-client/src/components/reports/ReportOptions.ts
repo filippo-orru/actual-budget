@@ -1,3 +1,4 @@
+import { DEFAULT_BUDGET_ID } from '@actual-app/core/shared/budget-spaces';
 import * as monthUtils from '@actual-app/core/shared/months';
 import type {
   CategoryEntity,
@@ -12,6 +13,7 @@ const endDate = monthUtils.currentDay();
 
 export const defaultReport: CustomReportEntity = {
   id: '',
+  budget_id: DEFAULT_BUDGET_ID,
   name: '',
   startDate,
   endDate,

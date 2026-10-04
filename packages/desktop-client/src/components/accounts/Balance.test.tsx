@@ -29,6 +29,7 @@ function makeSchedule(
 ): ScheduleEntity {
   return {
     id,
+    budget_id: 'default',
     rule: 'rule-1',
     next_date: '2026-03-24',
     completed: false,

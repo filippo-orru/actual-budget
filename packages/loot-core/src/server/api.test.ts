@@ -247,6 +247,7 @@ describe('API handlers', () => {
         };
         const internalRule = {
           id: 'rule-id',
+          budget_id: 'default',
           ...rule,
           stage: stage === 'default' ? null : stage,
         };
@@ -258,6 +259,7 @@ describe('API handlers', () => {
         );
         expect(handlers['rule-add']).toHaveBeenCalledWith({
           ...rule,
+          budget_id: 'default',
           stage: internalRule.stage,
         });
       },
@@ -272,6 +274,13 @@ describe('API handlers', () => {
     });
 
     test('normalizes default input at the API boundary', async () => {
+      await db.insertWithSchema('rules', {
+        id: 'rule-id',
+        budget_id: 'default',
+        stage: 'pre',
+        conditions: [],
+        actions: [],
+      });
       const rule = {
         id: 'rule-id',
         stage: 'default' as const,
@@ -279,7 +288,7 @@ describe('API handlers', () => {
         conditions: [],
         actions: [],
       };
-      const internalRule = { ...rule, stage: null };
+      const internalRule = { ...rule, budget_id: 'default', stage: null };
 
       handlers['rule-update'] = vi.fn().mockResolvedValue(internalRule);
 

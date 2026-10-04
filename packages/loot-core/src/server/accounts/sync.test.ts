@@ -374,6 +374,7 @@ describe('Account sync', () => {
     const payeeId = await db.insertPayee({ name: 'bakkerij' });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: payeeId }],
@@ -425,6 +426,7 @@ describe('Account sync', () => {
     const payeeId = await db.insertPayee({ name: 'bakkerij-renamed' });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'imported_payee', value: 'Bakkerij' }],
@@ -472,6 +474,7 @@ describe('Account sync', () => {
       // shouldn't be able able to create rules for a merged payee.
       // Unless they sync in a rule...
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [{ op: 'is', field: 'imported_payee', value: 'Bakkerij' }],
@@ -535,6 +538,7 @@ describe('Account sync', () => {
 
     // Make sure it still runs rules
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'imported_payee', value: 'Bakkerij' }],

@@ -262,6 +262,7 @@ function buildRuleUpdate(
 ): RuleEntity {
   return {
     id: rule.id,
+    budget_id: rule.budget_id,
     stage: rule.stage ?? null,
     conditionsOp: rule.conditionsOp ?? 'and',
     conditions: rule.conditions,

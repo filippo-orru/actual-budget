@@ -1,7 +1,9 @@
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import type { Budget } from '#types/budget';
 import type {
   AccountEntity,
   AccountGroupEntity,
+  BudgetSpaceEntity,
   CategoryEntity,
   CategoryGroupEntity,
   NewRuleEntity,
@@ -13,6 +15,8 @@ import type {
 
 import type { RemoteFile } from './cloud-storage';
 import * as models from './models';
+
+export type APIBudgetSpaceEntity = BudgetSpaceEntity;
 
 export type APIAccountEntity = Pick<AccountEntity, 'id' | 'name'> & {
   offbudget?: boolean;
@@ -89,6 +93,7 @@ export const categoryModel = {
     const { group_id, ...apiCategory } = category;
     const result: CategoryEntity = {
       ...apiCategory,
+      budget_id: DEFAULT_BUDGET_ID,
       group: group_id,
     };
     return result;
@@ -146,15 +151,22 @@ export const payeeModel = {
   },
 };
 
-export type APIRuleEntity = Omit<RuleEntity, 'stage'> & {
+export type APIRuleEntity = Omit<RuleEntity, 'stage' | 'budget_id'> & {
   stage: RuleEntity['stage'] | 'default';
 };
 
-function fromExternalRule(rule: APIRuleEntity): RuleEntity;
-function fromExternalRule(rule: Omit<APIRuleEntity, 'id'>): NewRuleEntity;
-function fromExternalRule(rule: Omit<APIRuleEntity, 'id'> | APIRuleEntity) {
+function fromExternalRule(rule: APIRuleEntity, budgetId: string): RuleEntity;
+function fromExternalRule(
+  rule: Omit<APIRuleEntity, 'id'>,
+  budgetId: string,
+): NewRuleEntity;
+function fromExternalRule(
+  rule: Omit<APIRuleEntity, 'id'> | APIRuleEntity,
+  budgetId: string,
+) {
   return {
     ...rule,
+    budget_id: budgetId,
     stage: rule.stage === 'default' ? null : rule.stage,
   };
 }
@@ -259,6 +271,7 @@ export const scheduleModel = {
     const amount = schedule.amount ?? 0;
     const result: ScheduleEntity = {
       id: schedule.id,
+      budget_id: DEFAULT_BUDGET_ID,
       name: schedule.name,
       rule: String(schedule.rule),
       next_date: String(schedule.next_date),

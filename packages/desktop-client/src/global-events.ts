@@ -7,6 +7,7 @@ import { t } from 'i18next';
 import { accountQueries } from './accounts';
 import { setAppState } from './app/appSlice';
 import { categoryQueries } from './budget';
+import { budgetSpaceQueries } from './budget-spaces/queries';
 import { closeBudgetUI } from './budgetfiles/budgetfilesSlice';
 import { closeModal, pushModal, replaceModal } from './modals/modalsSlice';
 import type { Modal } from './modals/modalsSlice';
@@ -53,6 +54,14 @@ export function handleGlobalEvents(store: AppStore, queryClient: QueryClient) {
   const unlistenUndo = listen('undo-event', undoState => {
     const { tables, undoTag } = undoState;
     const promises: Promise<unknown>[] = [];
+
+    if (tables.includes('budgets')) {
+      promises.push(
+        queryClient.invalidateQueries({
+          queryKey: budgetSpaceQueries.all(),
+        }),
+      );
+    }
 
     if (
       tables.includes('categories') ||

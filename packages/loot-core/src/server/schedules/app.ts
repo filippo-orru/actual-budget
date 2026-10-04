@@ -22,6 +22,7 @@ import {
 } from '#server/transactions/transaction-rules';
 import { undoable } from '#server/undo';
 import { RSchedule } from '#server/util/rschedule';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import { currentDay, dayFromDate } from '#shared/months';
 import { q } from '#shared/query';
 import {
@@ -195,6 +196,7 @@ async function fixRuleForSchedule(id) {
   }
 
   const newId = await insertRule({
+    budget_id: DEFAULT_BUDGET_ID,
     stage: null,
     conditionsOp: 'and',
     conditions: [
@@ -334,6 +336,7 @@ export async function createSchedule({
 
   // Create the rule here based on the info
   const ruleId = await insertRule({
+    budget_id: DEFAULT_BUDGET_ID,
     stage: null,
     conditionsOp: 'and',
     conditions,
@@ -351,6 +354,7 @@ export async function createSchedule({
 
   await db.insertWithSchema('schedules', {
     ...scheduleFields,
+    budget_id: DEFAULT_BUDGET_ID,
     id: scheduleId,
     rule: ruleId,
   });

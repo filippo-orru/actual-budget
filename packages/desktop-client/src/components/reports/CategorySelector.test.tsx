@@ -20,7 +20,13 @@ function makeCategory({
   hidden?: boolean;
   group?: string;
 }): CategoryEntity {
-  return { id, name, hidden, group } satisfies CategoryEntity;
+  return {
+    id,
+    budget_id: 'default',
+    name,
+    hidden,
+    group,
+  } satisfies CategoryEntity;
 }
 
 function makeCategoryGroup({
@@ -32,7 +38,12 @@ function makeCategoryGroup({
   name: string;
   categories: CategoryEntity[];
 }): CategoryGroupEntity {
-  return { id, name, categories } satisfies CategoryGroupEntity;
+  return {
+    id,
+    budget_id: 'default',
+    name,
+    categories,
+  } satisfies CategoryGroupEntity;
 }
 
 const cat1 = makeCategory({ id: 'cat1', name: 'Category 1' });

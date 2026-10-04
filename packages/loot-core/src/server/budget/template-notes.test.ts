@@ -372,6 +372,7 @@ function mockSchedules(): db.DbSchedule[] {
   return [
     {
       id: 'mock-schedule-1',
+      budget_id: 'default',
       rule: 'mock-rule',
       active: 1,
       completed: 0,
@@ -383,6 +384,7 @@ function mockSchedules(): db.DbSchedule[] {
     },
     {
       id: 'mock-schedule-2',
+      budget_id: 'default',
       rule: 'mock-rule',
       active: 1,
       completed: 0,

@@ -1350,6 +1350,12 @@ class AccountInternal extends PureComponent<
 
     const transactions = ungroupTransactions(data);
     const ruleTransaction = transactions[0];
+    const ruleAccount = this.props.accounts.find(
+      account => account.id === ruleTransaction.account,
+    );
+    if (!ruleAccount) {
+      throw new Error('Cannot create a rule without its account owner');
+    }
     const childTransactions = transactions.filter(
       t => t.parent_id === ruleTransaction.id,
     );
@@ -1378,6 +1384,7 @@ class AccountInternal extends PureComponent<
       stage: null,
       conditionsOp: 'and',
       conditions: [payeeCondition, amountCondition],
+      budget_id: ruleAccount.budget_id,
       actions: [
         ...(childTransactions.length === 0
           ? [

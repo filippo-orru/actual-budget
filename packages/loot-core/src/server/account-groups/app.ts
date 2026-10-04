@@ -23,6 +23,7 @@ async function getAccountGroups(): Promise<AccountGroupEntity[]> {
   const groups = await db.getAccountGroups();
   return groups.map(group => ({
     id: group.id,
+    budget_id: group.budget_id,
     name: group.name,
     sort_order: group.sort_order,
   }));

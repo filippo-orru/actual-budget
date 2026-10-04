@@ -3,6 +3,7 @@ import type { BankSyncProviders } from './bank-sync';
 
 export type AccountEntity = {
   id: string;
+  budget_id: string;
   name: string;
   offbudget: 0 | 1;
   closed: 0 | 1;

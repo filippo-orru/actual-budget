@@ -25,6 +25,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
   describe('Basic Formula Operations', () => {
     it('should calculate percentage of transaction amount with FORMATCURRENCY', async () => {
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -56,6 +57,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use nested IF statements with transaction fields', async () => {
       // Integration test: Complex nested IF for categorization
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -87,6 +89,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should format dates with TEXT function', async () => {
       // Integration test: Format transaction date
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -123,6 +126,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
       const payeeId = await db.insertPayee({ name: 'Amazon' });
 
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [{ field: 'payee', op: 'is', value: payeeId }],
@@ -154,6 +158,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should extract parts of text with RIGHT', async () => {
       // Integration test: Parse imported payee name
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -184,6 +189,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use TRIM and PROPER for text formatting', async () => {
       // Integration test: Clean and format text
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -214,6 +220,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use LEFT to extract prefix', async () => {
       // Integration test: Extract first part of payee name
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -245,6 +252,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
   describe('Math and Rounding Functions', () => {
     it('should calculate split amounts with ROUND and FORMATCURRENCY', async () => {
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -276,6 +284,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use ABS, MAX for amount calculations', async () => {
       // Integration test: Calculate fee as percentage with minimum
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [{ field: 'imported_payee', op: 'contains', value: 'Fee' }],
@@ -305,6 +314,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use CEILING for rounding up', async () => {
       // Integration test: Round up to nearest dollar
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -337,6 +347,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use SQRT for calculations', async () => {
       // Integration test: Square root calculation
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -370,6 +381,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should extract date components with YEAR, MONTH, DAY', async () => {
       // Integration test: Build date description
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -401,6 +413,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should calculate date differences with DAYS', async () => {
       // Integration test: Calculate days since transaction
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -433,6 +446,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use EOMONTH for end-of-month calculations', async () => {
       // Integration test: Calculate next billing date
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -464,6 +478,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use WEEKDAY to determine day of week', async () => {
       // Integration test: Check if transaction is on weekend
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -497,6 +512,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use AND/OR for complex conditions', async () => {
       // Integration test: Complex logical conditions
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -528,6 +544,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use IFERROR for safe calculations', async () => {
       // Integration test: Handle potential errors gracefully
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -559,6 +576,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use SWITCH for multiple value matching', async () => {
       // Integration test: Map month numbers to quarters
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -590,6 +608,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use NOT to invert conditions', async () => {
       // Integration test: Use NOT for logical inversion
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [{ field: 'imported_payee', op: 'contains', value: 'Not' }],
@@ -619,6 +638,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
   describe('New Formatting Functions', () => {
     it('should use FORMATNUMBER for thousands separators', async () => {
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -649,6 +669,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
 
     it('should use FORMATCURRENCY with custom symbols', async () => {
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -679,6 +700,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use FORMATCURRENCY with European format', async () => {
       // Integration test: Format with European separators (. for thousands, , for decimal)
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [{ field: 'imported_payee', op: 'contains', value: 'EU' }],
@@ -707,6 +729,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use FORMATNUMBER without decimals', async () => {
       // Integration test: Format whole numbers
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -739,6 +762,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should handle deeply nested calculations', async () => {
       // Integration test: Complex financial calculation with multiple nested functions
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -772,6 +796,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should combine multiple function types in one formula', async () => {
       // Integration test: Mix text, math, date, and logical functions
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -805,6 +830,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use CHOOSE for index-based selection', async () => {
       // Integration test: Select value based on month (season calculation)
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -839,6 +865,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
       const payeeId = await db.insertPayee({ name: 'Amazon' });
 
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [{ field: 'payee', op: 'is', value: payeeId }],
@@ -873,6 +900,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should create multi-line summary with multiple calculations', async () => {
       // Integration test: Complex multi-line output with tax calculation
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [{ field: 'imported_payee', op: 'contains', value: 'Tax' }],
@@ -909,6 +937,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use ISNUMBER to check value types', async () => {
       // Integration test: Type checking with ISNUMBER
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -939,6 +968,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use ISTEXT to check for text values', async () => {
       // Integration test: Type checking with ISTEXT
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -970,6 +1000,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use ISEVEN and ISODD for number checks', async () => {
       // Integration test: Check if amount is even or odd
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -1000,6 +1031,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use ISBLANK to check for empty values', async () => {
       // Integration test: Check for blank notes field
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -1033,6 +1065,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should handle formula errors gracefully', async () => {
       // Integration test: Invalid formula should not crash
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -1064,6 +1097,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should validate numeric field output', async () => {
       // Integration test: String result for numeric field should be rejected
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -1096,6 +1130,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should calculate compound interest with POWER', async () => {
       // Integration test: Compound interest formula
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [
@@ -1128,6 +1163,7 @@ describe('Formula Rule Actions - Integration Tests', () => {
     it('should use SUM and PRODUCT for calculations', async () => {
       // Integration test: Multiple math operations
       await insertRule({
+        budget_id: 'default',
         stage: null,
         conditionsOp: 'and',
         conditions: [

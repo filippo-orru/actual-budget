@@ -17,7 +17,7 @@ function makeAccount(
 }
 
 function makeGroup(id: string): AccountGroupEntity {
-  return { id, name: id, sort_order: 0 };
+  return { id, budget_id: 'default', name: id, sort_order: 0 };
 }
 
 const liveGroupIds = new Set(['g1', 'g2']);

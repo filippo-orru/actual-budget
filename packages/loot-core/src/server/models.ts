@@ -1,4 +1,5 @@
 import type {
+  BudgetSpaceEntity,
   CategoryEntity,
   CategoryGroupEntity,
   PayeeEntity,
@@ -14,6 +15,7 @@ import {
 import type {
   DbAccount,
   DbAccountGroup,
+  DbBudgetSpace,
   DbCategory,
   DbCategoryGroup,
   DbPayee,
@@ -61,6 +63,52 @@ export function fromDateRepr(number: number) {
     dateString.slice(6)
   );
 }
+
+export const budgetSpaceModel = {
+  validate(
+    budget: Partial<DbBudgetSpace>,
+    { update }: { update?: boolean } = {},
+  ) {
+    requiredFields(
+      'budget space',
+      budget,
+      update ? [] : ['name', 'currency_code', 'budget_type'],
+      update,
+    );
+    if (
+      budget.budget_type !== undefined &&
+      budget.budget_type !== 'envelope' &&
+      budget.budget_type !== 'tracking'
+    ) {
+      throw new ValidationError(`Unknown budget type: ${budget.budget_type}`);
+    }
+    return budget as DbBudgetSpace;
+  },
+  toDb(budget: BudgetSpaceEntity, { update }: { update?: boolean } = {}) {
+    return (
+      update
+        ? convertForUpdate(schema, schemaConfig, 'budgets', budget)
+        : convertForInsert(schema, schemaConfig, 'budgets', budget)
+    ) as DbBudgetSpace;
+  },
+  fromDb(budget: DbBudgetSpace): BudgetSpaceEntity {
+    const entity = convertFromSelect(
+      schema,
+      schemaConfig,
+      'budgets',
+      budget,
+    ) as BudgetSpaceEntity;
+    if (
+      entity.budget_type !== 'envelope' &&
+      entity.budget_type !== 'tracking'
+    ) {
+      throw new ValidationError(
+        `Unknown budget type: ${String(entity.budget_type)}`,
+      );
+    }
+    return entity;
+  },
+};
 
 export const accountModel = {
   validate(account: Partial<DbAccount>, { update }: { update?: boolean } = {}) {

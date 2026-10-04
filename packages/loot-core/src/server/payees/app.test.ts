@@ -24,6 +24,7 @@ describe('payees app', () => {
       });
 
       await insertRule({
+        budget_id: 'default',
         stage: 'pre',
         conditionsOp: 'and',
         conditions: [{ op: 'is', field: 'payee', value: activePayeeId }],

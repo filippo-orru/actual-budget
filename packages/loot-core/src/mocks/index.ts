@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import * as monthUtils from '#shared/months';
 import type {
   AccountEntity,
@@ -17,6 +18,7 @@ export function generateAccount(
 ): AccountEntity {
   const offlineAccount: AccountEntity = {
     id: uuidv4(),
+    budget_id: DEFAULT_BUDGET_ID,
     name,
     offbudget: offbudget ? 1 : 0,
     sort_order: 0,
@@ -87,6 +89,7 @@ export function generateCategory(
 ): CategoryEntity {
   return {
     id: uuidv4(),
+    budget_id: DEFAULT_BUDGET_ID,
     name,
     group,
     is_income: isIncome,
@@ -101,6 +104,7 @@ export function generateCategoryGroup(
 ): CategoryGroupEntity {
   return {
     id: uuidv4(),
+    budget_id: DEFAULT_BUDGET_ID,
     name,
     is_income: isIncome,
     sort_order: groupSortOrder++,
@@ -109,9 +113,9 @@ export function generateCategoryGroup(
 
 export type CategoryGroupDefinition = Omit<
   CategoryGroupEntity,
-  'id' | 'categories'
+  'id' | 'budget_id' | 'categories'
 > & {
-  categories: Omit<CategoryEntity, 'id' | 'group'>[];
+  categories: Omit<CategoryEntity, 'id' | 'group' | 'budget_id'>[];
 };
 
 export function generateCategoryGroups(

@@ -77,11 +77,52 @@ describe('Budgets', () => {
     });
     expect(error).toBe(undefined);
 
-    // Make sure the prefs were loaded
+    // Loading preserves the file-level ID and gives the migrated file one
+    // deterministic internal default budget.
     expect(prefs.getPrefs().id).toBe('test-budget');
+    expect(
+      await db.all<{ id: string }>('SELECT id FROM budgets ORDER BY id'),
+    ).toEqual([{ id: 'default' }]);
+
+    // Reopening the already-loaded file does not repeat migration scaffolding.
+    await runHandler(handlers['load-budget'], { id: 'test-budget' });
+    expect(
+      await db.all<{ id: string }>('SELECT id FROM budgets ORDER BY id'),
+    ).toEqual([{ id: 'default' }]);
 
     // Make sure the clock has been loaded
     expect(getClock()).toEqual(deserializeClock(row.clock));
+  });
+
+  test('new files migrate the bundled database before loading budget spaces', async () => {
+    fs._setDocumentDir(fs.join(__dirname, '/../mocks/files/budgets'));
+    const budgetName = `Fresh stage 2 ${uuidv4()}`;
+    let fileId: string | undefined;
+
+    try {
+      const result = await runHandler(handlers['create-budget'], {
+        budgetName,
+        avoidUpload: true,
+      });
+      expect(result.error).toBeUndefined();
+      fileId = prefs.getPrefs().id;
+      expect(prefs.getPrefs().budgetName).toBe(budgetName);
+      expect(await runHandler(handlers['budget-spaces/get'])).toEqual([
+        expect.objectContaining({
+          id: 'default',
+          name: 'Main',
+        }),
+      ]);
+      expect(await db.all<{ id: string }>('SELECT id FROM budgets')).toEqual([
+        { id: 'default' },
+      ]);
+    } finally {
+      await runHandler(handlers['close-budget']);
+      if (fileId) {
+        await fs.removeDirRecursively(fs.getBudgetDir(fileId));
+      }
+      fs._setDocumentDir(null);
+    }
   });
 
   test('budget detects out of sync migrations', async () => {

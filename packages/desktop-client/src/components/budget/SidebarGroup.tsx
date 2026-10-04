@@ -235,10 +235,14 @@ export function SidebarGroup({
             if (value === '') {
               onHideNewGroup();
             } else if (value !== '') {
-              onSave({ id: group.id, name: value });
+              onSave({ id: group.id, budget_id: group.budget_id, name: value });
             }
           } else {
-            onSave({ id: group.id, name: value });
+            onSave({
+              id: group.id,
+              budget_id: group.budget_id,
+              name: value,
+            });
           }
         }}
         onBlur={() => onEdit(null)}

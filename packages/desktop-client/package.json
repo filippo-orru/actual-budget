@@ -111,6 +111,7 @@
     "#accounts/*": "./src/accounts/*.ts",
     "#app/*": "./src/app/*.ts",
     "#budget/*": "./src/budget/*.ts",
+    "#budget-spaces/*": "./src/budget-spaces/*.ts",
     "#budgetfiles/*": "./src/budgetfiles/*.ts",
     "#modals/*": "./src/modals/*.ts",
     "#news/*": "./src/news/*.ts",

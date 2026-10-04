@@ -11,6 +11,7 @@ import type {
 import { DropHighlightPosContext } from '#components/sort';
 import type { DragState, OnDropCallback } from '#components/sort';
 import { Row } from '#components/table';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useLocalPref } from '#hooks/useLocalPref';
 
 import { ExpenseCategory } from './ExpenseCategory';
@@ -77,6 +78,7 @@ export const BudgetCategories = memo<BudgetCategoriesProps>(
     onReorderCategory,
     onReorderGroup,
   }) => {
+    const budgetId = useBudgetSpaceId();
     const [collapsedGroupIds = [], setCollapsedGroupIdsPref] =
       useLocalPref('budget.collapsed');
     const [showHiddenCategories] = useLocalPref('budget.showHiddenCategories');
@@ -258,7 +260,7 @@ export const BudgetCategories = memo<BudgetCategoriesProps>(
                   style={{ backgroundColor: theme.budgetHeaderCurrentMonth }}
                 >
                   <SidebarGroup
-                    group={{ id: 'new', name: '' }}
+                    group={{ id: 'new', budget_id: budgetId, name: '' }}
                     collapsed={false}
                     editing
                     onSave={_onSaveGroup}
@@ -274,6 +276,7 @@ export const BudgetCategories = memo<BudgetCategoriesProps>(
                   <SidebarCategory
                     innerRef={null}
                     category={{
+                      budget_id: budgetId,
                       name: '',
                       group: newCategoryForGroup!,
                       is_income:

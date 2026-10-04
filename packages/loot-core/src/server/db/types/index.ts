@@ -7,6 +7,7 @@ type JsonString = string;
 
 export type DbAccount = {
   id: string;
+  budget_id: string;
   name: string;
   offbudget: 1 | 0;
   closed: 1 | 0;
@@ -40,6 +41,7 @@ export type DbAccount = {
 
 export type DbAccountGroup = {
   id: string;
+  budget_id: string;
   name: string;
   sort_order: number;
   tombstone: 1 | 0;
@@ -54,6 +56,7 @@ export type DbBank = {
 
 export type DbCategory = {
   id: string;
+  budget_id: string;
   name: string;
   is_income: 1 | 0;
   cat_group: DbCategoryGroup['id'];
@@ -67,6 +70,7 @@ export type DbCategory = {
 
 export type DbCategoryGroup = {
   id: string;
+  budget_id: string;
   name: string;
   is_income: 1 | 0;
   sort_order: number;
@@ -76,6 +80,7 @@ export type DbCategoryGroup = {
 
 export type DbCleanupGroup = {
   id: string;
+  budget_id: string;
   name: string;
   tombstone: 1 | 0;
 };
@@ -140,6 +145,7 @@ export type DbPayee = {
 
 export type DbRule = {
   id: string;
+  budget_id: string;
   stage: string;
   conditions: JsonString;
   actions: JsonString;
@@ -149,6 +155,7 @@ export type DbRule = {
 
 export type DbSchedule = {
   id: string;
+  budget_id: string;
   name: string;
   rule: DbRule['id'];
   active: 1 | 0;
@@ -214,6 +221,7 @@ export type DbTransaction = {
 
 export type DbReflectBudget = {
   id: string;
+  budget_id: string;
   month: number;
   category: string;
   amount: number;
@@ -224,11 +232,14 @@ export type DbReflectBudget = {
 
 export type DbZeroBudgetMonth = {
   id: string;
+  budget_id: string;
+  month: string;
   buffered: number;
 };
 
 export type DbZeroBudget = {
   id: string;
+  budget_id: string;
   month: number;
   category: string;
   amount: number;
@@ -239,6 +250,7 @@ export type DbZeroBudget = {
 
 export type DbTransactionFilter = {
   id: string;
+  budget_id: string;
   name: string;
   conditions: JsonString;
   conditions_op: string;
@@ -252,6 +264,7 @@ export type DbPreference = {
 
 export type DbCustomReport = {
   id: string;
+  budget_id: string;
   name: string;
   start_date: string;
   end_date: string;
@@ -278,6 +291,7 @@ export type DbCustomReport = {
 
 export type DbDashboardPage = {
   id: string;
+  budget_id: string;
   name: string;
   tombstone: 1 | 0;
 };
@@ -370,6 +384,15 @@ export type DbViewSchedule = {
   _conditions: JsonString;
   _actions: JsonString;
   _has_splits: 0 | 1;
+};
+
+export type DbBudgetSpace = {
+  id: string;
+  name: string;
+  currency_code: string;
+  budget_type: string;
+  sort_order: number;
+  tombstone: 1 | 0;
 };
 
 export type DbTag = {

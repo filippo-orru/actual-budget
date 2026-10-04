@@ -478,6 +478,7 @@ describe('Transactions', () => {
     schedules = [
       {
         id: 'schedule-1',
+        budget_id: 'default',
         name: scheduleName,
         rule: 'rule-1',
         next_date: '2017-01-01',
@@ -521,6 +522,7 @@ describe('Transactions', () => {
     schedules = [
       {
         id: 'schedule-1',
+        budget_id: 'default',
         name: 'Monthly rent',
         rule: 'rule-1',
         next_date: '2017-01-01',

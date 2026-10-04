@@ -105,6 +105,7 @@ function scheduleTemplate(
 function schedule(name: string): ScheduleEntity {
   return {
     id: name,
+    budget_id: 'default',
     name,
     rule: 'rule-1',
     next_date: '2026-01-01',

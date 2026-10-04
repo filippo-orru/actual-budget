@@ -113,6 +113,7 @@ describe('schedules', () => {
           Pick<ScheduleEntity, 'id' | 'next_date' | '_conditions'>,
       ): ScheduleEntity {
         return {
+          budget_id: 'default',
           rule: 'rule-1',
           completed: false,
           posts_transaction: false,
@@ -230,6 +231,7 @@ describe('schedules', () => {
           Pick<ScheduleEntity, 'id' | 'next_date' | '_conditions'>,
       ): ScheduleEntity {
         return {
+          budget_id: 'default',
           rule: 'rule-1',
           completed: false,
           posts_transaction: false,

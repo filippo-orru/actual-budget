@@ -12,6 +12,7 @@ import { mutator } from '#server/mutators';
 import { reportModel } from '#server/reports/app';
 import { batchMessages } from '#server/sync';
 import { undoable } from '#server/undo';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import { DEFAULT_DASHBOARD_STATE } from '#shared/dashboard';
 import { q } from '#shared/query';
 import type {
@@ -108,7 +109,11 @@ const exportModel = {
 
 async function createDashboardPage({ name }: { name: string }) {
   const id = uuidv4();
-  await db.insertWithSchema('dashboard_pages', { id, name });
+  await db.insertWithSchema('dashboard_pages', {
+    id,
+    budget_id: DEFAULT_BUDGET_ID,
+    name,
+  });
 
   return id;
 }

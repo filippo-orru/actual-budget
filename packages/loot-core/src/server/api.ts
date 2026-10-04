@@ -40,6 +40,7 @@ import {
 } from './api-models';
 import type { AmountOPType, APIScheduleEntity } from './api-models';
 import { aqlQuery } from './aql';
+import { getBudgetIdForEntity, resolveBudgetId } from './budget-spaces/helpers';
 import { isTrackingBudget } from './budget/actions';
 import * as cloudStorage from './cloud-storage';
 import type { RemoteFile } from './cloud-storage';
@@ -917,7 +918,10 @@ handlers['api/payee-rules-get'] = async function ({ id }) {
 
 handlers['api/rule-create'] = withMutation(async function ({ rule }) {
   checkFileOpen();
-  const addedRule = await handlers['rule-add'](ruleModel.fromExternal(rule));
+  const budgetId = await resolveBudgetId();
+  const addedRule = await handlers['rule-add'](
+    ruleModel.fromExternal(rule, budgetId),
+  );
 
   if ('error' in addedRule) {
     throw APIError('Failed creating a new rule', addedRule.error);
@@ -928,8 +932,9 @@ handlers['api/rule-create'] = withMutation(async function ({ rule }) {
 
 handlers['api/rule-update'] = withMutation(async function ({ rule }) {
   checkFileOpen();
+  const budgetId = await getBudgetIdForEntity({ table: 'rules', id: rule.id });
   const updatedRule = await handlers['rule-update'](
-    ruleModel.fromExternal(rule),
+    ruleModel.fromExternal(rule, budgetId),
   );
 
   if ('error' in updatedRule) {

@@ -12,6 +12,7 @@ import type { BudgetMonthCell } from './budgetMonthCell';
 const makeCategory = (
   overrides: Partial<CategoryEntity> & Pick<CategoryEntity, 'id' | 'name'>,
 ): CategoryEntity => ({
+  budget_id: 'default',
   is_income: false,
   hidden: false,
   group: 'group1',

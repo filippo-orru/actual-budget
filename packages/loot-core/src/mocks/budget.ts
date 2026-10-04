@@ -9,6 +9,7 @@ import * as db from '#server/db';
 import { runHandler, runMutator } from '#server/mutators';
 import * as sheet from '#server/sheet';
 import { batchMessages, setSyncingMode } from '#server/sync';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import * as monthUtils from '#shared/months';
 import { q } from '#shared/query';
 import type { Handlers } from '#types/handlers';
@@ -847,6 +848,7 @@ export async function createTestBudget(handlers: Handlers) {
       categoryGroups.push({
         ...group,
         id: groupId,
+        budget_id: DEFAULT_BUDGET_ID,
         categories: [],
       });
 
@@ -860,6 +862,7 @@ export async function createTestBudget(handlers: Handlers) {
         categoryGroups[categoryGroups.length - 1].categories.push({
           ...category,
           id: categoryId,
+          budget_id: DEFAULT_BUDGET_ID,
           group: groupId,
         });
       }

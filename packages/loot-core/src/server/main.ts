@@ -14,6 +14,7 @@ import { app as adminApp } from './admin/app';
 import { installAPI } from './api';
 import { aqlQuery } from './aql';
 import { app as authApp } from './auth/app';
+import { app as budgetSpacesApp } from './budget-spaces/app';
 import { app as budgetApp } from './budget/app';
 import { app as budgetFilesApp } from './budgetfiles/app';
 import { app as dashboardApp } from './dashboard/app';
@@ -134,6 +135,7 @@ app.combine(
   authApp,
   schedulesApp,
   budgetApp,
+  budgetSpacesApp,
   dashboardApp,
   notesApp,
   preferencesApp,

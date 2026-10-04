@@ -2,6 +2,7 @@ import type { CategoryEntity } from './category';
 
 export type CategoryGroupEntity = {
   id: string;
+  budget_id: string;
   name: string;
   is_income?: boolean;
   sort_order?: number;

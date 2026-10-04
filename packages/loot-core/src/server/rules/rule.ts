@@ -1,5 +1,6 @@
-import type { TransactionForRules } from '#server/transactions/transaction-rules';
 // @ts-strict-ignore
+import type { TransactionForRules } from '#server/transactions/transaction-rules';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import {
   addSplitTransaction,
   groupTransaction,
@@ -128,22 +129,26 @@ export class Rule {
   conditions: Condition[];
   conditionsOp;
   id?: string;
+  budget_id?: string;
   stage: 'pre' | null | 'post';
 
   constructor({
     id,
+    budget_id,
     stage,
     conditionsOp,
     conditions,
     actions,
   }: {
     id?: string;
+    budget_id?: string;
     stage?: 'pre' | null | 'post';
     conditionsOp;
     conditions;
     actions;
   }) {
     this.id = id;
+    this.budget_id = budget_id;
     this.stage = stage ?? null;
     this.conditionsOp = conditionsOp;
     this.conditions = conditions.map(
@@ -198,6 +203,7 @@ export class Rule {
   serialize(): RuleEntity {
     return {
       id: this.id,
+      budget_id: this.budget_id ?? DEFAULT_BUDGET_ID,
       stage: this.stage,
       conditionsOp: this.conditionsOp,
       conditions: this.conditions.map(c => c.serialize()),

@@ -56,6 +56,7 @@ import { createGroupedSpreadsheet } from '#components/reports/spreadsheets/group
 import { useReport } from '#components/reports/useReport';
 import { calculateHasWarning, fromDateRepr } from '#components/reports/util';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
@@ -144,6 +145,7 @@ function CustomReportInner({
   report: initialReport,
   budgetType,
 }: CustomReportInnerProps) {
+  const budgetId = useBudgetSpaceId();
   const locale = useLocale();
   const { t } = useTranslation();
   const format = useFormat();
@@ -601,6 +603,7 @@ function CustomReportInner({
 
   const customReportItems: CustomReportEntity = {
     id: '',
+    budget_id: budgetId,
     name: '',
     startDate,
     endDate,

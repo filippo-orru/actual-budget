@@ -32,6 +32,14 @@ function f(type: string, opts?: Record<string, unknown>) {
 // table name the internal table that is updated.
 
 export const schema = {
+  budgets: {
+    id: f('id'),
+    name: f('string'),
+    currency_code: f('string'),
+    budget_type: f('string'),
+    sort_order: f('integer'),
+    tombstone: f('boolean'),
+  },
   transactions: {
     id: f('id'),
     is_parent: f('boolean'),
@@ -67,6 +75,7 @@ export const schema = {
   },
   accounts: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string', { required: true }),
     offbudget: f('boolean'),
     closed: f('boolean'),
@@ -82,12 +91,14 @@ export const schema = {
   },
   account_groups: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     sort_order: f('float'),
     tombstone: f('boolean'),
   },
   categories: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     is_income: f('boolean'),
     hidden: f('boolean'),
@@ -100,6 +111,7 @@ export const schema = {
   },
   category_groups: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     is_income: f('boolean'),
     hidden: f('boolean'),
@@ -108,11 +120,13 @@ export const schema = {
   },
   cleanup_groups: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     tombstone: f('boolean'),
   },
   schedules: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     rule: f('id', { ref: 'rules', required: true }),
     next_date: f('date'),
@@ -135,6 +149,7 @@ export const schema = {
   },
   rules: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     stage: f('string'),
     conditions_op: f('string'),
     conditions: f('json'),
@@ -151,6 +166,7 @@ export const schema = {
   },
   transaction_filters: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     conditions_op: f('string'),
     conditions: f('json'),
@@ -158,6 +174,7 @@ export const schema = {
   },
   custom_reports: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     start_date: f('string', { default: '2023-06' }),
     end_date: f('string', { default: '2023-09' }),
@@ -184,6 +201,7 @@ export const schema = {
   },
   reflect_budgets: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     month: f('integer'),
     category: f('string'),
     amount: f('integer'),
@@ -193,6 +211,7 @@ export const schema = {
   },
   zero_budgets: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     month: f('integer'),
     category: f('string', { ref: 'categories' }),
     amount: f('integer'),
@@ -200,8 +219,15 @@ export const schema = {
     goal: f('integer'),
     long_goal: f('integer'),
   },
+  zero_budget_months: {
+    id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
+    month: f('string'),
+    buffered: f('integer'),
+  },
   dashboard_pages: {
     id: f('id'),
+    budget_id: f('id', { ref: 'budgets', required: true }),
     name: f('string'),
     tombstone: f('boolean'),
   },

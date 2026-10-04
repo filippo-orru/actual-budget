@@ -116,6 +116,7 @@ async function getAccounts(): Promise<AccountEntity[]> {
     dbAccount =>
       ({
         id: dbAccount.id,
+        budget_id: dbAccount.budget_id,
         name: dbAccount.name,
         offbudget: dbAccount.offbudget,
         closed: dbAccount.closed,

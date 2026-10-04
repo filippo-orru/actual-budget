@@ -82,6 +82,7 @@ describe('CategoryTemplateContext', () => {
   describe('runSimple', () => {
     it('should return monthly amount when provided', () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -108,6 +109,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should return limit when monthly is not provided', () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -134,6 +136,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle weekly limit', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -163,6 +166,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle daily limit', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -189,6 +193,7 @@ describe('CategoryTemplateContext', () => {
   describe('runRefill', () => {
     it('should refill up to the monthly limit', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -222,6 +227,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle weekly limit refill', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -255,6 +261,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle daily limit refill', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -290,6 +297,7 @@ describe('CategoryTemplateContext', () => {
 
     beforeEach(() => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -347,6 +355,7 @@ describe('CategoryTemplateContext', () => {
 
     beforeEach(() => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -464,6 +473,7 @@ describe('CategoryTemplateContext', () => {
 
     beforeEach(() => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -532,6 +542,7 @@ describe('CategoryTemplateContext', () => {
 
     beforeEach(() => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -592,6 +603,7 @@ describe('CategoryTemplateContext', () => {
       vi.mocked(db.getCategories).mockResolvedValue([
         {
           id: 'income1',
+          budget_id: 'default',
           name: 'Salary',
           is_income: 1,
           cat_group: 'income',
@@ -643,6 +655,7 @@ describe('CategoryTemplateContext', () => {
       originalCurrentMonth = global.currentMonth;
       global.currentMonth = '2024-02';
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -884,6 +897,7 @@ describe('CategoryTemplateContext', () => {
 
     beforeEach(() => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -980,6 +994,7 @@ describe('CategoryTemplateContext', () => {
   describe('template priorities', () => {
     it('should handle multiple templates with priorities and insufficient funds', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1014,6 +1029,7 @@ describe('CategoryTemplateContext', () => {
   describe('category limits', () => {
     it('should not budget over monthly limit', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1041,6 +1057,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle hold flag when limit is reached', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1068,6 +1085,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should remove funds if over limit', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1097,6 +1115,7 @@ describe('CategoryTemplateContext', () => {
   describe('remainder templates', () => {
     it('should distribute available funds based on weight', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1123,6 +1142,7 @@ describe('CategoryTemplateContext', () => {
 
     it('remainder should handle last cent', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1149,6 +1169,7 @@ describe('CategoryTemplateContext', () => {
 
     it('remainder loop terminates when per-context share rounds to zero', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1184,6 +1205,7 @@ describe('CategoryTemplateContext', () => {
 
     it('remainder wont over budget', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1212,6 +1234,7 @@ describe('CategoryTemplateContext', () => {
   describe('full process', () => {
     it('should handle priority limits through the entire process', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1277,6 +1300,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle category limits through the entire process', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1332,6 +1356,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle remainder template at the end of the process', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1393,6 +1418,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle goal template through the entire process', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1448,6 +1474,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle goal-only template through the entire process', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1487,6 +1514,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle hide fraction', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1538,6 +1566,7 @@ describe('CategoryTemplateContext', () => {
   describe('JPY currency', () => {
     it('should handle simple template with JPY correctly', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1570,6 +1599,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle small amounts with JPY correctly', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1602,6 +1632,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle larger amounts with JPY correctly', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1633,6 +1664,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle weekly limit with JPY correctly', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1669,6 +1701,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should handle periodic template with JPY correctly', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1703,6 +1736,7 @@ describe('CategoryTemplateContext', () => {
 
     it('should compare JPY vs USD for same template', async () => {
       const category: CategoryEntity = {
+        budget_id: 'default',
         id: 'test',
         name: 'Test Category',
         group: 'test-group',
@@ -1748,6 +1782,7 @@ describe('CategoryTemplateContext', () => {
 
   describe('per-template attribution', () => {
     const category: CategoryEntity = {
+      budget_id: 'default',
       id: 'attribution-cat',
       name: 'Attribution Category',
       group: 'g',
@@ -1943,6 +1978,7 @@ describe('CategoryTemplateContext', () => {
 
   describe('validation (init checks)', () => {
     const category: CategoryEntity = {
+      budget_id: 'default',
       id: 'val-cat',
       name: 'Validation Category',
       group: 'g',
@@ -2047,6 +2083,7 @@ describe('CategoryTemplateContext', () => {
       vi.mocked(db.getCategories).mockResolvedValue([
         {
           id: 'inc-1',
+          budget_id: 'default',
           name: 'Salary',
           is_income: 1,
           cat_group: 'g-income',
@@ -2109,6 +2146,7 @@ describe('CategoryTemplateContext', () => {
       vi.mocked(db.getCategories).mockResolvedValue([
         {
           id: 'inc-1',
+          budget_id: 'default',
           name: 'Salary',
           is_income: 1,
           cat_group: 'g-income',
@@ -2285,12 +2323,14 @@ describe('CategoryTemplateContext', () => {
 
   describe('further engine coverage', () => {
     const category: CategoryEntity = {
+      budget_id: 'default',
       id: 'engine-cat',
       name: 'Engine Category',
       group: 'g',
       is_income: false,
     };
     const incomeCategory: CategoryEntity = {
+      budget_id: 'default',
       id: 'income-cat',
       name: 'Income',
       group: 'g',

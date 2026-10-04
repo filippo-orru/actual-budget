@@ -4,6 +4,7 @@ import type { RuleConditionEntity } from './rule';
 
 export type DashboardPageEntity = {
   id: string;
+  budget_id: string;
   name: string;
   tombstone: boolean;
 };

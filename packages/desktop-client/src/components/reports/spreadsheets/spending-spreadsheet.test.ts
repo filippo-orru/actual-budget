@@ -8,14 +8,29 @@ import { describe, expect, it } from 'vitest';
 import { getSpendingBudgetFilters } from './spending-spreadsheet';
 
 const categoryGroups = [
-  { id: 'group-bills', name: 'Bills' },
-  { id: 'group-fun', name: 'Fun Money' },
+  { id: 'group-bills', budget_id: 'default', name: 'Bills' },
+  { id: 'group-fun', budget_id: 'default', name: 'Fun Money' },
 ] satisfies CategoryGroupEntity[];
 
 const categories = [
-  { id: 'cat-rent', name: 'Rent', group: 'group-bills' },
-  { id: 'cat-electric', name: 'Electric', group: 'group-bills' },
-  { id: 'cat-dining', name: 'Dining Out', group: 'group-fun' },
+  {
+    id: 'cat-rent',
+    budget_id: 'default',
+    name: 'Rent',
+    group: 'group-bills',
+  },
+  {
+    id: 'cat-electric',
+    budget_id: 'default',
+    name: 'Electric',
+    group: 'group-bills',
+  },
+  {
+    id: 'cat-dining',
+    budget_id: 'default',
+    name: 'Dining Out',
+    group: 'group-fun',
+  },
 ] satisfies CategoryEntity[];
 
 describe('getSpendingBudgetFilters', () => {

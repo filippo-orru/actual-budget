@@ -45,6 +45,7 @@ vi.mock('./template-notes', () => ({
 }));
 
 const category: CategoryEntity = {
+  budget_id: 'default',
   id: 'cat-1',
   name: 'Groceries',
   group: 'g1',
@@ -257,12 +258,14 @@ describe('dryRunCategoryTemplate', () => {
 
 describe('applyMultipleCategoryTemplates', () => {
   const cat1: CategoryEntity = {
+    budget_id: 'default',
     id: 'cat-1',
     name: 'Groceries',
     group: 'g1',
     is_income: false,
   };
   const cat2: CategoryEntity = {
+    budget_id: 'default',
     id: 'cat-2',
     name: 'Rent',
     group: 'g1',
@@ -486,12 +489,14 @@ describe('applyMultipleCategoryTemplates', () => {
 
 describe('tracking budget priority handling (issue #8422)', () => {
   const cat1: CategoryEntity = {
+    budget_id: 'default',
     id: 'cat-1',
     name: 'Groceries',
     group: 'g1',
     is_income: false,
   };
   const cat2: CategoryEntity = {
+    budget_id: 'default',
     id: 'cat-2',
     name: 'Rent',
     group: 'g1',
@@ -620,12 +625,14 @@ describe('tracking budget priority handling (issue #8422)', () => {
 
 describe('applyTemplate (force=false)', () => {
   const cat1: CategoryEntity = {
+    budget_id: 'default',
     id: 'cat-1',
     name: 'Groceries',
     group: 'g1',
     is_income: false,
   };
   const cat2: CategoryEntity = {
+    budget_id: 'default',
     id: 'cat-2',
     name: 'Rent',
     group: 'g1',

@@ -418,3 +418,71 @@ describe('transaction executors', () => {
     });
   }, 20_000);
 });
+
+describe('budget ownership AQL joins', () => {
+  it('exposes account and category owners through joins and computed groups', async () => {
+    db.runQuery(
+      `INSERT OR IGNORE INTO budgets (id, name) VALUES ('default', 'Main'), ('other', 'Other')`,
+    );
+    db.runQuery(
+      `INSERT INTO account_groups (id, budget_id, name) VALUES ('group-default', 'default', 'Group')`,
+    );
+    db.runQuery(
+      `INSERT INTO accounts (id, budget_id, name, account_group_id) VALUES ('account-default', 'default', 'Account', 'group-default')`,
+    );
+    db.runQuery(
+      `INSERT INTO category_groups (id, budget_id, name) VALUES ('category-group-default', 'default', 'Expenses')`,
+    );
+    db.runQuery(
+      `INSERT INTO categories (id, budget_id, name, cat_group) VALUES ('category-default', 'default', 'Food', 'category-group-default')`,
+    );
+    db.runQuery(
+      `INSERT INTO category_mapping (id, transferId) VALUES ('category-default', 'category-default')`,
+    );
+    db.runQuery(
+      `INSERT INTO transactions (id, acct, category, date, amount) VALUES ('transaction-default', 'account-default', 'category-default', 20240101, -1200)`,
+    );
+
+    const { data: accountRows } = await aqlQuery(
+      q('accounts')
+        .select(['budget_id', 'account_group_id.budget_id'])
+        .filter({ id: 'account-default' }),
+    );
+    expect(accountRows).toEqual([
+      {
+        id: 'account-default',
+        budget_id: 'default',
+        'account_group_id.budget_id': 'default',
+      },
+    ]);
+
+    const { data: transactionRows } = await aqlQuery(
+      q('transactions')
+        .select(['account.budget_id', 'category.budget_id'])
+        .filter({ id: 'transaction-default' }),
+    );
+    expect(transactionRows).toEqual([
+      {
+        id: 'transaction-default',
+        'account.budget_id': 'default',
+        'category.budget_id': 'default',
+      },
+    ]);
+
+    const { data: categoryGroups } = await aqlQuery(
+      q('category_groups').filter({ budget_id: 'default' }).select('*'),
+    );
+    expect(categoryGroups).toMatchObject([
+      {
+        id: 'category-group-default',
+        budget_id: 'default',
+        categories: [
+          {
+            id: 'category-default',
+            budget_id: 'default',
+          },
+        ],
+      },
+    ]);
+  });
+});

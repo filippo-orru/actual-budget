@@ -20,6 +20,7 @@ import type {
 } from '@actual-app/core/types/models';
 
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { usePayees } from '#hooks/usePayees';
 import { useSchedules } from '#hooks/useSchedules';
@@ -120,6 +121,7 @@ export function ManageRules({
   setLoading = () => {},
 }: ManageRulesProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   const [allRules, setAllRules] = useState<RuleEntity[]>([]);
   const [page, setPage] = useState(0);
@@ -251,6 +253,7 @@ export function ManageRules({
 
   function onCreateRule() {
     const rule: NewRuleEntity = {
+      budget_id: budgetId,
       stage: null,
       conditionsOp: 'and',
       conditions: [

@@ -6,6 +6,7 @@ import { migrateTemplatesToAutomations } from './migrateTemplatesToAutomations';
 function schedule(id: string, name: string): ScheduleEntity {
   return {
     id,
+    budget_id: 'default',
     name,
     rule: 'rule-1',
     next_date: '2026-01-01',

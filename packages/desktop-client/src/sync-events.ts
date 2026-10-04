@@ -7,6 +7,7 @@ import { accountGroupQueries } from './account-groups';
 import { accountQueries } from './accounts';
 import { resetSync, sync } from './app/appSlice';
 import { categoryQueries } from './budget';
+import { budgetSpaceQueries } from './budget-spaces/queries';
 import {
   closeAndDownloadBudget,
   uploadBudget,
@@ -102,6 +103,12 @@ export function listenForSyncEvent(store: AppStore, queryClient: QueryClient) {
       }
 
       const tables = event.tables;
+
+      if (tables.includes('budgets')) {
+        void queryClient.invalidateQueries({
+          queryKey: budgetSpaceQueries.all(),
+        });
+      }
 
       if (tables.includes('prefs')) {
         void store.dispatch(loadPrefs());

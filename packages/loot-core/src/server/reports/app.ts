@@ -31,6 +31,7 @@ export const reportModel = {
   toJS(row: CustomReportData): CustomReportEntity {
     return {
       id: row.id,
+      budget_id: row.budget_id,
       name: row.name ?? '',
       startDate: row.start_date,
       endDate: row.end_date,
@@ -58,6 +59,7 @@ export const reportModel = {
   fromJS(report: CustomReportEntity): CustomReportData {
     return {
       id: report.id,
+      budget_id: report.budget_id,
       name: report.name,
       start_date: report.startDate,
       end_date: report.endDate,

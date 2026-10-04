@@ -7,6 +7,7 @@ import { requiredFields } from '#server/models';
 import { mutator } from '#server/mutators';
 import { parseConditionsOrActions } from '#server/transactions/transaction-rules';
 import { undoable } from '#server/undo';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import type { TransactionFilterEntity } from '#types/models';
 
 const filterModel = {
@@ -113,6 +114,7 @@ async function createFilter(filter): Promise<TransactionFilterEntity['id']> {
   const filterId = uuidv4();
   const item = {
     id: filterId,
+    budget_id: DEFAULT_BUDGET_ID,
     conditions: filter.state.conditions,
     conditionsOp: filter.state.conditionsOp,
     name: filter.state.name,

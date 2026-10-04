@@ -14,6 +14,7 @@ exports[`Learning categories > updates rules correctly even if multiple rules ex
         "value": "food",
       },
     ],
+    "budget_id": "default",
     "conditions": [
       Condition {
         "field": "payee",
@@ -41,6 +42,7 @@ exports[`Learning categories > updates rules correctly even if multiple rules ex
         "value": "food",
       },
     ],
+    "budget_id": "default",
     "conditions": [
       Condition {
         "field": "payee",
@@ -68,6 +70,7 @@ exports[`Learning categories > updates rules correctly even if multiple rules ex
         "value": "beer",
       },
     ],
+    "budget_id": "default",
     "conditions": [
       Condition {
         "field": "payee",
@@ -100,6 +103,7 @@ exports[`Learning categories > updates rules correctly even if multiple rules ex
         "value": "beer",
       },
     ],
+    "budget_id": "default",
     "conditions": [
       Condition {
         "field": "payee",
@@ -127,6 +131,7 @@ exports[`Learning categories > updates rules correctly even if multiple rules ex
         "value": "beer",
       },
     ],
+    "budget_id": "default",
     "conditions": [
       Condition {
         "field": "payee",
@@ -154,6 +159,7 @@ exports[`Learning categories > updates rules correctly even if multiple rules ex
         "value": "beer",
       },
     ],
+    "budget_id": "default",
     "conditions": [
       Condition {
         "field": "payee",

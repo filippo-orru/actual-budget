@@ -14,6 +14,7 @@ import {
 function makeAccount(id: string): AccountEntity {
   return {
     id,
+    budget_id: 'default',
     name: id,
     offbudget: 0,
     closed: 0,
@@ -65,6 +66,7 @@ function getTransferAccountByPayee(payeeId?: string | null) {
 function makeSplitSchedule(): ScheduleEntity {
   return {
     id: 'paycheck',
+    budget_id: 'default',
     rule: 'paycheck-rule',
     next_date: '2026-08-15',
     completed: false,

@@ -93,6 +93,7 @@ describe('Transaction rules', () => {
   test('insert a rule into the database', async () => {
     await loadRules();
     await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [],
@@ -103,6 +104,7 @@ describe('Transaction rules', () => {
     expect(getRules().length).toBe(1);
 
     await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'date', value: '2019-05' }],
@@ -140,6 +142,7 @@ describe('Transaction rules', () => {
   test('update a rule in the database', async () => {
     await loadRules();
     const id = await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'imported_payee', value: 'kroger' }],
@@ -192,6 +195,7 @@ describe('Transaction rules', () => {
   test('delete a rule in the database', async () => {
     await loadRules();
     const id = await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'kroger' }],
@@ -227,6 +231,7 @@ describe('Transaction rules', () => {
     await db.insertPayee({ id: 'amazon_id', name: 'Amazon' });
 
     await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'imported_payee', value: 'AMZN MKTP' }],
@@ -241,6 +246,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'amazon_id' }],
@@ -260,6 +266,7 @@ describe('Transaction rules', () => {
   test('loadRules loads all the rules', async () => {
     await loadRules();
     await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'contains', field: 'imported_payee', value: 'lowes' }],
@@ -267,6 +274,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: 'post',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'imported_payee', value: 'kroger' }],
@@ -311,6 +319,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       id: 'one',
       stage: 'pre',
       conditionsOp: 'and',
@@ -319,6 +328,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       id: 'two',
       stage: 'pre',
       conditionsOp: 'and',
@@ -355,6 +365,7 @@ describe('Transaction rules', () => {
   test('await runRules runs all the rules in each phase', async () => {
     await loadRules();
     await insertRule({
+      budget_id: 'default',
       stage: 'post',
       conditionsOp: 'and',
       conditions: [
@@ -368,6 +379,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'imported_payee', value: '123 kroger' }],
@@ -375,6 +387,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [
@@ -384,6 +397,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'kroger4' }],
@@ -414,6 +428,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'category_group', value: billsGroupId }],
@@ -440,6 +455,7 @@ describe('Transaction rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'category_group', value: billsGroupId }],
@@ -468,6 +484,7 @@ describe('Transaction rules', () => {
     // Runs first (pre stage): sets category based on payee. Nothing
     // about category_group is checked here.
     await insertRule({
+      budget_id: 'default',
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'power_co_id' }],
@@ -478,6 +495,7 @@ describe('Transaction rules', () => {
     // the category the *first* rule just set, not whatever the
     // transaction started with.
     await insertRule({
+      budget_id: 'default',
       stage: 'post',
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'category_group', value: billsGroupId }],
@@ -993,6 +1011,7 @@ describe('Learning categories', () => {
     );
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'foo' }],
@@ -1018,6 +1037,7 @@ describe('Learning categories', () => {
     await loadData();
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'foo' }],
@@ -1063,6 +1083,7 @@ describe('Learning categories', () => {
     await loadData();
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'foo' }],
@@ -1110,18 +1131,21 @@ describe('Learning categories', () => {
     await loadData();
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'foo' }],
       actions: [{ op: 'set', field: 'category', value: 'unknown1' }],
     });
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'foo' }],
       actions: [{ op: 'set', field: 'category', value: 'unknown2' }],
     });
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: null }],
@@ -1212,12 +1236,14 @@ describe('Learning categories', () => {
     await loadData();
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'payee', value: 'foo' }],
       actions: [{ op: 'set', field: 'category', value: 'unknown1' }],
     });
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'oneOf', field: 'payee', value: ['foo', 'bar'] }],
@@ -1246,6 +1272,7 @@ describe('Learning categories', () => {
 
   test('rules are saved with internal field names', async () => {
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [{ op: 'is', field: 'imported_payee', value: 'foo' }],
@@ -1369,6 +1396,7 @@ describe('Running balance for rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [
@@ -1407,6 +1435,7 @@ describe('Running balance for rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [
@@ -1444,6 +1473,7 @@ describe('Running balance for rules', () => {
     });
 
     await insertRule({
+      budget_id: 'default',
       stage: null,
       conditionsOp: 'and',
       conditions: [

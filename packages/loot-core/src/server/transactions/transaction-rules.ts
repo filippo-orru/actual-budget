@@ -30,6 +30,7 @@ import {
   resolveAccountIdForBalanceOf,
 } from '#server/rules/balanceOfFormula';
 import { addSyncListener, batchMessages } from '#server/sync';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import {
   addDays,
   currentDay,
@@ -909,6 +910,7 @@ export async function updatePayeeRenameRule(fromNames: string[], to: string) {
     return renameRule.id;
   } else {
     const rule = new Rule({
+      budget_id: DEFAULT_BUDGET_ID,
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'oneOf', field: 'imported_payee', value: fromNames }],
@@ -1018,6 +1020,7 @@ export async function updateCategoryRules(transactions) {
       } else {
         // No existing rules, so create one
         const newRule = new Rule({
+          budget_id: DEFAULT_BUDGET_ID,
           stage: null,
           conditionsOp: 'and',
           conditions: [{ op: 'is', field: 'payee', value: payeeId }],

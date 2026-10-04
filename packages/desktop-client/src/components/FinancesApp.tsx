@@ -14,6 +14,7 @@ import { ProtectedRoute } from '#auth/ProtectedRoute';
 import { Permissions } from '#auth/types';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useLocalPref } from '#hooks/useLocalPref';
+import { useMetadataPref } from '#hooks/useMetadataPref';
 import { useMetaThemeColor } from '#hooks/useMetaThemeColor';
 import { useNavigate } from '#hooks/useNavigate';
 import { useNewsNotification } from '#hooks/useNewsNotification';
@@ -24,6 +25,7 @@ import { useDispatch, useSelector } from '#redux';
 import { UserAccessPage } from './admin/UserAccess/UserAccessPage';
 import { UserDirectoryPage } from './admin/UserDirectory/UserDirectoryPage';
 import { BankSyncStatus } from './BankSyncStatus';
+import { BudgetSpaceProvider } from './BudgetSpaceProvider';
 import { CommandBar } from './CommandBar';
 import { ContextMenu } from './ContextMenu';
 import { EnableBankingCallback } from './EnableBankingCallback';
@@ -91,6 +93,15 @@ function RouterBehaviors() {
 }
 
 export function FinancesApp() {
+  const [fileId] = useMetadataPref('id');
+  return (
+    <BudgetSpaceProvider fileId={fileId}>
+      <FinancesAppContent />
+    </BudgetSpaceProvider>
+  );
+}
+
+function FinancesAppContent() {
   const { isNarrowWidth } = useResponsive();
   useMetaThemeColor(theme.mobileViewTheme);
 

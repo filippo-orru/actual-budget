@@ -2,6 +2,7 @@ import type { RuleConditionEntity } from './rule';
 
 export type TransactionFilterEntity = {
   id: string;
+  budget_id: string;
   name: string;
   conditionsOp: 'and' | 'or';
   conditions: RuleConditionEntity[];

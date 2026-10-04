@@ -20,7 +20,7 @@ function makeAccount(
 }
 
 function makeGroup(id: string, name: string): AccountGroupEntity {
-  return { id, name, sort_order: 0 };
+  return { id, budget_id: 'default', name, sort_order: 0 };
 }
 
 describe('getEffectiveGroupId', () => {

@@ -2,6 +2,7 @@ import type { RuleConditionEntity } from './rule';
 
 export type CustomReportEntity = {
   id: string;
+  budget_id: string;
   name: string;
   startDate: string;
   endDate: string;
@@ -132,6 +133,7 @@ export type Interval = {
 
 export type CustomReportData = {
   id: string;
+  budget_id: string;
   name: string;
   start_date: string;
   end_date: string;

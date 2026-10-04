@@ -16,6 +16,7 @@ import { resetFormulaPreferencesCache } from '#server/formulas/bootstrap';
 import { handleBudgetImport } from '#server/importers';
 import type { ImportableBudgetType } from '#server/importers';
 import { app as mainApp } from '#server/main-app';
+import { budgetSpaceModel } from '#server/models';
 import { mutator } from '#server/mutators';
 import * as prefs from '#server/prefs';
 import { getServer } from '#server/server-config';
@@ -35,6 +36,7 @@ import {
   uniqueBudgetName,
   validateBudgetName,
 } from '#server/util/budget-name';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import * as Platform from '#shared/platform';
 import type { Budget } from '#types/budget';
 
@@ -636,20 +638,21 @@ async function _loadBudget(id: Budget['id']): Promise<{
 
   try {
     await sheet.loadSpreadsheet(db, onSheetChange);
+    const defaultBudget = await db.first<db.DbBudgetSpace>(
+      'SELECT * FROM budgets WHERE id = ?',
+      [DEFAULT_BUDGET_ID],
+    );
+    if (!defaultBudget) {
+      throw new Error('Budget file is missing its default budget space');
+    }
+    sheet.get().meta().budgetType =
+      budgetSpaceModel.fromDb(defaultBudget).budget_type;
+    await budget.createAllBudgets();
   } catch (e) {
     captureException(e);
     await closeBudget();
     return { error: 'opening-budget' };
   }
-
-  // This is a bit leaky, but we need to set the initial budget type
-  const { value: budgetType = 'envelope' } =
-    (await db.first<Pick<db.DbPreference, 'value'>>(
-      'SELECT value from preferences WHERE id = ?',
-      ['budgetType'],
-    )) ?? {};
-  sheet.get().meta().budgetType = budgetType as prefs.BudgetType;
-  await budget.createAllBudgets();
 
   // Load all the in-memory state
   await mappings.loadMappings();

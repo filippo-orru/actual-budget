@@ -51,6 +51,7 @@ test('import keeps one parent, matches its schedule and transfers only the formu
     ],
   });
   await insertRule({
+    budget_id: 'default',
     stage: 'pre',
     conditionsOp: 'and',
     conditions: [

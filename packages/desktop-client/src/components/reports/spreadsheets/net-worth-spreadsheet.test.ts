@@ -35,6 +35,7 @@ const accounts = [
 function createAccount(id: string, name: string): AccountEntity {
   return {
     id,
+    budget_id: 'default',
     name,
     offbudget: 0,
     closed: 0,

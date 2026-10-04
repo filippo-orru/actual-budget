@@ -21,6 +21,7 @@ export type RecurConfig = {
 
 export type ScheduleEntity = {
   id: string;
+  budget_id: string;
   name?: string;
   rule: RuleEntity['id'];
   next_date: string;

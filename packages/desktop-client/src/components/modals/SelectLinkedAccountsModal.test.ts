@@ -15,6 +15,7 @@ function makeLocalAccount(
   overrides: Partial<AccountEntity> & { id: string },
 ): AccountEntity {
   return {
+    budget_id: 'default',
     name: overrides.id,
     offbudget: 0,
     closed: 0,

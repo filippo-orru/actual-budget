@@ -1,6 +1,7 @@
 import type { RecurConfig, ScheduleEntity } from './schedule';
 
 export type NewRuleEntity = {
+  budget_id: string;
   stage: 'pre' | null | 'post';
   conditionsOp: 'or' | 'and';
   conditions: RuleConditionEntity[];
@@ -10,6 +11,7 @@ export type NewRuleEntity = {
 
 export type RuleEntity = {
   id: string;
+  budget_id: string;
 } & NewRuleEntity;
 
 export type RuleConditionOp = RuleConditionEntity['op'];

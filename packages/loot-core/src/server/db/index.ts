@@ -326,6 +326,7 @@ export async function getCategories(
 
 export async function getCategoriesGrouped(
   ids?: Array<DbCategoryGroup['id']>,
+  budgetId?: string,
 ): Promise<
   Array<
     DbCategoryGroup & {
@@ -333,25 +334,32 @@ export async function getCategoriesGrouped(
     }
   >
 > {
-  const categoryGroupWhereIn = ids
-    ? `cg.id IN (${toSqlQueryParameters(ids)}) AND`
+  const categoryGroupWhereIn = [
+    ids ? `cg.id IN (${toSqlQueryParameters(ids)})` : '',
+    budgetId ? 'cg.budget_id = ?' : '',
+  ]
+    .filter(Boolean)
+    .join(' AND ');
+  const categoryGroupWhere = categoryGroupWhereIn
+    ? `${categoryGroupWhereIn} AND`
     : '';
-  const categoryGroupQuery = `SELECT cg.* FROM category_groups cg WHERE ${categoryGroupWhereIn} cg.tombstone = 0
+  const categoryGroupQuery = `SELECT cg.* FROM category_groups cg WHERE ${categoryGroupWhere} cg.tombstone = 0
                               ORDER BY cg.is_income, cg.sort_order, cg.id`;
 
-  const categoryWhereIn = ids
-    ? `c.cat_group IN (${toSqlQueryParameters(ids)}) AND`
-    : '';
-  const categoryQuery = `SELECT c.* FROM categories c WHERE ${categoryWhereIn} c.tombstone = 0
+  const categoryWhereIn = [
+    ids ? `c.cat_group IN (${toSqlQueryParameters(ids)})` : '',
+    budgetId ? 'c.budget_id = ?' : '',
+  ]
+    .filter(Boolean)
+    .join(' AND ');
+  const categoryWhere = categoryWhereIn ? `${categoryWhereIn} AND` : '';
+  const categoryQuery = `SELECT c.* FROM categories c WHERE ${categoryWhere} c.tombstone = 0
                          ORDER BY c.sort_order, c.id`;
 
-  const groups = ids
-    ? await all<DbCategoryGroup>(categoryGroupQuery, [...ids])
-    : await all<DbCategoryGroup>(categoryGroupQuery);
-
-  const categories = ids
-    ? await all<DbCategory>(categoryQuery, [...ids])
-    : await all<DbCategory>(categoryQuery);
+  const groupParams = [...(ids ?? []), ...(budgetId ? [budgetId] : [])];
+  const categoryParams = [...(ids ?? []), ...(budgetId ? [budgetId] : [])];
+  const groups = await all<DbCategoryGroup>(categoryGroupQuery, groupParams);
+  const categories = await all<DbCategory>(categoryQuery, categoryParams);
 
   return groups.map(group => ({
     ...group,

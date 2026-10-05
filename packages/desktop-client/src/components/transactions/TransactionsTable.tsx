@@ -108,6 +108,7 @@ import type {
   TableNavigator,
   TableProps,
 } from '#components/table';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import {
   SchedulesProvider,
   useCachedSchedules,
@@ -1101,6 +1102,7 @@ const Transaction = memo(function Transaction({
   amountColumnWidths,
 }: TransactionProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   const dispatch = useDispatch();
   const dispatchSelected = useSelectedDispatch();
@@ -1942,6 +1944,7 @@ const Transaction = memo(function Transaction({
             }) => (
               <SheetNameProvider
                 name={monthUtils.sheetForMonth(
+                  budgetId,
                   monthUtils.monthFromDate(transaction.date),
                 )}
               >

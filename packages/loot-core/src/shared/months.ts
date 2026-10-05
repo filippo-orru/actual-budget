@@ -431,8 +431,13 @@ export function getQuarterEnd(month: string): string {
   return getYear(month) + '-' + String(endMonth).padStart(2, '0');
 }
 
-export function sheetForMonth(month: string): string {
-  return 'budget' + month.replace('-', '');
+export function sheetForMonth(budgetId: string, month: string): string {
+  return `budget:${budgetId}:${month.replace('-', '')}`;
+}
+
+export function budgetIdFromSheetName(sheetName: string): string | null {
+  const match = /^budget:([^:]+):\d{6}$/.exec(sheetName);
+  return match ? match[1] : null;
 }
 
 export function nameForMonth(month: DateLike, locale?: Locale): string {

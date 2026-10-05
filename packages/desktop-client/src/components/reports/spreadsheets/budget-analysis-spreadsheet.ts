@@ -311,6 +311,7 @@ export function createBudgetAnalysisSpreadsheet({
       1,
     );
     const prevMonthData = await send('envelope-budget-month', {
+      budgetId,
       month: monthBeforeStart,
     });
 
@@ -332,7 +333,10 @@ export function createBudgetAnalysisSpreadsheet({
     for (const month of intervals) {
       // Get budget values from the server for this month
       // This uses the same calculations as the budget page
-      const monthData = await send('envelope-budget-month', { month });
+      const monthData = await send('envelope-budget-month', {
+        budgetId,
+        month,
+      });
 
       const {
         budgeted,

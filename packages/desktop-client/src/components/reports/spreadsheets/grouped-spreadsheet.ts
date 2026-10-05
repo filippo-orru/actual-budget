@@ -20,6 +20,7 @@ import {
 } from './trimIntervals';
 
 export function createGroupedSpreadsheet({
+  budgetId,
   startDate,
   endDate,
   interval,
@@ -56,6 +57,7 @@ export function createGroupedSpreadsheet({
     let debts: QueryDataEntity[];
 
     ({ assets, debts } = await fetchSpreadsheetQueryData({
+      budgetId,
       balanceTypeOp,
       startDate,
       endDate,

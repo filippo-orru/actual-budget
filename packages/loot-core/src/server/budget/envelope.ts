@@ -8,26 +8,26 @@ import { safeNumber } from '#shared/util';
 import { createCategory as createCategoryFromBase } from './base';
 import { flatten2, number, sumAmounts, unflatten2 } from './util';
 
-function getBlankSheet(months) {
+function getBlankSheet(budgetId, months) {
   const blankMonth = monthUtils.prevMonth(months[0]);
-  return monthUtils.sheetForMonth(blankMonth);
+  return monthUtils.sheetForMonth(budgetId, blankMonth);
 }
 
-export function createBlankCategory(cat, months) {
+export function createBlankCategory(budgetId, cat, months) {
   if (months.length > 0) {
-    const sheetName = getBlankSheet(months);
+    const sheetName = getBlankSheet(budgetId, months);
     sheet.get().createStatic(sheetName, `carryover-${cat.id}`, false);
     sheet.get().createStatic(sheetName, `leftover-${cat.id}`, 0);
     sheet.get().createStatic(sheetName, `leftover-pos-${cat.id}`, 0);
   }
 }
 
-function createBlankMonth(categories, sheetName, months) {
+function createBlankMonth(budgetId, categories, sheetName, months) {
   sheet.get().createStatic(sheetName, 'is-blank', true);
   sheet.get().createStatic(sheetName, 'to-budget', 0);
   sheet.get().createStatic(sheetName, 'buffered', 0);
 
-  categories.forEach(cat => createBlankCategory(cat, months));
+  categories.forEach(cat => createBlankCategory(budgetId, cat, months));
 }
 
 export function createCategory(cat, sheetName, prevSheetName) {
@@ -225,19 +225,19 @@ export function createSummary(groups, categories, prevSheetName, sheetName) {
   });
 }
 
-export function createBudget(meta, categories, months) {
+export function createBudget(budgetId, meta, categories, months) {
   // The spreadsheet is now strict - so we need to fill in some
   // default values for the month before the first month. Only do this
   // if it doesn't already exist
-  const blankSheet = getBlankSheet(months);
+  const blankSheet = getBlankSheet(budgetId, months);
   if (meta.blankSheet !== blankSheet) {
     sheet.get().clearSheet(meta.blankSheet);
-    createBlankMonth(categories, blankSheet, months);
+    createBlankMonth(budgetId, categories, blankSheet, months);
     meta.blankSheet = blankSheet;
   }
 }
 
-export function handleCategoryChange(months, oldValue, newValue) {
+export function handleCategoryChange(budgetId, months, oldValue, newValue) {
   // Build list of cells and dependencies that need updated
   function getDeps(sheetName, prevSheetName, groupId, cat) {
     const deps: Array<[string, string[]]> = [
@@ -286,9 +286,10 @@ export function handleCategoryChange(months, oldValue, newValue) {
   if (oldValue && oldValue.tombstone === 0 && newValue.tombstone === 1) {
     months.forEach(month => {
       const prevSheetName = monthUtils.sheetForMonth(
+        budgetId,
         monthUtils.prevMonth(month),
       );
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
       removeDeps(sheetName, prevSheetName, newValue.cat_group, newValue);
     });
@@ -296,15 +297,22 @@ export function handleCategoryChange(months, oldValue, newValue) {
     newValue.tombstone === 0 &&
     (!oldValue || oldValue.tombstone === 1)
   ) {
-    createBlankCategory(newValue, months);
+    createBlankCategory(budgetId, newValue, months);
 
     months.forEach(month => {
       const prevMonth = monthUtils.prevMonth(month);
-      const prevSheetName = monthUtils.sheetForMonth(prevMonth);
-      const sheetName = monthUtils.sheetForMonth(month);
+      const prevSheetName = monthUtils.sheetForMonth(budgetId, prevMonth);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       const { start, end } = monthUtils.bounds(month);
 
-      createCategoryFromBase(newValue, sheetName, prevSheetName, start, end);
+      createCategoryFromBase(
+        budgetId,
+        newValue,
+        sheetName,
+        prevSheetName,
+        start,
+        end,
+      );
 
       addDeps(sheetName, prevSheetName, newValue.cat_group, newValue);
     });
@@ -312,9 +320,10 @@ export function handleCategoryChange(months, oldValue, newValue) {
     // The category moved so we need to update the dependencies
     months.forEach(month => {
       const prevSheetName = monthUtils.sheetForMonth(
+        budgetId,
         monthUtils.prevMonth(month),
       );
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
       removeDeps(sheetName, prevSheetName, oldValue.cat_group, newValue);
       addDeps(sheetName, prevSheetName, newValue.cat_group, newValue);
@@ -322,7 +331,12 @@ export function handleCategoryChange(months, oldValue, newValue) {
   }
 }
 
-export function handleCategoryGroupChange(months, oldValue, newValue) {
+export function handleCategoryGroupChange(
+  budgetId,
+  months,
+  oldValue,
+  newValue,
+) {
   function addDeps(sheetName, groupId) {
     sheet
       .get()
@@ -362,7 +376,7 @@ export function handleCategoryGroupChange(months, oldValue, newValue) {
   if (newValue.tombstone === 1 && oldValue && oldValue.tombstone === 0) {
     const id = newValue.id;
     months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       removeDeps(sheetName, id);
     });
   } else if (
@@ -373,15 +387,15 @@ export function handleCategoryGroupChange(months, oldValue, newValue) {
 
     if (!group.is_income) {
       months.forEach(month => {
-        const sheetName = monthUtils.sheetForMonth(month);
+        const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
         // Dirty, dirty hack. These functions should not be async, but this is
         // OK because we're leveraging the sync nature of queries. Ideally we
         // wouldn't be querying here. But I think we have to. At least for now
         // we do
         const categories = db.runQuery(
-          'SELECT * FROM categories WHERE tombstone = 0 AND cat_group = ?',
-          [group.id],
+          'SELECT * FROM categories WHERE tombstone = 0 AND budget_id = ? AND cat_group = ?',
+          [budgetId, group.id],
           true,
         );
         createCategoryGroup({ ...group, categories }, sheetName);

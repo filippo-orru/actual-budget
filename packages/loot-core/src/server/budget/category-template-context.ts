@@ -59,6 +59,7 @@ export class CategoryTemplateContext {
   ) {
     // get all the needed setup values
     const lastMonthSheet = monthUtils.sheetForMonth(
+      category.budget_id,
       monthUtils.subMonths(month, 1),
     );
     let fromLastMonth = await getSheetValue(
@@ -73,24 +74,31 @@ export class CategoryTemplateContext {
     if (
       (fromLastMonth < 0 && !carryover) || // overspend no carryover
       category.is_income || // tracking budget income categories
-      (isTrackingBudget() && !carryover) // tracking budget regular categories
+      (isTrackingBudget(category.budget_id) && !carryover) // tracking budget regular categories
     ) {
       fromLastMonth = 0;
     }
 
     // run all checks
-    await CategoryTemplateContext.checkByAndScheduleAndSpend(templates, month);
-    await CategoryTemplateContext.checkPercentage(templates);
+    await CategoryTemplateContext.checkByAndScheduleAndSpend(
+      category.budget_id,
+      templates,
+      month,
+    );
+    await CategoryTemplateContext.checkPercentage(
+      category.budget_id,
+      templates,
+    );
 
     const hideDecimal = await aqlQuery(
       q('preferences').filter({ id: 'hideFraction' }).select('*'),
     );
 
-    const currencyPref = await aqlQuery(
-      q('preferences').filter({ id: 'defaultCurrencyCode' }).select('*'),
+    const budgetSpace = await db.first<{ currency_code: string }>(
+      'SELECT currency_code FROM budgets WHERE id = ?',
+      [category.budget_id],
     );
-    const currencyCode =
-      currencyPref.data.length > 0 ? currencyPref.data[0].value : '';
+    const currencyCode = budgetSpace?.currency_code ?? '';
 
     // call the private constructor
     return new CategoryTemplateContext(
@@ -469,6 +477,7 @@ export class CategoryTemplateContext {
   //-----------------------------------------------------------------------------
   //  Template Validation
   static async checkByAndScheduleAndSpend(
+    budgetId: string,
     templates: Template[],
     month: string,
   ) {
@@ -479,7 +488,7 @@ export class CategoryTemplateContext {
       return;
     }
     //check schedule existence (prefer scheduleId, fall back to name)
-    const activeSchedules = await getActiveSchedules();
+    const activeSchedules = await getActiveSchedules(budgetId);
     const scheduleIds = new Set(activeSchedules.map(s => s.id));
     const scheduleNames = new Set(
       activeSchedules.map(s => s.name?.trim()).filter(Boolean),
@@ -534,11 +543,14 @@ export class CategoryTemplateContext {
       });
   }
 
-  static async checkPercentage(templates: Template[]) {
+  static async checkPercentage(budgetId: string, templates: Template[]) {
     const pt = templates.filter(t => t.type === 'percentage');
     if (pt.length === 0) return;
 
-    const availCategories = await db.getCategories();
+    const availCategories = await db.all<db.DbCategory>(
+      'SELECT * FROM categories WHERE budget_id = ? AND tombstone = 0',
+      [budgetId],
+    );
     const incomeCategories = availCategories.filter(c => c.is_income);
     const availNames = new Set(
       incomeCategories.map(c => c.name.toLocaleLowerCase()),
@@ -689,6 +701,7 @@ export class CategoryTemplateContext {
     templateContext: CategoryTemplateContext,
   ): Promise<number> {
     const sheetName = monthUtils.sheetForMonth(
+      templateContext.category.budget_id,
       monthUtils.subMonths(templateContext.month, template.lookBack),
     );
     return await getSheetValue(
@@ -786,7 +799,10 @@ export class CategoryTemplateContext {
       monthUtils.differenceInCalendarMonths(templateContext.month, m) > 0;
       m = monthUtils.addMonths(m, 1)
     ) {
-      const sheetName = monthUtils.sheetForMonth(m);
+      const sheetName = monthUtils.sheetForMonth(
+        templateContext.category.budget_id,
+        m,
+      );
       if (firstMonth) {
         //TODO figure out if I already  found these values and can pass them in
         const spent = await getSheetValue(
@@ -836,10 +852,14 @@ export class CategoryTemplateContext {
     //choose the sheet to find income for
     if (prev) {
       sheetName = monthUtils.sheetForMonth(
+        templateContext.category.budget_id,
         monthUtils.subMonths(templateContext.month, 1),
       );
     } else {
-      sheetName = monthUtils.sheetForMonth(templateContext.month);
+      sheetName = monthUtils.sheetForMonth(
+        templateContext.category.budget_id,
+        templateContext.month,
+      );
     }
     if (cat === 'all income') {
       monthlyIncome = await getSheetValue(sheetName, `total-income`);
@@ -849,7 +869,12 @@ export class CategoryTemplateContext {
       // Text templates address income categories by name (e.g. `#template
       // 10% of Salary`); the UI's CategoryAutocomplete stores the category
       // id. Accept either form.
-      const incomeCat = (await db.getCategories()).find(
+      const incomeCat = (
+        await db.all<db.DbCategory>(
+          'SELECT * FROM categories WHERE budget_id = ? AND tombstone = 0',
+          [templateContext.category.budget_id],
+        )
+      ).find(
         c =>
           c.is_income &&
           (c.id === template.category || c.name.toLocaleLowerCase() === cat),
@@ -874,6 +899,7 @@ export class CategoryTemplateContext {
   ): Promise<number> {
     let average = await getCategoryAverage({
       month: templateContext.month,
+      budgetId: templateContext.category.budget_id,
       maxMonths: template.numMonths,
       categoryId: templateContext.category.id,
     });

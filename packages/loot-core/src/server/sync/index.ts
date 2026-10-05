@@ -12,7 +12,8 @@ import * as asyncStorage from '#platform/server/asyncStorage';
 import * as connection from '#platform/server/connection';
 import { logger } from '#platform/server/log';
 import {
-  setType as setBudgetType,
+  createAllBudgets,
+  setBudgetType,
   triggerBudgetChanges,
 } from '#server/budget/base';
 import * as db from '#server/db';
@@ -421,7 +422,6 @@ async function _applyMessages(messages: Message[], deferUnknownSchema = false) {
   }
 
   const prefsToSet: MetadataPrefs = {};
-  let budgetTypeToSet: Message['value'] | undefined;
   const deferredMessages = new Set<Message>();
   const idsPerTable: Record<string, string[]> = {};
   let oldData: DataMap = new Map();
@@ -499,15 +499,6 @@ async function _applyMessages(messages: Message[], deferUnknownSchema = false) {
             // so it knows whether they already exist in the db or not. We
             // ignore any changes to the spreadsheet.
             added.add(dataset + row);
-
-            // Special treatment for some synced prefs. Applied messages
-            // only — an old or deferred message must not flip the
-            // in-memory budget type. Remember it here and switch after
-            // the commit: switching mutates the in-memory spreadsheet,
-            // which a rollback could not undo
-            if (dataset === 'preferences' && row === 'budgetType') {
-              budgetTypeToSet = value;
-            }
           }
         } else {
           // Deferred messages must not be tracked in `added`: their
@@ -548,10 +539,6 @@ async function _applyMessages(messages: Message[], deferUnknownSchema = false) {
   // The transaction succeeded, so we can update in-memory objects now
   undo.appendMessages(messages, oldData);
 
-  if (budgetTypeToSet !== undefined) {
-    void setBudgetType(budgetTypeToSet);
-  }
-
   if (checkSyncingMode('enabled')) {
     // Update the in-memory clock.
     clock.merkle = currentMerkle;
@@ -567,9 +554,19 @@ async function _applyMessages(messages: Message[], deferUnknownSchema = false) {
   if (sheet.get()) {
     // Need to clean up these APIs and make them consistent
     sheet.startTransaction();
-    triggerBudgetChanges(oldData, newData);
+    const budgetChanges = triggerBudgetChanges(oldData, newData);
     sheet.get().triggerDatabaseChanges(oldData, newData);
     sheet.endTransaction();
+
+    for (const change of budgetChanges) {
+      if (change.isNew) {
+        sheet.get().getBudgetMeta(change.id).budgetType =
+          change.type === 'tracking' ? 'tracking' : 'envelope';
+        await createAllBudgets(change.id);
+      } else if (change.type === 'envelope' || change.type === 'tracking') {
+        await setBudgetType(change.id, change.type);
+      }
+    }
 
     // Transfers insert the source row in one sync batch and the counterparty in
     // a second. triggerDatabaseChanges should dirty aggregate query cells, but

@@ -13,8 +13,8 @@ import { AutoTextSize } from 'auto-text-size';
 
 import { BalanceWithCarryover } from '#components/budget/BalanceWithCarryover';
 import { PrivacyFilter } from '#components/PrivacyFilter';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import type { Binding } from '#spreadsheet';
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
@@ -39,7 +39,7 @@ export function BalanceCell({
   'aria-label': ariaLabel,
 }: BalanceCellProps) {
   const { t } = useTranslation();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const columnWidth = getColumnWidth({
     show3Columns,
   });

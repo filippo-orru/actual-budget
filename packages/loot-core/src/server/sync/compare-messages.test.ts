@@ -165,7 +165,7 @@ describe('compareMessages', () => {
     expect(JSON.stringify(getClock().merkle)).toBe(merkleBefore);
   });
 
-  it('switches the budget type when the preference arrives via sync', async () => {
+  it('switches only the owning budget type when it arrives via sync', async () => {
     await db.insertCategoryGroup({
       budget_id: 'default',
       id: 'income-group',
@@ -190,26 +190,60 @@ describe('compareMessages', () => {
       cat_group: 'group1',
       is_income: 0,
     });
+    await db.insert('budgets', {
+      id: 'second-budget',
+      name: 'Second',
+      currency_code: 'USD',
+      budget_type: 'envelope',
+      sort_order: 1,
+      tombstone: 0,
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'second-budget',
+      id: 'second-income-group',
+      name: 'Income',
+      is_income: 1,
+    });
+    await db.insertCategory({
+      id: 'second-income',
+      name: 'Income',
+      cat_group: 'second-income-group',
+      is_income: 1,
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'second-budget',
+      id: 'second-expense-group',
+      name: 'Expenses',
+    });
+    await db.insertCategory({
+      id: 'second-expense',
+      name: 'Expenses',
+      cat_group: 'second-expense-group',
+    });
     await sheet.loadSpreadsheet(db);
-    await budget.createBudget(['2024-01']);
-    expect(sheet.get().meta().budgetType).toBe('envelope');
+    await budget.createBudget('default', ['2024-01']);
+    sheet.get().getBudgetMeta('second-budget').budgetType = 'envelope';
+    expect(sheet.get().getBudgetMeta('default').budgetType).toBe('envelope');
 
     await applyMessages([
       {
-        dataset: 'preferences',
-        row: 'budgetType',
-        column: 'value',
+        dataset: 'budgets',
+        row: 'second-budget',
+        column: 'budget_type',
         value: 'tracking',
         timestamp: sendTimestamp(),
       },
     ]);
     await sheet.waitOnSpreadsheet();
 
-    expect(sheet.get().meta().budgetType).toBe('tracking');
-    const preference = await db.first<{ value: string }>(
-      'SELECT value FROM preferences WHERE id = ?',
-      ['budgetType'],
+    expect(sheet.get().getBudgetMeta('default').budgetType).toBe('envelope');
+    expect(sheet.get().getBudgetMeta('second-budget').budgetType).toBe(
+      'tracking',
     );
-    expect(preference?.value).toBe('tracking');
+    const secondBudget = await db.first<{ budget_type: string }>(
+      'SELECT budget_type FROM budgets WHERE id = ?',
+      ['second-budget'],
+    );
+    expect(secondBudget?.budget_type).toBe('tracking');
   });
 });

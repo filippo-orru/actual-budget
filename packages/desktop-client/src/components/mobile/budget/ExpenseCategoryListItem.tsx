@@ -14,11 +14,11 @@ import type { BudgetType } from '@actual-app/core/server/prefs';
 import * as monthUtils from '@actual-app/core/shared/months';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useCategoriesById } from '#hooks/useCategories';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
 import { useSheetValue } from '#hooks/useSheetValue';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { useUndo } from '#hooks/useUndo';
 import { collapseModals, pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
@@ -124,7 +124,7 @@ function ExpenseCategoryCells({
     show3Columns,
     isSidebar: false,
   });
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
 
   const budgeted =
     budgetType === 'tracking'
@@ -226,7 +226,7 @@ export function ExpenseCategoryListItem({
   const { value: category } = props;
 
   const { t } = useTranslation();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const format = useFormat();
 
   const balanceMenuModalName =

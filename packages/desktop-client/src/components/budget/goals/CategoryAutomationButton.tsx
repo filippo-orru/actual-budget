@@ -20,9 +20,9 @@ import type { CleanupConfig } from '#components/budget/goals/cleanupModel';
 import { displayTemplateTypes } from '#components/budget/goals/constants';
 import { MonthsContext } from '#components/budget/MonthsContext';
 import { migrateTemplatesToAutomations } from '#components/modals/BudgetAutomationsModal/migrateTemplatesToAutomations';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 
@@ -86,7 +86,7 @@ export function CategoryAutomationButton({
 
   const goalTemplatesEnabled = useFeatureFlag('goalTemplatesEnabled');
   const goalTemplatesUIEnabled = useFeatureFlag('goalTemplatesUIEnabled');
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const { data: categoriesData } = useCategories();
   const hasAutomations =
     category.template_settings?.source === 'ui' &&

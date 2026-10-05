@@ -105,7 +105,7 @@ describe('storeNoteCleanups', () => {
       ],
     });
 
-    await storeNoteCleanups();
+    await storeNoteCleanups('default');
 
     expect(JSON.parse(state.categoryDefs.get('cat-1')!)).toEqual([
       { role: 'source', groupId: null },
@@ -128,7 +128,7 @@ describe('storeNoteCleanups', () => {
       ],
     });
 
-    await storeNoteCleanups();
+    await storeNoteCleanups('default');
 
     const def1 = JSON.parse(state.categoryDefs.get('cat-1')!);
     const def2 = JSON.parse(state.categoryDefs.get('cat-2')!);
@@ -156,7 +156,7 @@ describe('storeNoteCleanups', () => {
       ],
     });
 
-    await storeNoteCleanups();
+    await storeNoteCleanups('default');
 
     expect(state.categoryDefs.get('cat-1')).toBeNull();
   });
@@ -176,7 +176,7 @@ describe('storeNoteCleanups', () => {
       ],
     });
 
-    await storeNoteCleanups();
+    await storeNoteCleanups('default');
 
     expect(state.groups.get('g-orphan')!.tombstone).toBe(1);
   });
@@ -196,7 +196,7 @@ describe('storeNoteCleanups', () => {
       ],
     });
 
-    await storeNoteCleanups();
+    await storeNoteCleanups('default');
 
     expect(state.groups.get('g-existing')!.tombstone).toBe(0);
     const def = JSON.parse(state.categoryDefs.get('cat-1')!);

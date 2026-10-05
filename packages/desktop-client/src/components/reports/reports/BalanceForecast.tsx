@@ -37,12 +37,12 @@ import { Header } from '#components/reports/Header';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { useAccounts } from '#hooks/useAccounts';
 import { useBalanceForecast } from '#hooks/useBalanceForecast';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 import { usePrivacyMode } from '#hooks/usePrivacyMode';
 import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 
@@ -80,8 +80,7 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
   const locale = useLocale();
   const dispatch = useDispatch();
   const { data: accounts = [] } = useAccounts();
-  const [budgetTypePref] = useSyncedPref('budgetType');
-  const budgetType = budgetTypePref === 'tracking' ? 'tracking' : 'envelope';
+  const budgetType = useBudgetSpace().budget_type;
 
   const {
     conditions,

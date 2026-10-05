@@ -12,8 +12,8 @@ import { View } from '@actual-app/components/view';
 import * as monthUtils from '@actual-app/core/shared/months';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { collapseModals, pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
@@ -103,7 +103,7 @@ function IncomeCategoryCells({
 }: IncomeCategoryCellsProps) {
   const { t } = useTranslation();
   const columnWidth = getColumnWidth();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
 
   const budgeted =
     budgetType === 'tracking'
@@ -184,7 +184,7 @@ export function IncomeCategoryListItem({
   const { value: category } = props;
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const balanceMenuModalName = `envelope-income-balance-menu`;
 
   const onShowActivity = useCallback(() => {

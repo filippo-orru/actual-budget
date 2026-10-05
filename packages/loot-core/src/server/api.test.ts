@@ -282,7 +282,7 @@ describe('API handlers', () => {
     });
 
     it('envelope budget: income group returns only received', async () => {
-      await createBudget(['2026-02', '2026-03']);
+      await createBudget('default', ['2026-02', '2026-03']);
       await db.insertTransaction({
         id: 'tx1',
         date: '2026-03-15',
@@ -305,11 +305,11 @@ describe('API handlers', () => {
     });
 
     it('tracking budget: income group returns budgeted, received, and balance', async () => {
-      sheet.get().meta().budgetType = 'tracking';
-      await db.update('preferences', { id: 'budgetType', value: 'tracking' });
+      sheet.get().getBudgetMeta('default').budgetType = 'tracking';
+      await db.update('budgets', { id: 'default', budget_type: 'tracking' });
 
-      await createBudget(['2026-02', '2026-03']);
-      sheet.get().set('budget202603!budget-income-cat', 6000);
+      await createBudget('default', ['2026-02', '2026-03']);
+      sheet.get().set('budget:default:202603!budget-income-cat', 6000);
       await db.insertTransaction({
         id: 'tx1',
         date: '2026-03-15',

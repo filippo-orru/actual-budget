@@ -22,6 +22,8 @@ vi.mock('./actions', () => ({
 
 vi.mock('#server/db', () => ({
   getCategories: vi.fn(),
+  all: vi.fn(),
+  first: vi.fn(),
 }));
 
 vi.mock('#server/aql', () => ({
@@ -37,6 +39,7 @@ function mockPreferences(
   hideFraction: boolean = false,
   currencyCode: string = 'USD',
 ) {
+  vi.mocked(db.first).mockResolvedValue({ currency_code: currencyCode });
   vi.mocked(aql.aqlQuery).mockImplementation(async (query: unknown) => {
     const queryStr = JSON.stringify(query);
     if (queryStr.includes('hideFraction')) {
@@ -600,7 +603,7 @@ describe('CategoryTemplateContext', () => {
         priority: 1,
       };
 
-      vi.mocked(db.getCategories).mockResolvedValue([
+      vi.mocked(db.all).mockResolvedValue([
         {
           id: 'income1',
           budget_id: 'default',
@@ -641,7 +644,7 @@ describe('CategoryTemplateContext', () => {
       );
       expect(result).toBe(1000); // 10% of 10000
       expect(actions.getSheetValue).toHaveBeenCalledWith(
-        'budget202312',
+        'budget:default:202312',
         'total-income',
       );
     });
@@ -685,6 +688,7 @@ describe('CategoryTemplateContext', () => {
       );
       expect(result).toBe(200); // Average of -100, -200, -300
       expect(actions.getCategoryAverage).toHaveBeenCalledWith({
+        budgetId: 'default',
         month: '2024-01',
         maxMonths: 3,
         categoryId: 'test',
@@ -742,6 +746,7 @@ describe('CategoryTemplateContext', () => {
 
       expect(result).toBe(150);
       expect(actions.getCategoryAverage).toHaveBeenCalledWith({
+        budgetId: 'default',
         month: '2024-01',
         maxMonths: 3,
         categoryId: 'test',
@@ -828,6 +833,7 @@ describe('CategoryTemplateContext', () => {
       );
       expect(result).toBe(200);
       expect(actions.getCategoryAverage).toHaveBeenCalledWith({
+        budgetId: 'default',
         month: '2024-03',
         maxMonths: 3,
         categoryId: 'test',
@@ -2080,7 +2086,7 @@ describe('CategoryTemplateContext', () => {
       vi.mocked(statements.getActiveSchedules).mockResolvedValue(
         [] as Awaited<ReturnType<typeof statements.getActiveSchedules>>,
       );
-      vi.mocked(db.getCategories).mockResolvedValue([
+      vi.mocked(db.all).mockResolvedValue([
         {
           id: 'inc-1',
           budget_id: 'default',
@@ -2143,7 +2149,7 @@ describe('CategoryTemplateContext', () => {
       vi.mocked(statements.getActiveSchedules).mockResolvedValue(
         [] as Awaited<ReturnType<typeof statements.getActiveSchedules>>,
       );
-      vi.mocked(db.getCategories).mockResolvedValue([
+      vi.mocked(db.all).mockResolvedValue([
         {
           id: 'inc-1',
           budget_id: 'default',
@@ -2174,7 +2180,7 @@ describe('CategoryTemplateContext', () => {
       vi.mocked(statements.getActiveSchedules).mockResolvedValue(
         [] as Awaited<ReturnType<typeof statements.getActiveSchedules>>,
       );
-      vi.mocked(db.getCategories).mockResolvedValue([] as DbCategory[]);
+      vi.mocked(db.all).mockResolvedValue([] as DbCategory[]);
       const templates: Template[] = [
         {
           type: 'percentage',

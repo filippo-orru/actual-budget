@@ -5,6 +5,7 @@ import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import * as monthUtils from '@actual-app/core/shared/months';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SheetNameProvider } from '#hooks/useSheetName';
 
 import { MonthsContext } from './MonthsContext';
@@ -16,9 +17,13 @@ type RenderMonthsProps = {
 
 export function RenderMonths({ children, style }: RenderMonthsProps) {
   const { months } = useContext(MonthsContext);
+  const budgetId = useBudgetSpaceId();
 
   return months.map((month, index) => (
-    <SheetNameProvider key={index} name={monthUtils.sheetForMonth(month)}>
+    <SheetNameProvider
+      key={index}
+      name={monthUtils.sheetForMonth(budgetId, month)}
+    >
       <View
         style={{
           flex: 1,

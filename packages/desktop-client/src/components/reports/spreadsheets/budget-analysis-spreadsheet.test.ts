@@ -131,7 +131,7 @@ describe('createBudgetAnalysisSpreadsheet', () => {
       values: Record<string, number | boolean>,
     ): BudgetMonthCell[] =>
       Object.entries(values).map(([name, value]) => ({
-        name: `budget202601!${name}`,
+        name: `budget:default:202601!${name}`,
         value,
       })) as BudgetMonthCell[];
 

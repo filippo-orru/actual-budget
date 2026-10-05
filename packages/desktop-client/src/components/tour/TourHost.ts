@@ -5,11 +5,11 @@ import type { Controls, EventData } from 'react-joyride';
 
 import { theme } from '@actual-app/components/theme';
 
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useModalState } from '#hooks/useModalState';
 import { useNavigate } from '#hooks/useNavigate';
 import { useReducedMotion } from '#hooks/useReducedMotion';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { removeNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 
@@ -33,12 +33,12 @@ export function TourHost({ tourId }: TourHostProps) {
   const { activeModal, modalStack } = useModalState();
   const reducedMotion = useReducedMotion();
   const navigate = useNavigate();
-  const [budgetTypePref] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const pausedAtIndexRef = useRef<number | null>(null);
 
   const steps = getTourSteps(tourId, {
     navigate,
-    budgetType: budgetTypePref === 'tracking' ? 'tracking' : 'envelope',
+    budgetType,
   });
 
   const completeTour = () => {

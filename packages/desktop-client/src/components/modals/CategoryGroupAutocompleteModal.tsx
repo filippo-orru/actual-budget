@@ -14,6 +14,7 @@ import {
   ModalTitle,
 } from '#components/common/Modal';
 import { SectionLabel } from '#components/forms';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SheetNameProvider } from '#hooks/useSheetName';
 import type { Modal as ModalType } from '#modals/modalsSlice';
 
@@ -33,6 +34,7 @@ export function CategoryGroupAutocompleteModal({
   onClose,
 }: CategoryGroupAutocompleteModalProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const { isNarrowWidth } = useResponsive();
 
   const defaultAutocompleteProps = {
@@ -84,7 +86,7 @@ export function CategoryGroupAutocompleteModal({
             )}
             <View style={{ flex: 1 }}>
               <SheetNameProvider
-                name={month ? monthUtils.sheetForMonth(month) : ''}
+                name={month ? monthUtils.sheetForMonth(budgetId, month) : ''}
               >
                 <CategoryGroupAutocomplete
                   focused

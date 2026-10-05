@@ -39,7 +39,11 @@ async function createScheduleList(
   const t: Array<ScheduleTemplateTarget> = [];
   const errors: string[] = [];
   const accounts = (await db.getAllAccounts()) ?? [];
-  const accountsMap = new Map(accounts.map(a => [a.id, a]));
+  const accountsMap = new Map(
+    accounts
+      .filter(account => account.budget_id === category.budget_id)
+      .map(a => [a.id, a]),
+  );
 
   for (const template of templates) {
     // Prefer scheduleId so renames don't break the lookup; fall back to name
@@ -51,9 +55,9 @@ async function createScheduleList(
       completed,
     } = await db.first<Pick<db.DbSchedule, 'id' | 'name' | 'completed'>>(
       template.scheduleId
-        ? 'SELECT id, name, completed FROM schedules WHERE id = ? AND tombstone = 0'
-        : 'SELECT id, name, completed FROM schedules WHERE TRIM(name) = ? AND tombstone = 0',
-      [template.scheduleId ?? template.name],
+        ? 'SELECT id, name, completed FROM schedules WHERE id = ? AND budget_id = ? AND tombstone = 0'
+        : 'SELECT id, name, completed FROM schedules WHERE TRIM(name) = ? AND budget_id = ? AND tombstone = 0',
+      [template.scheduleId ?? template.name, category.budget_id],
     );
     const rule = await getRuleForSchedule(sid);
     const conditions = rule.serialize().conditions;
@@ -340,7 +344,7 @@ export async function runSchedule(
       c.num_months === 0) ||
     (c.target_frequency === 'weekly' && c.target_interval <= 4) ||
     (c.target_frequency === 'daily' && c.target_interval <= 31) ||
-    isTrackingBudget();
+    isTrackingBudget(category.budget_id);
 
   const isSubMonthly = c =>
     c.target_frequency === 'weekly' || c.target_frequency === 'daily';
@@ -355,7 +359,10 @@ export async function runSchedule(
   const totalSinkingBaseContribution =
     getSinkingBaseContributionTotal(t_sinking);
   const lastMonthGoal = await getSheetValue(
-    monthUtils.sheetForMonth(monthUtils.subMonths(current_month, 1)),
+    monthUtils.sheetForMonth(
+      category.budget_id,
+      monthUtils.subMonths(current_month, 1),
+    ),
     `goal-${category.id}`,
   );
 

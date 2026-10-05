@@ -22,6 +22,7 @@ import {
 import { projectTrackingBudgetForecast } from './forecast-tracking-budget';
 
 export type ForecastRequestParams = {
+  budgetId: string;
   accountIds?: string[];
   conditions?: RuleConditionEntity[];
   conditionsOp?: 'and' | 'or';
@@ -55,6 +56,7 @@ function createUnassignedRuleAccountStub(): DbAccountForRules {
 }
 
 export async function generateForecast({
+  budgetId,
   accountIds,
   conditions,
   conditionsOp,
@@ -67,25 +69,28 @@ export async function generateForecast({
   const dateContext = buildForecastDateContext(startDate, endDate);
 
   if (source === 'tracking-budget') {
-    const { value: budgetType = 'envelope' } =
-      (await db.first<Pick<db.DbPreference, 'value'>>(
-        `SELECT value FROM preferences WHERE id = ?`,
-        ['budgetType'],
-      )) ?? {};
-
-    if (budgetType !== 'tracking') {
+    const budget = await db.first<{ budget_type: string }>(
+      'SELECT budget_type FROM budgets WHERE id = ? AND tombstone = 0',
+      [budgetId],
+    );
+    if (budget?.budget_type !== 'tracking') {
       throw new Error(
         'Tracking budget forecasts require a Tracking Budget file.',
       );
     }
 
+    const budgetAccounts = await db.all<{ id: string }>(
+      'SELECT id FROM accounts WHERE budget_id = ? AND tombstone = 0',
+      [budgetId],
+    );
     const accounts = await resolveForecastAccounts({
-      accountIds: undefined,
+      accountIds: budgetAccounts.map(account => account.id),
       plainConditions: [],
       resolvedConditionsOp: 'and',
       canRestrictAccounts: false,
     });
     const { dataPoints, lowestBalance } = projectTrackingBudgetForecast({
+      budgetId,
       accounts,
       dateContext,
     });
@@ -171,6 +176,7 @@ export async function generateForecast({
 
 export type ForecastHandlers = {
   'forecast/generate': (params: {
+    budgetId: string;
     accountIds?: string[];
     conditions?: RuleConditionEntity[];
     conditionsOp?: 'and' | 'or';

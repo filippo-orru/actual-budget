@@ -142,7 +142,7 @@ export function createSummary(groups, sheetName) {
   });
 }
 
-export function handleCategoryChange(months, oldValue, newValue) {
+export function handleCategoryChange(budgetId, months, oldValue, newValue) {
   function addDeps(sheetName, groupId, catId) {
     sheet
       .get()
@@ -184,7 +184,7 @@ export function handleCategoryChange(months, oldValue, newValue) {
     const groupId = newValue.cat_group;
 
     months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       removeDeps(sheetName, groupId, id);
     });
   } else if (
@@ -193,11 +193,18 @@ export function handleCategoryChange(months, oldValue, newValue) {
   ) {
     months.forEach(month => {
       const prevMonth = monthUtils.prevMonth(month);
-      const prevSheetName = monthUtils.sheetForMonth(prevMonth);
-      const sheetName = monthUtils.sheetForMonth(month);
+      const prevSheetName = monthUtils.sheetForMonth(budgetId, prevMonth);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       const { start, end } = monthUtils.bounds(month);
 
-      createCategoryFromBase(newValue, sheetName, prevSheetName, start, end);
+      createCategoryFromBase(
+        budgetId,
+        newValue,
+        sheetName,
+        prevSheetName,
+        start,
+        end,
+      );
 
       const id = newValue.id;
       const groupId = newValue.cat_group;
@@ -209,7 +216,7 @@ export function handleCategoryChange(months, oldValue, newValue) {
     const id = newValue.id;
 
     months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       removeDeps(sheetName, oldValue.cat_group, id);
       addDeps(sheetName, newValue.cat_group, id);
     });
@@ -218,7 +225,7 @@ export function handleCategoryChange(months, oldValue, newValue) {
     const groupId = newValue.cat_group;
 
     months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       if (newValue.hidden) {
         removeDeps(sheetName, groupId, id);
       } else {
@@ -228,7 +235,12 @@ export function handleCategoryChange(months, oldValue, newValue) {
   }
 }
 
-export function handleCategoryGroupChange(months, oldValue, newValue) {
+export function handleCategoryGroupChange(
+  budgetId,
+  months,
+  oldValue,
+  newValue,
+) {
   function addDeps(sheetName, groupId) {
     sheet
       .get()
@@ -268,7 +280,7 @@ export function handleCategoryGroupChange(months, oldValue, newValue) {
   if (newValue.tombstone === 1 && oldValue && oldValue.tombstone === 0) {
     const id = newValue.id;
     months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       removeDeps(sheetName, id);
     });
   } else if (
@@ -278,15 +290,15 @@ export function handleCategoryGroupChange(months, oldValue, newValue) {
     const group = newValue;
 
     months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
       // Dirty, dirty hack. These functions should not be async, but this is
       // OK because we're leveraging the sync nature of queries. Ideally we
       // wouldn't be querying here. But I think we have to. At least for now
       // we do
       const categories = db.runQuery(
-        'SELECT * FROM categories WHERE tombstone = 0 AND cat_group = ?',
-        [group.id],
+        'SELECT * FROM categories WHERE tombstone = 0 AND budget_id = ? AND cat_group = ?',
+        [budgetId, group.id],
         true,
       );
       createCategoryGroup({ ...group, categories }, sheetName);
@@ -297,7 +309,7 @@ export function handleCategoryGroupChange(months, oldValue, newValue) {
     const group = newValue;
 
     months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
+      const sheetName = monthUtils.sheetForMonth(budgetId, month);
       if (newValue.hidden) {
         removeDeps(sheetName, group.id);
       } else {

@@ -92,13 +92,16 @@ function withMutation<Params extends Array<unknown>, ReturnType>(
 
 let handlers = {} as unknown as Handlers;
 
-async function validateMonth(month) {
+async function validateMonth(month, budgetId?: string) {
   if (!month.match(/^\d{4}-\d{2}$/)) {
     throw APIError('Invalid month format, use YYYY-MM: ' + month);
   }
 
   if (!IMPORT_MODE) {
-    const { start, end } = await handlers['get-budget-bounds']();
+    const resolvedBudgetId = await resolveBudgetId(budgetId);
+    const { start, end } = await handlers['get-budget-bounds']({
+      budgetId: resolvedBudgetId,
+    });
     const range = monthUtils.range(start, end);
     if (!range.includes(month)) {
       throw APIError('No budget exists for month: ' + month);
@@ -357,7 +360,7 @@ handlers['api/finish-import'] = async function () {
   await handlers['close-budget']();
   await handlers['load-budget']({ id });
 
-  await handlers['get-budget-bounds']();
+  await handlers['get-budget-bounds']({ budgetId: 'default' });
   await sheet.waitOnSpreadsheet();
 
   await cloudStorage.upload().catch(err => {
@@ -387,20 +390,24 @@ handlers['api/query'] = async function ({ query }) {
   return aqlQuery(query);
 };
 
-handlers['api/budget-months'] = async function () {
+handlers['api/budget-months'] = async function ({ budgetId }) {
   checkFileOpen();
-  const { start, end } = await handlers['get-budget-bounds']();
+  const resolvedBudgetId = await resolveBudgetId(budgetId);
+  const { start, end } = await handlers['get-budget-bounds']({
+    budgetId: resolvedBudgetId,
+  });
   return monthUtils.range(start, end);
 };
 
-handlers['api/budget-month'] = async function ({ month }) {
+handlers['api/budget-month'] = async function ({ budgetId, month }) {
   checkFileOpen();
-  await validateMonth(month);
+  const resolvedBudgetId = await resolveBudgetId(budgetId);
+  await validateMonth(month, resolvedBudgetId);
 
   const { data: groups }: { data: CategoryGroupEntity[] } = await aqlQuery(
-    q('category_groups').select('*'),
+    q('category_groups').filter({ budget_id: resolvedBudgetId }).select('*'),
   );
-  const sheetName = monthUtils.sheetForMonth(month);
+  const sheetName = monthUtils.sheetForMonth(resolvedBudgetId, month);
 
   function value(name) {
     const v = sheet.get().getCellValue(sheetName, name);
@@ -424,7 +431,7 @@ handlers['api/budget-month'] = async function ({ month }) {
 
     categoryGroups: groups.map(group => {
       if (group.is_income) {
-        if (isTrackingBudget()) {
+        if (isTrackingBudget(resolvedBudgetId)) {
           return {
             ...categoryGroupModel.toExternal(group),
             budgeted: value(`group-budget-${group.id}`),
@@ -471,12 +478,15 @@ handlers['api/budget-month'] = async function ({ month }) {
 };
 
 handlers['api/budget-set-amount'] = withMutation(async function ({
+  budgetId,
   month,
   categoryId,
   amount,
 }) {
   checkFileOpen();
+  const resolvedBudgetId = await resolveBudgetId(budgetId);
   return handlers['budget/budget-amount']({
+    budgetId: resolvedBudgetId,
     month,
     category: categoryId,
     amount,
@@ -484,14 +494,17 @@ handlers['api/budget-set-amount'] = withMutation(async function ({
 });
 
 handlers['api/budget-set-carryover'] = withMutation(async function ({
+  budgetId,
   month,
   categoryId,
   flag,
 }) {
   checkFileOpen();
-  await validateMonth(month);
+  const resolvedBudgetId = await resolveBudgetId(budgetId);
+  await validateMonth(month, resolvedBudgetId);
   await validateExpenseCategory('budget-set-carryover', categoryId);
   return handlers['budget/set-carryover']({
+    budgetId: resolvedBudgetId,
     startMonth: month,
     category: categoryId,
     flag,
@@ -499,24 +512,31 @@ handlers['api/budget-set-carryover'] = withMutation(async function ({
 });
 
 handlers['api/budget-hold-for-next-month'] = withMutation(async function ({
+  budgetId,
   month,
   amount,
 }) {
   checkFileOpen();
-  await validateMonth(month);
+  const resolvedBudgetId = await resolveBudgetId(budgetId);
+  await validateMonth(month, resolvedBudgetId);
   if (amount <= 0) {
     throw APIError('Amount to hold needs to be greater than 0');
   }
   return handlers['budget/hold-for-next-month']({
+    budgetId: resolvedBudgetId,
     month,
     amount,
   });
 });
 
-handlers['api/budget-reset-hold'] = withMutation(async function ({ month }) {
+handlers['api/budget-reset-hold'] = withMutation(async function ({
+  budgetId,
+  month,
+}) {
   checkFileOpen();
-  await validateMonth(month);
-  return handlers['budget/reset-hold']({ month });
+  const resolvedBudgetId = await resolveBudgetId(budgetId);
+  await validateMonth(month, resolvedBudgetId);
+  return handlers['budget/reset-hold']({ budgetId: resolvedBudgetId, month });
 });
 
 handlers['api/transactions-export'] = async function ({

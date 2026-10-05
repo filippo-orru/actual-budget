@@ -16,7 +16,6 @@ import { resetFormulaPreferencesCache } from '#server/formulas/bootstrap';
 import { handleBudgetImport } from '#server/importers';
 import type { ImportableBudgetType } from '#server/importers';
 import { app as mainApp } from '#server/main-app';
-import { budgetSpaceModel } from '#server/models';
 import { mutator } from '#server/mutators';
 import * as prefs from '#server/prefs';
 import { getServer } from '#server/server-config';
@@ -645,9 +644,7 @@ async function _loadBudget(id: Budget['id']): Promise<{
     if (!defaultBudget) {
       throw new Error('Budget file is missing its default budget space');
     }
-    sheet.get().meta().budgetType =
-      budgetSpaceModel.fromDb(defaultBudget).budget_type;
-    await budget.createAllBudgets();
+    await budget.createAllBudgetSpaces();
   } catch (e) {
     captureException(e);
     await closeBudget();

@@ -40,6 +40,7 @@ import {
 } from './trimIntervals';
 
 export type createCustomSpreadsheetProps = {
+  budgetId: string;
   startDate: string;
   endDate: string;
   interval: string;
@@ -63,6 +64,7 @@ export type createCustomSpreadsheetProps = {
 };
 
 export function createCustomSpreadsheet({
+  budgetId,
   startDate,
   endDate,
   interval,
@@ -121,6 +123,7 @@ export function createCustomSpreadsheet({
     let debts: QueryDataEntity[];
 
     ({ assets, debts } = await fetchSpreadsheetQueryData({
+      budgetId,
       balanceTypeOp,
       startDate,
       endDate,

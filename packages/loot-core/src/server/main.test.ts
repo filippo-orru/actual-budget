@@ -229,10 +229,14 @@ describe('Budget', () => {
       await db.insertCategory({ name: 'bar', cat_group: 'group1' });
     });
 
-    let bounds = await runHandler(handlers['get-budget-bounds']);
+    let bounds = await runHandler(handlers['get-budget-bounds'], {
+      budgetId: 'default',
+    });
     expect(bounds.start).toBe('2016-10');
     expect(bounds.end).toBe('2018-01');
-    expect(spreadsheet.meta().createdMonths).toMatchSnapshot();
+    expect(
+      spreadsheet.getBudgetMeta('default').createdMonths,
+    ).toMatchSnapshot();
 
     // Add a transaction (which needs an account) earlier then the
     // current earliest budget to test if it creates the necessary
@@ -249,10 +253,14 @@ describe('Budget', () => {
     // budgets for the months in the future
     global.currentMonth = '2017-02';
 
-    bounds = await runHandler(handlers['get-budget-bounds']);
+    bounds = await runHandler(handlers['get-budget-bounds'], {
+      budgetId: 'default',
+    });
     expect(bounds.start).toBe('2016-02');
     expect(bounds.end).toBe('2018-02');
-    expect(spreadsheet.meta().createdMonths).toMatchSnapshot();
+    expect(
+      spreadsheet.getBudgetMeta('default').createdMonths,
+    ).toMatchSnapshot();
 
     await new Promise(resolve => spreadsheet.onFinish(resolve));
   });
@@ -417,11 +425,12 @@ describe('Categories', () => {
       });
     });
 
-    await budget.createAllBudgets();
+    await budget.createAllBudgets('default');
 
     // Set a budget value for the category `foo` of 1000
-    const sheetName = monthUtils.sheetForMonth('2018-01');
+    const sheetName = monthUtils.sheetForMonth('default', '2018-01');
     await budgetActions.setBudget({
+      budgetId: 'default',
       category: 'foo',
       month: '2018-01',
       amount: 1000,
@@ -500,23 +509,25 @@ describe('Categories', () => {
       });
     });
 
-    await budget.createAllBudgets();
+    await budget.createAllBudgets('default');
 
     // Move 1000 from `foo` to `bar`, which leaves `foo` with a negative
     // budgeted amount
     await budgetActions.setBudget({
+      budgetId: 'default',
       category: 'foo',
       month: '2017-01',
       amount: -1000,
     });
     await budgetActions.setBudget({
+      budgetId: 'default',
       category: 'bar',
       month: '2017-01',
       amount: 1000,
     });
     await sheet.waitOnSpreadsheet();
 
-    const nextSheetName = monthUtils.sheetForMonth('2017-02');
+    const nextSheetName = monthUtils.sheetForMonth('default', '2017-02');
     expect(sheet.getCellValue(nextSheetName, 'last-month-overspent')).toBe(0);
     const toBudget = sheet.getCellValue(nextSheetName, 'to-budget');
 

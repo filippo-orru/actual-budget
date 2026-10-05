@@ -32,6 +32,7 @@ const accounts: AccountWithComputedBalance[] = [
 describe('tracking budget forecast projection', () => {
   it('increases the forecast by budgeted income', () => {
     const result = projectTrackingBudgetForecast({
+      budgetId: 'default',
       accounts,
       dateContext: {
         ...dateContext,
@@ -53,6 +54,7 @@ describe('tracking budget forecast projection', () => {
 
   it('decreases the forecast by budgeted expenses', () => {
     const result = projectTrackingBudgetForecast({
+      budgetId: 'default',
       accounts,
       dateContext: {
         ...dateContext,
@@ -72,6 +74,7 @@ describe('tracking budget forecast projection', () => {
 
   it('accumulates income and expenses across multiple months', () => {
     const result = projectTrackingBudgetForecast({
+      budgetId: 'default',
       accounts,
       dateContext,
       months: [

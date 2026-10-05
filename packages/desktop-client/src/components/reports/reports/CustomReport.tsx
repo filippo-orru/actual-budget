@@ -56,7 +56,7 @@ import { createGroupedSpreadsheet } from '#components/reports/spreadsheets/group
 import { useReport } from '#components/reports/useReport';
 import { calculateHasWarning, fromDateRepr } from '#components/reports/util';
 import { useAccounts } from '#hooks/useAccounts';
-import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
+import { useBudgetSpace, useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
@@ -121,7 +121,7 @@ const BUDGETED_SUPPORTED_CONDITION_FIELDS = new Set<
 export function CustomReport() {
   const params = useParams();
   const { data: report, isPending } = useCustomReport(params.id);
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
 
   if (isPending) {
     return <LoadingIndicator />;
@@ -515,6 +515,7 @@ function CustomReportInner({
 
   const getGroupData = useMemo(() => {
     return createGroupedSpreadsheet({
+      budgetId,
       startDate,
       endDate,
       interval,
@@ -547,10 +548,12 @@ function CustomReportInner({
     trimIntervals,
     sortByOp,
     firstDayOfWeekIdx,
+    budgetId,
   ]);
 
   const getGraphData = useMemo(() => {
     return createCustomSpreadsheet({
+      budgetId,
       startDate,
       endDate,
       interval,
@@ -592,6 +595,7 @@ function CustomReportInner({
     sortByOp,
     graphType,
     firstDayOfWeekIdx,
+    budgetId,
     dateFormat,
   ]);
   const graphData = useReport('default', getGraphData);

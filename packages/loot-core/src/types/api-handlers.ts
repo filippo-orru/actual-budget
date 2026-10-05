@@ -60,9 +60,9 @@ export type ApiHandlers = {
 
   'api/query': (arg: { query: QueryState }) => Promise<unknown>;
 
-  'api/budget-months': () => Promise<string[]>;
+  'api/budget-months': (arg?: { budgetId?: string }) => Promise<string[]>;
 
-  'api/budget-month': (arg: { month: string }) => Promise<{
+  'api/budget-month': (arg: { budgetId?: string; month: string }) => Promise<{
     month: string;
     incomeAvailable: number;
     lastMonthOverspent: number;
@@ -80,23 +80,29 @@ export type ApiHandlers = {
   }>;
 
   'api/budget-set-amount': (arg: {
+    budgetId?: string;
     month: string;
     categoryId: string;
     amount: number;
   }) => Promise<void>;
 
   'api/budget-set-carryover': (arg: {
+    budgetId?: string;
     month: string;
     categoryId: string;
     flag: boolean;
   }) => Promise<void>;
 
   'api/budget-hold-for-next-month': (arg: {
+    budgetId?: string;
     month: string;
     amount: number;
   }) => Promise<boolean>;
 
-  'api/budget-reset-hold': (arg: { month: string }) => Promise<void>;
+  'api/budget-reset-hold': (arg: {
+    budgetId?: string;
+    month: string;
+  }) => Promise<void>;
 
   'api/transactions-export': (arg: {
     transactions: TransactionEntity[];

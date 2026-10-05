@@ -44,13 +44,12 @@ import {
 import { createSpendingSpreadsheet } from '#components/reports/spreadsheets/spending-spreadsheet';
 import { useReport } from '#components/reports/useReport';
 import { fromDateRepr } from '#components/reports/util';
-import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
+import { useBudgetSpace, useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 import { useNavigate } from '#hooks/useNavigate';
 import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
@@ -78,9 +77,7 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
   const dispatch = useDispatch();
   const { t } = useTranslation();
   const format = useFormat();
-  const [budgetTypePref] = useSyncedPref('budgetType');
-  const budgetType: 'envelope' | 'tracking' =
-    budgetTypePref === 'tracking' ? 'tracking' : 'envelope';
+  const budgetType = useBudgetSpace().budget_type;
 
   const {
     conditions,

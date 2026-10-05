@@ -4,24 +4,31 @@ import { Trans } from 'react-i18next';
 import { ButtonWithLoading } from '@actual-app/components/button';
 import { Text } from '@actual-app/components/text';
 import { send } from '@actual-app/core/platform/client/connection';
+import { useQueryClient } from '@tanstack/react-query';
 
+import { budgetSpaceQueries } from '#budget-spaces/queries';
 import { Link } from '#components/common/Link';
-import { useSyncedPref } from '#hooks/useSyncedPref';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 
 import { Setting } from './UI';
 
 export function BudgetTypeSettings() {
-  const [budgetType = 'envelope', setBudgetType] = useSyncedPref('budgetType');
+  const budgetSpace = useBudgetSpace();
+  const queryClient = useQueryClient();
+  const budgetType = budgetSpace.budget_type;
   const [isLoading, setIsLoading] = useState(false);
 
   async function onSwitchType() {
     setIsLoading(true);
     try {
       const newBudgetType = budgetType === 'envelope' ? 'tracking' : 'envelope';
-      setBudgetType(newBudgetType);
-
-      // Reset the budget cache to ensure the server-side budget system is recalculated
-      await send('reset-budget-cache');
+      await send('budget-spaces/update', {
+        id: budgetSpace.id,
+        budgetType: newBudgetType,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: budgetSpaceQueries.all(),
+      });
     } finally {
       setIsLoading(false);
     }

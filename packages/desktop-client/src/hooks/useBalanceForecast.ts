@@ -6,6 +6,8 @@ import type {
 } from '@actual-app/core/types/models/forecast';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
+
 type UseBalanceForecastParams = {
   accountIds?: string[];
   conditions?: RuleConditionEntity[];
@@ -18,6 +20,7 @@ type UseBalanceForecastParams = {
 };
 
 export function buildBalanceForecastRequest({
+  budgetId,
   accountIds,
   conditions,
   conditionsOp,
@@ -25,18 +28,19 @@ export function buildBalanceForecastRequest({
   endDate,
   includeAccountlessSchedules,
   source = 'schedules',
-}: UseBalanceForecastParams) {
-  return Object.fromEntries(
-    Object.entries({
-      accountIds,
-      conditions,
-      conditionsOp,
-      startDate,
-      endDate,
-      includeAccountlessSchedules,
-      source,
-    }).filter(([, value]) => value !== undefined),
-  );
+}: UseBalanceForecastParams & { budgetId: string }) {
+  return {
+    budgetId,
+    ...(accountIds === undefined ? {} : { accountIds }),
+    ...(conditions === undefined ? {} : { conditions }),
+    ...(conditionsOp === undefined ? {} : { conditionsOp }),
+    startDate,
+    endDate,
+    ...(includeAccountlessSchedules === undefined
+      ? {}
+      : { includeAccountlessSchedules }),
+    source,
+  };
 }
 
 export function useBalanceForecast({
@@ -49,9 +53,11 @@ export function useBalanceForecast({
   source = 'schedules',
   enabled = true,
 }: UseBalanceForecastParams) {
+  const budgetId = useBudgetSpaceId();
   return useQuery({
     queryKey: [
       'balance-forecast',
+      budgetId,
       {
         accountIds: accountIds ?? null,
         conditions: conditions ?? null,
@@ -62,10 +68,11 @@ export function useBalanceForecast({
         source,
       },
     ],
-    queryFn: async (): Promise<ForecastResult> =>
-      send(
+    queryFn: async (): Promise<ForecastResult> => {
+      return send(
         'forecast/generate',
         buildBalanceForecastRequest({
+          budgetId,
           accountIds,
           conditions,
           conditionsOp,
@@ -74,7 +81,8 @@ export function useBalanceForecast({
           includeAccountlessSchedules,
           source,
         }),
-      ),
+      );
+    },
     placeholderData: keepPreviousData,
     enabled,
   });

@@ -27,8 +27,8 @@ import { ReportCard } from '#components/reports/ReportCard';
 import { ReportCardName } from '#components/reports/ReportCardName';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { useBalanceForecast } from '#hooks/useBalanceForecast';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 
 import {
   buildBalanceForecastChartData,
@@ -54,8 +54,7 @@ export function BalanceForecastCard({
 }: BalanceForecastCardProps) {
   const { t } = useTranslation();
   const format = useFormat();
-  const [budgetTypePref] = useSyncedPref('budgetType');
-  const budgetType = budgetTypePref === 'tracking' ? 'tracking' : 'envelope';
+  const budgetType = useBudgetSpace().budget_type;
   const source =
     meta?.source === 'tracking-budget' && budgetType === 'tracking'
       ? 'tracking-budget'

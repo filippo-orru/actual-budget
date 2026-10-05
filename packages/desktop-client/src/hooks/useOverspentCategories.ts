@@ -7,9 +7,9 @@ import type { CategoryEntity } from '@actual-app/core/types/models';
 
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
+import { useBudgetSpace } from './useBudgetSpace';
 import { useCategories } from './useCategories';
 import { useSpreadsheet } from './useSpreadsheet';
-import { useSyncedPref } from './useSyncedPref';
 
 type UseOverspentCategoriesProps = {
   month: string;
@@ -25,7 +25,9 @@ export function useOverspentCategories({
   month,
 }: UseOverspentCategoriesProps): UseOverspentCategoriesResult {
   const spreadsheet = useSpreadsheet();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetSpace = useBudgetSpace();
+  const budgetId = budgetSpace.id;
+  const budgetType = budgetSpace.budget_type;
 
   const {
     data: { list: categories, grouped: categoryGroups } = {
@@ -72,7 +74,7 @@ export function useOverspentCategories({
     setCarryoverFlagByCategory({});
   }, [month]);
 
-  const sheetName = monthUtils.sheetForMonth(month);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
   useEffect(() => {
     const unbindList: (() => void)[] = [];

@@ -4,6 +4,19 @@ test('range returns a full range', () => {
   expect(monthUtils.range('2016-10', '2018-01')).toMatchSnapshot();
 });
 
+test('monthly sheet names are namespaced by budget owner', () => {
+  expect(monthUtils.sheetForMonth('default', '2024-01')).toBe(
+    'budget:default:202401',
+  );
+  expect(monthUtils.sheetForMonth('tracking-budget', '2024-01')).toBe(
+    'budget:tracking-budget:202401',
+  );
+  expect(monthUtils.budgetIdFromSheetName('budget:default:202401')).toBe(
+    'default',
+  );
+  expect(monthUtils.budgetIdFromSheetName('budget202401')).toBeNull();
+});
+
 test('getQuarter returns the quarter number for a given month', () => {
   expect(monthUtils.getQuarter('2024-01')).toBe(1);
   expect(monthUtils.getQuarter('2024-03')).toBe(1);

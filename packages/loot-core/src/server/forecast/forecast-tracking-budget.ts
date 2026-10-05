@@ -18,8 +18,11 @@ function numberOrZero(value: unknown) {
   return typeof value === 'number' ? value : 0;
 }
 
-function getTrackingBudgetMonth(month: string): TrackingBudgetMonth {
-  const sheetName = monthUtils.sheetForMonth(month);
+function getTrackingBudgetMonth(
+  budgetId: string,
+  month: string,
+): TrackingBudgetMonth {
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
   return {
     month,
@@ -33,10 +36,12 @@ function getTrackingBudgetMonth(month: string): TrackingBudgetMonth {
 }
 
 export function projectTrackingBudgetForecast({
+  budgetId,
   accounts,
   dateContext,
   months,
 }: {
+  budgetId: string;
   accounts: AccountWithComputedBalance[];
   dateContext: ForecastDateContext;
   months?: TrackingBudgetMonth[];
@@ -56,7 +61,7 @@ export function projectTrackingBudgetForecast({
     months ??
     monthUtils
       .rangeInclusive(forecastStartMonth, forecastEndMonth)
-      .map(getTrackingBudgetMonth);
+      .map(month => getTrackingBudgetMonth(budgetId, month));
 
   const dataPoints: ForecastDataPoint[] = forecastMonths.map(month => {
     runningBalance += month.budgetedIncome - month.budgetedExpenses;

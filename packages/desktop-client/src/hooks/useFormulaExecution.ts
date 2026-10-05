@@ -230,7 +230,7 @@ export function useFormulaExecution(
           throwOnCellError: false,
         });
 
-        await prefetchBudgetQueries(formulaQueryContext);
+        await prefetchBudgetQueries(formulaQueryContext, budgetId);
 
         const cellValue = evaluateFormulaWithContext({
           formula,
@@ -368,6 +368,7 @@ async function fetchAccountBalance(accountId: string): Promise<number> {
 
 async function prefetchBudgetQueries(
   formulaQueryContext: Required<FormulaQueryContext>,
+  budgetId: string,
 ) {
   for (const request of formulaQueryContext.budgetQueryRequests.values()) {
     const key = createBudgetQueryPrefetchKey(request);
@@ -376,6 +377,7 @@ async function prefetchBudgetQueries(
       formulaQueryContext.budgetQueryPrefetch.set(
         key,
         await fetchBudgetDimensionValueDirect(
+          budgetId,
           request.dimension,
           request.categoryIds,
           request.startMonth,
@@ -561,9 +563,10 @@ async function getCategoriesFromConditions(
 
 // Helper: Get month data from envelope-budget-month RPC
 async function getMonthBudgetData(
+  budgetId: string,
   month: string,
 ): Promise<Array<{ name: string; value: string | number | boolean }>> {
-  const monthData = await send('envelope-budget-month', { month });
+  const monthData = await send('envelope-budget-month', { budgetId, month });
   return monthData || [];
 }
 
@@ -642,6 +645,7 @@ async function extractQueryTimeframeEnd(
 
 // Helper: Evaluate budget dimension with already-extracted parameters (used by compositional BUDGET_QUERY)
 async function fetchBudgetDimensionValueDirect(
+  budgetId: string,
   dimension: string,
   categoryIds: string[],
   startMonth: string,
@@ -665,7 +669,7 @@ async function fetchBudgetDimensionValueDirect(
   const sumDimension = async (fieldPattern: string): Promise<number> => {
     let total = 0;
     for (const month of intervals) {
-      const monthData = await getMonthBudgetData(month);
+      const monthData = await getMonthBudgetData(budgetId, month);
       for (const catId of categoryIds) {
         total += getMonthDataValue(monthData, fieldPattern, catId) as number;
       }
@@ -689,7 +693,7 @@ async function fetchBudgetDimensionValueDirect(
   if (dim === 'balance_start' || dim === 'balance_end') {
     let runningBalance = 0;
     const monthBeforeStart = monthUtils.subMonths(startMonth, 1);
-    const prevMonthData = await getMonthBudgetData(monthBeforeStart);
+    const prevMonthData = await getMonthBudgetData(budgetId, monthBeforeStart);
 
     for (const catId of categoryIds) {
       const catBalance = getMonthDataValue(
@@ -708,7 +712,7 @@ async function fetchBudgetDimensionValueDirect(
     const balances: Record<string, { start: number; end: number }> = {};
 
     for (const month of intervals) {
-      const monthData = await getMonthBudgetData(month);
+      const monthData = await getMonthBudgetData(budgetId, month);
       let budgeted = 0;
       let spent = 0;
       let carryoverToNextMonth = 0;

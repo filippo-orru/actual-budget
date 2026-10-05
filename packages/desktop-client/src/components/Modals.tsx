@@ -5,6 +5,7 @@ import { useLocation } from 'react-router';
 import { send } from '@actual-app/core/platform/client/connection';
 import * as monthUtils from '@actual-app/core/shared/months';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useMetadataPref } from '#hooks/useMetadataPref';
 import { useModalState } from '#hooks/useModalState';
 import { SheetNameProvider } from '#hooks/useSheetName';
@@ -96,6 +97,7 @@ export function Modals() {
   const dispatch = useDispatch();
   const { modalStack } = useModalState();
   const [budgetId] = useMetadataPref('id');
+  const budgetSpaceId = useBudgetSpaceId();
 
   const onCloseModal = useEffectEvent(() => {
     if (modalStack.length > 0) {
@@ -256,7 +258,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <EnvelopeBudgetSummaryModal key={key} {...modal.options} />
             </SheetNameProvider>
@@ -296,7 +301,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <EnvelopeBudgetMenuModal {...modal.options} />
             </SheetNameProvider>
@@ -306,7 +314,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <TrackingBudgetMenuModal {...modal.options} />
             </SheetNameProvider>
@@ -322,7 +333,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <EnvelopeBalanceMenuModal {...modal.options} />
             </SheetNameProvider>
@@ -332,7 +346,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <EnvelopeIncomeBalanceMenuModal {...modal.options} />
             </SheetNameProvider>
@@ -342,7 +359,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <EnvelopeToBudgetMenuModal {...modal.options} />
             </SheetNameProvider>
@@ -352,7 +372,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <HoldBufferModal {...modal.options} />
             </SheetNameProvider>
@@ -362,7 +385,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <TrackingBalanceMenuModal {...modal.options} />
             </SheetNameProvider>
@@ -384,7 +410,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <EnvelopeBudgetMonthMenuModal {...modal.options} />
             </SheetNameProvider>
@@ -394,7 +423,10 @@ export function Modals() {
           return (
             <SheetNameProvider
               key={key}
-              name={monthUtils.sheetForMonth(modal.options.month)}
+              name={monthUtils.sheetForMonth(
+                budgetSpaceId,
+                modal.options.month,
+              )}
             >
               <TrackingBudgetMonthMenuModal {...modal.options} />
             </SheetNameProvider>

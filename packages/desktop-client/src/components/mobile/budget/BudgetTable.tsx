@@ -23,11 +23,11 @@ import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
 import { PullToRefresh } from '#components/mobile/PullToRefresh';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue } from '#components/spreadsheet/CellValue';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
 import { useFormat } from '#hooks/useFormat';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useSheetValue } from '#hooks/useSheetValue';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import type { Binding } from '#spreadsheet';
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
@@ -362,7 +362,7 @@ export function BudgetTable({
     'budget.showHiddenCategories',
   );
 
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
 
   const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
 
@@ -420,7 +420,7 @@ function BudgetTableHeader({
 }: BudgetTableHeaderProps) {
   const { t } = useTranslation();
   const format = useFormat();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const buttonStyle = {
     padding: 0,
     backgroundColor: 'transparent',

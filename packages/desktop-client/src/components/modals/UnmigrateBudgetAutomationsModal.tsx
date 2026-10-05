@@ -13,6 +13,7 @@ import { cleanupToNotes } from '#components/budget/goals/cleanupModel';
 import { Link } from '#components/common/Link';
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
 import { Notes } from '#components/Notes';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useCategory } from '#hooks/useCategory';
 import { useCleanupGroups } from '#hooks/useCleanupGroups';
@@ -44,6 +45,7 @@ export function UnmigrateBudgetAutomationsModal({
   cleanup: CleanupTemplate[];
 }) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const { data: category } = useCategory(categoryId);
   const { data: categoryData } = useCategories();
   const { groups: cleanupGroups } = useCleanupGroups();
@@ -134,8 +136,8 @@ export function UnmigrateBudgetAutomationsModal({
         ],
         source: 'notes',
       });
-      await send('budget/store-note-templates');
-      await send('budget/store-note-cleanups');
+      await send('budget/store-note-templates', { budgetId });
+      await send('budget/store-note-cleanups', { budgetId });
       close();
     } finally {
       setSaving(false);

@@ -45,6 +45,25 @@ async function insertTransactions() {
 }
 
 describe('Spreadsheet', () => {
+  test('discards legacy monthly cache cells without clearing other cache data', async () => {
+    db.runQuery(
+      `INSERT INTO kvcache (key, value) VALUES
+       ('budget201701!sum-amount-cat1', '100'),
+       ('budget:default:201701!sum-amount-cat1', '200'),
+       ('__global!accounts-balance', '300')`,
+    );
+
+    await sheet.loadSpreadsheet(db);
+
+    const cacheRows = await db.all<{ key: string }>(
+      'SELECT key FROM kvcache ORDER BY key',
+    );
+    expect(cacheRows.map(row => row.key)).toEqual([
+      '__global!accounts-balance',
+      'budget:default:201701!sum-amount-cat1',
+    ]);
+  });
+
   test('transferring a category triggers an update', async () => {
     const spreadsheet = await sheet.loadSpreadsheet(db);
     await insertTransactions();

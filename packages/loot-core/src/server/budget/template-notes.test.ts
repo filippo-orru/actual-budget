@@ -15,6 +15,10 @@ import {
 } from './template-notes';
 
 vi.mock('#server/db');
+vi.mock('#server/budget-spaces/helpers', () => ({
+  getBudgetIdForEntity: vi.fn().mockResolvedValue('default'),
+  assertBudgetOwner: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('./statements');
 
 function mockGetTemplateNotesForCategories(
@@ -224,7 +228,7 @@ describe('storeNoteTemplates', () => {
       mockDbUpdate();
 
       // When
-      await storeNoteTemplates();
+      await storeNoteTemplates({ budgetId: 'default' });
 
       // Then
       if (expectedTemplates.length === 0) {
@@ -360,7 +364,7 @@ describe('checkTemplates', () => {
       mockGetActiveSchedules(mockSchedules);
 
       // When
-      const result = await checkTemplateNotes();
+      const result = await checkTemplateNotes({ budgetId: 'default' });
 
       // Then
       expect(result).toEqual(expected);

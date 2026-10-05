@@ -8,6 +8,8 @@ import {
   copyUntilYearEnd,
   coverOverbudgeted,
   getSheetValue,
+  holdForNextMonth,
+  resetHold,
   set3MonthAvg,
   setBudget,
   setCategoryCarryover,
@@ -45,91 +47,248 @@ describe('copyUntilYearEnd', () => {
       is_income: 0,
     });
     await sheet.loadSpreadsheet(db);
-    await budget.createBudget(['2024-01', '2024-02', '2024-03']);
+    await budget.createBudget('default', ['2024-01', '2024-02', '2024-03']);
   }
+
+  it('holds and resets the target budget month buffer', async () => {
+    await setupDatabase();
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'income-account',
+      name: 'Income account',
+    });
+    await db.insertTransaction({
+      id: 'income-transaction',
+      date: '2024-01-01',
+      amount: 5000,
+      account: 'income-account',
+      category: 'income-cat',
+    });
+    await sheet.waitOnSpreadsheet();
+
+    expect(
+      await holdForNextMonth({
+        budgetId: 'default',
+        month: '2024-01',
+        amount: 2000,
+      }),
+    ).toBe(true);
+    expect(await getSheetValue('budget:default:202401', 'buffered')).toBe(2000);
+
+    await resetHold({ budgetId: 'default', month: '2024-01' });
+    await sheet.waitOnSpreadsheet();
+    expect(await getSheetValue('budget:default:202401', 'buffered')).toBe(0);
+    const bufferRow = await db.first<db.DbZeroBudgetMonth>(
+      'SELECT * FROM zero_budget_months WHERE id = ?',
+      ['2024-01'],
+    );
+    expect(bufferRow?.budget_id).toBe('default');
+    expect(bufferRow?.month).toBe('2024-01');
+  });
 
   it('copies the current month budget to all future months in the same year', async () => {
     await setupDatabase();
 
-    await setBudget({ category: 'cat1', month: '2024-01', amount: 5000 });
-    await setBudget({ category: 'cat1', month: '2024-02', amount: 1000 });
-    await setBudget({ category: 'cat1', month: '2024-03', amount: 2000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-01',
+      amount: 5000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-02',
+      amount: 1000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-03',
+      amount: 2000,
+    });
     await sheet.waitOnSpreadsheet();
 
-    await copyUntilYearEnd({ month: '2024-01', category: 'cat1' });
+    await copyUntilYearEnd({
+      budgetId: 'default',
+      month: '2024-01',
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202401', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202402', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202403', 'budget-cat1')).toBe(5000);
+    expect(await getSheetValue('budget:default:202401', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202402', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202403', 'budget-cat1')).toBe(
+      5000,
+    );
   });
 
   it('overwrites future months including those with zero budgets', async () => {
     await setupDatabase();
 
-    await setBudget({ category: 'cat1', month: '2024-01', amount: 5000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-01',
+      amount: 5000,
+    });
     // 2024-02 intentionally left at 0
-    await setBudget({ category: 'cat1', month: '2024-03', amount: 2000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-03',
+      amount: 2000,
+    });
     await sheet.waitOnSpreadsheet();
 
-    await copyUntilYearEnd({ month: '2024-01', category: 'cat1' });
+    await copyUntilYearEnd({
+      budgetId: 'default',
+      month: '2024-01',
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202401', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202402', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202403', 'budget-cat1')).toBe(5000);
+    expect(await getSheetValue('budget:default:202401', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202402', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202403', 'budget-cat1')).toBe(
+      5000,
+    );
   });
 
   it('does not affect months before or equal to the current month', async () => {
     await setupDatabase();
 
-    await setBudget({ category: 'cat1', month: '2024-01', amount: 1000 });
-    await setBudget({ category: 'cat1', month: '2024-02', amount: 5000 });
-    await setBudget({ category: 'cat1', month: '2024-03', amount: 2000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-01',
+      amount: 1000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-02',
+      amount: 5000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-03',
+      amount: 2000,
+    });
     await sheet.waitOnSpreadsheet();
 
-    await copyUntilYearEnd({ month: '2024-02', category: 'cat1' });
+    await copyUntilYearEnd({
+      budgetId: 'default',
+      month: '2024-02',
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202401', 'budget-cat1')).toBe(1000);
-    expect(await getSheetValue('budget202402', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202403', 'budget-cat1')).toBe(5000);
+    expect(await getSheetValue('budget:default:202401', 'budget-cat1')).toBe(
+      1000,
+    );
+    expect(await getSheetValue('budget:default:202402', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202403', 'budget-cat1')).toBe(
+      5000,
+    );
   });
 
   it('copies the current month budget to future months in tracking budget mode', async () => {
     await setupDatabase();
     db.runQuery(
-      `INSERT INTO preferences (id, value) VALUES ('budgetType', 'tracking')`,
+      "UPDATE budgets SET budget_type = 'tracking' WHERE id = 'default'",
     );
+    sheet.get().getBudgetMeta('default').budgetType = 'tracking';
 
-    await setBudget({ category: 'cat1', month: '2024-01', amount: 5000 });
-    await setBudget({ category: 'cat1', month: '2024-02', amount: 1000 });
-    await setBudget({ category: 'cat1', month: '2024-03', amount: 2000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-01',
+      amount: 5000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-02',
+      amount: 1000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-03',
+      amount: 2000,
+    });
     await sheet.waitOnSpreadsheet();
 
-    await copyUntilYearEnd({ month: '2024-01', category: 'cat1' });
+    await copyUntilYearEnd({
+      budgetId: 'default',
+      month: '2024-01',
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202401', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202402', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202403', 'budget-cat1')).toBe(5000);
+    expect(await getSheetValue('budget:default:202401', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202402', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202403', 'budget-cat1')).toBe(
+      5000,
+    );
   });
 
   it('does not copy to months beyond the current calendar year', async () => {
     await setupDatabase();
-    await budget.createBudget(['2024-11', '2024-12', '2025-01']);
+    await budget.createBudget('default', ['2024-11', '2024-12', '2025-01']);
 
-    await setBudget({ category: 'cat1', month: '2024-11', amount: 5000 });
-    await setBudget({ category: 'cat1', month: '2024-12', amount: 1000 });
-    await setBudget({ category: 'cat1', month: '2025-01', amount: 2000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-11',
+      amount: 5000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2024-12',
+      amount: 1000,
+    });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2025-01',
+      amount: 2000,
+    });
     await sheet.waitOnSpreadsheet();
 
-    await copyUntilYearEnd({ month: '2024-11', category: 'cat1' });
+    await copyUntilYearEnd({
+      budgetId: 'default',
+      month: '2024-11',
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202411', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202412', 'budget-cat1')).toBe(5000);
-    expect(await getSheetValue('budget202501', 'budget-cat1')).toBe(2000); // unchanged
+    expect(await getSheetValue('budget:default:202411', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202412', 'budget-cat1')).toBe(
+      5000,
+    );
+    expect(await getSheetValue('budget:default:202501', 'budget-cat1')).toBe(
+      2000,
+    ); // unchanged
   });
 });
 
@@ -149,19 +308,38 @@ describe('set budget average', () => {
   });
 
   it('sets a single category average from complete months', async () => {
-    await setNMonthAvg({ month: '2024-04', N: 3, category: 'cat1' });
+    await setNMonthAvg({
+      budgetId: 'default',
+      month: '2024-04',
+      N: 3,
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202404', 'budget-cat1')).toBe(600);
+    expect(await getSheetValue('budget:default:202404', 'budget-cat1')).toBe(
+      600,
+    );
   });
 
   it('sets a single category average from the first activity month', async () => {
-    await setBudget({ category: 'cat1', month: '2023-12', amount: 1000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2023-12',
+      amount: 1000,
+    });
 
-    await setNMonthAvg({ month: '2024-04', N: 3, category: 'cat1' });
+    await setNMonthAvg({
+      budgetId: 'default',
+      month: '2024-04',
+      N: 3,
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202404', 'budget-cat1')).toBe(600);
+    expect(await getSheetValue('budget:default:202404', 'budget-cat1')).toBe(
+      600,
+    );
   });
 
   it('rounds a single category average to an integer amount', async () => {
@@ -173,26 +351,42 @@ describe('set budget average', () => {
     });
     await sheet.waitOnSpreadsheet();
 
-    await setNMonthAvg({ month: '2024-04', N: 3, category: 'cat1' });
+    await setNMonthAvg({
+      budgetId: 'default',
+      month: '2024-04',
+      N: 3,
+      category: 'cat1',
+    });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202404', 'budget-cat1')).toBe(633);
+    expect(await getSheetValue('budget:default:202404', 'budget-cat1')).toBe(
+      633,
+    );
   });
 
   it('sets a bulk 3 month average from complete months', async () => {
-    await set3MonthAvg({ month: '2024-04' });
+    await set3MonthAvg({ budgetId: 'default', month: '2024-04' });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202404', 'budget-cat1')).toBe(600);
+    expect(await getSheetValue('budget:default:202404', 'budget-cat1')).toBe(
+      600,
+    );
   });
 
   it('sets a bulk 3 month average from the first activity month', async () => {
-    await setBudget({ category: 'cat1', month: '2023-12', amount: 1000 });
+    await setBudget({
+      budgetId: 'default',
+      category: 'cat1',
+      month: '2023-12',
+      amount: 1000,
+    });
 
-    await set3MonthAvg({ month: '2024-04' });
+    await set3MonthAvg({ budgetId: 'default', month: '2024-04' });
     await sheet.waitOnSpreadsheet();
 
-    expect(await getSheetValue('budget202404', 'budget-cat1')).toBe(600);
+    expect(await getSheetValue('budget:default:202404', 'budget-cat1')).toBe(
+      600,
+    );
   });
 });
 
@@ -205,13 +399,14 @@ describe('coverOverbudgeted', () => {
     await prepareDatabase();
 
     await coverOverbudgeted({
+      budgetId: 'default',
       month: '2024-02',
       category: 'cat1',
       currencyCode: 'USD',
     });
     await sheet.waitOnSpreadsheet();
 
-    const sheetName = 'budget202402';
+    const sheetName = 'budget:default:202402';
     expect(await getSheetValue(sheetName, 'to-budget')).toBe(0);
     expect(await getSheetValue(sheetName, 'leftover-cat1')).toBe(10);
   });
@@ -221,13 +416,14 @@ describe('coverOverbudgeted', () => {
     await prepareDatabase();
 
     await coverOverbudgeted({
+      budgetId: 'default',
       month: '2024-02',
       category: 'cat3',
       currencyCode: 'USD',
     });
     await sheet.waitOnSpreadsheet();
 
-    const sheetName = 'budget202402';
+    const sheetName = 'budget:default:202402';
     expect(await getSheetValue(sheetName, 'to-budget')).toBe(-80);
     expect(await getSheetValue(sheetName, 'leftover-cat3')).toBe(0);
   });
@@ -274,14 +470,30 @@ async function prepareDatabase() {
     is_income: 0,
   });
 
-  await setBudget({ category: 'cat1', month: '2024-01', amount: 100 });
-  await setBudget({ category: 'cat2', month: '2024-01', amount: -20 });
-  await setBudget({ category: 'cat3', month: '2024-01', amount: 10 });
+  await setBudget({
+    budgetId: 'default',
+    category: 'cat1',
+    month: '2024-01',
+    amount: 100,
+  });
+  await setBudget({
+    budgetId: 'default',
+    category: 'cat2',
+    month: '2024-01',
+    amount: -20,
+  });
+  await setBudget({
+    budgetId: 'default',
+    category: 'cat3',
+    month: '2024-01',
+    amount: 10,
+  });
 
   await sheet.loadSpreadsheet(db);
-  await budget.createBudget(['2024-01', '2024-02']);
+  await budget.createBudget('default', ['2024-01', '2024-02']);
 
   await setCategoryCarryover({
+    budgetId: 'default',
     startMonth: '2024-01',
     category: 'cat2',
     flag: true,
@@ -316,7 +528,7 @@ async function setupAverageDatabase() {
   });
 
   await sheet.loadSpreadsheet(db);
-  await budget.createBudget([
+  await budget.createBudget('default', [
     '2023-11',
     '2023-12',
     '2024-01',

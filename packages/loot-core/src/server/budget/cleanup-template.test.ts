@@ -7,6 +7,7 @@ import * as actions from './actions';
 import { cleanupTemplate } from './cleanup-template';
 
 vi.mock('./actions', () => ({
+  getBudgetTable: vi.fn(() => 'zero_budgets'),
   getSheetValue: vi.fn(),
   setBudget: vi.fn(),
   setGoal: vi.fn(),
@@ -91,7 +92,7 @@ describe('cleanupTemplate - named pool sources', () => {
       },
     });
 
-    await cleanupTemplate({ month: MONTH });
+    await cleanupTemplate({ budgetId: 'default', month: MONTH });
 
     // Draining the source budgets `budgeted - balance`, which for a negative
     // balance credits the category instead of taking from it (5000 - -1000).
@@ -123,7 +124,7 @@ describe('cleanupTemplate - named pool sources', () => {
       },
     });
 
-    const result = await cleanupTemplate({ month: MONTH });
+    const result = await cleanupTemplate({ budgetId: 'default', month: MONTH });
 
     expect(result.message).toBe('cleanup-no-funds');
     expect(result.pre ?? '').toContain(
@@ -154,7 +155,7 @@ describe('cleanupTemplate - named pool sources', () => {
       },
     });
 
-    const result = await cleanupTemplate({ month: MONTH });
+    const result = await cleanupTemplate({ budgetId: 'default', month: MONTH });
 
     // The source gives up its leftover: 5000 - 1000.
     expect(budgetedFor('cat-2')).toContainEqual(

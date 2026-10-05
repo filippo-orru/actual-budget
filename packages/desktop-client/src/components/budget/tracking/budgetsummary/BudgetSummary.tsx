@@ -18,6 +18,7 @@ import { css } from '@emotion/css';
 
 import { useTrackingBudget } from '#components/budget/tracking/TrackingBudgetContext';
 import { NotesButton } from '#components/NotesButton';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useLocale } from '#hooks/useLocale';
 import { SheetNameProvider } from '#hooks/useSheetName';
 import { useUndo } from '#hooks/useUndo';
@@ -32,6 +33,7 @@ type BudgetSummaryProps = {
 };
 export function BudgetSummary({ month }: BudgetSummaryProps) {
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const { t } = useTranslation();
   const {
     currentMonth,
@@ -85,7 +87,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
         },
       }}
     >
-      <SheetNameProvider name={monthUtils.sheetForMonth(month)}>
+      <SheetNameProvider name={monthUtils.sheetForMonth(budgetId, month)}>
         <View
           style={{
             padding: '0 13px',

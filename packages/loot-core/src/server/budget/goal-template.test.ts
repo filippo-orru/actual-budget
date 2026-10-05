@@ -24,7 +24,8 @@ vi.mock('./actions', () => ({
 
 vi.mock('#server/db', () => ({
   getCategories: vi.fn(),
-  first: vi.fn(),
+  all: vi.fn().mockResolvedValue([]),
+  first: vi.fn().mockResolvedValue({ currency_code: 'USD' }),
 }));
 
 vi.mock('#server/aql', () => ({
@@ -140,6 +141,7 @@ describe('dryRunCategoryTemplate', () => {
       },
     ];
     const result = await dryRunCategoryTemplate({
+      budgetId: 'default',
       month: '2024-01',
       categoryId: category.id,
       templates,
@@ -179,6 +181,7 @@ describe('dryRunCategoryTemplate', () => {
       },
     ];
     const result = await dryRunCategoryTemplate({
+      budgetId: 'default',
       month: '2024-01',
       categoryId: category.id,
       templates,
@@ -213,6 +216,7 @@ describe('dryRunCategoryTemplate', () => {
       },
     ];
     const result = await dryRunCategoryTemplate({
+      budgetId: 'default',
       month: '2024-01',
       categoryId: 'missing',
       templates,
@@ -247,6 +251,7 @@ describe('dryRunCategoryTemplate', () => {
       },
     ];
     const result = await dryRunCategoryTemplate({
+      budgetId: 'default',
       month: '2026-06',
       categoryId: category.id,
       templates,
@@ -336,6 +341,7 @@ describe('applyMultipleCategoryTemplates', () => {
     });
 
     const result = await applyMultipleCategoryTemplates({
+      budgetId: 'default',
       month: '2024-01',
       categoryIds: [cat1.id, cat2.id],
     });
@@ -380,6 +386,7 @@ describe('applyMultipleCategoryTemplates', () => {
     });
 
     await applyMultipleCategoryTemplates({
+      budgetId: 'default',
       month: '2024-01',
       categoryIds: [cat1.id, cat2.id],
     });
@@ -414,6 +421,7 @@ describe('applyMultipleCategoryTemplates', () => {
     });
 
     const result = await applyMultipleCategoryTemplates({
+      budgetId: 'default',
       month: '2024-06',
       categoryIds: [cat1.id],
     });
@@ -434,6 +442,7 @@ describe('applyMultipleCategoryTemplates', () => {
     setupAqlMultiCategory([cat1], {});
 
     const result = await applyMultipleCategoryTemplates({
+      budgetId: 'default',
       month: '2024-01',
       categoryIds: [cat1.id],
     });
@@ -468,6 +477,7 @@ describe('applyMultipleCategoryTemplates', () => {
     });
 
     await applyMultipleCategoryTemplates({
+      budgetId: 'default',
       month: '2024-01',
       categoryIds: [cat1.id, cat2.id],
     });
@@ -562,6 +572,7 @@ describe('tracking budget priority handling (issue #8422)', () => {
     });
 
     const result = await applyMultipleCategoryTemplates({
+      budgetId: 'default',
       month: '2024-01',
       categoryIds: [cat1.id],
     });
@@ -604,6 +615,7 @@ describe('tracking budget priority handling (issue #8422)', () => {
     });
 
     await applyMultipleCategoryTemplates({
+      budgetId: 'default',
       month: '2024-01',
       categoryIds: [cat1.id, cat2.id],
     });
@@ -688,7 +700,7 @@ describe('applyTemplate (force=false)', () => {
       [cat1, cat2],
     );
 
-    await applyTemplate({ month: '2024-01' });
+    await applyTemplate({ budgetId: 'default', month: '2024-01' });
 
     const budgetCalls = vi
       .mocked(actions.setBudget)

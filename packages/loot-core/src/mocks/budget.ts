@@ -639,12 +639,17 @@ async function createBudget(accounts, payees, groups) {
   }
 
   function setBudget(month, category, amount) {
-    return budgetActions.setBudget({ month, category: category.id, amount });
+    return budgetActions.setBudget({
+      budgetId: 'default',
+      month,
+      category: category.id,
+      amount,
+    });
   }
 
   function setBudgetIfSpent(month, cat) {
     const spent: number = sheet.getCellValue(
-      monthUtils.sheetForMonth(month),
+      monthUtils.sheetForMonth('default', month),
       `sum-amount-${cat.id}`,
     ) as number;
 
@@ -703,7 +708,7 @@ async function createBudget(accounts, payees, groups) {
             monthUtils.monthFromDate(db.fromDateRepr(earliestPrimaryDate)) &&
           month <= monthUtils.currentMonth()
         ) {
-          const sheetName = monthUtils.sheetForMonth(month);
+          const sheetName = monthUtils.sheetForMonth('default', month);
           const toBudget: number = sheet.getCellValue(
             sheetName,
             'to-budget',
@@ -712,11 +717,11 @@ async function createBudget(accounts, payees, groups) {
 
           if (available - 403000 > 0) {
             void setBudget(month, category('Savings'), available - 403000);
-            void budgetActions.setBuffer(month, 403000);
+            void budgetActions.setBuffer('default', month, 403000);
 
             prevSaved += available - 403000;
           } else if (available > 0) {
-            void budgetActions.setBuffer(month, available);
+            void budgetActions.setBuffer('default', month, available);
           }
         }
       }
@@ -725,7 +730,10 @@ async function createBudget(accounts, payees, groups) {
 
   await sheet.waitOnSpreadsheet();
 
-  const sheetName = monthUtils.sheetForMonth(monthUtils.currentMonth());
+  const sheetName = monthUtils.sheetForMonth(
+    'default',
+    monthUtils.currentMonth(),
+  );
   const toBudget: number = sheet.getCellValue(sheetName, 'to-budget') as number;
   if (toBudget < 0) {
     await addTransactions(primaryAccount.id, [
@@ -737,7 +745,7 @@ async function createBudget(accounts, payees, groups) {
     ]);
   }
 
-  // let sheetName = monthUtils.sheetForMonth(monthUtils.currentMonth());
+  // let sheetName = monthUtils.sheetForMonth('default', monthUtils.currentMonth());
   // let toBudget = sheet.getCellValue(sheetName, 'to-budget');
   // setBudget(monthUtils.currentMonth(), category('Savings'), toBudget);
 
@@ -949,7 +957,7 @@ export async function createTestBudget(handlers: Handlers) {
   // Bust the cache and reload the spreadsheet
   setSyncingMode('disabled');
   await sheet.reloadSpreadsheet(db);
-  await budget.createAllBudgets();
+  await budget.createAllBudgets('default');
 
   await sheet.waitOnSpreadsheet();
 

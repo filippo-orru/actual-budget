@@ -179,6 +179,7 @@ export function getScrollbarWidth() {
 }
 
 export async function prewarmMonth(
+  budgetId: string,
   budgetType: SyncedPrefs['budgetType'],
   spreadsheet: ReturnType<typeof useSpreadsheet>,
   month: string,
@@ -188,7 +189,7 @@ export async function prewarmMonth(
       ? 'tracking-budget-month'
       : 'envelope-budget-month';
 
-  const values = await send(method, { month });
+  const values = await send(method, { budgetId, month });
 
   for (const value of values) {
     spreadsheet.prewarmCache(value.name, value);
@@ -196,6 +197,7 @@ export async function prewarmMonth(
 }
 
 export async function prewarmAllMonths(
+  budgetId: string,
   budgetType: SyncedPrefs['budgetType'],
   spreadsheet: ReturnType<typeof useSpreadsheet>,
   bounds: { start: string; end: string },
@@ -211,6 +213,6 @@ export async function prewarmAllMonths(
   const months = monthUtils.rangeInclusive(bounds.start, bounds.end);
 
   await Promise.all(
-    months.map(month => prewarmMonth(budgetType, spreadsheet, month)),
+    months.map(month => prewarmMonth(budgetId, budgetType, spreadsheet, month)),
   );
 }

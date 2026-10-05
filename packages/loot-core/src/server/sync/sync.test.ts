@@ -216,7 +216,7 @@ function registerBudgetMonths(months) {
   for (const month of months) {
     createdMonths.add(month);
   }
-  sheet.get().meta().createdMonths = months;
+  sheet.get().getBudgetMeta('default').createdMonths = months;
 }
 
 async function asSecondClient(func) {
@@ -261,19 +261,19 @@ describe('Sync projections', () => {
 
     await sheet.loadSpreadsheet(db);
     registerBudgetMonths(['2017-01', '2017-02']);
-    expectCellNotToExist('budget201701', 'sum-amount-' + fooId);
-    expectCellNotToExist('budget201701', 'sum-amount-' + barId);
-    expectCellNotToExist('budget201701', 'group-sum-amount-' + barId);
+    expectCellNotToExist('budget:default:201701', 'sum-amount-' + fooId);
+    expectCellNotToExist('budget:default:201701', 'sum-amount-' + barId);
+    expectCellNotToExist('budget:default:201701', 'group-sum-amount-' + barId);
 
     await fullSync();
 
     // Make sure the budget cells have been created
-    expectCellToExist('budget201701', 'sum-amount-' + fooId);
-    expectCellToExist('budget201702', 'sum-amount-' + fooId);
-    expectCellToExist('budget201701', 'sum-amount-' + barId);
-    expectCellToExist('budget201702', 'sum-amount-' + barId);
-    expectCellToExist('budget201701', 'group-sum-amount-' + groupId);
-    expectCellToExist('budget201702', 'group-sum-amount-' + groupId);
+    expectCellToExist('budget:default:201701', 'sum-amount-' + fooId);
+    expectCellToExist('budget:default:201702', 'sum-amount-' + fooId);
+    expectCellToExist('budget:default:201701', 'sum-amount-' + barId);
+    expectCellToExist('budget:default:201702', 'sum-amount-' + barId);
+    expectCellToExist('budget:default:201701', 'group-sum-amount-' + groupId);
+    expectCellToExist('budget:default:201702', 'group-sum-amount-' + groupId);
   });
 
   test('creating and deleting categories in same sync', async () => {
@@ -293,9 +293,9 @@ describe('Sync projections', () => {
 
     await sheet.loadSpreadsheet(db);
     registerBudgetMonths(['2017-01', '2017-02']);
-    expectCellNotToExist('budget201701', 'sum-amount-' + fooId);
+    expectCellNotToExist('budget:default:201701', 'sum-amount-' + fooId);
     await fullSync();
-    expectCellNotToExist('budget201701', 'sum-amount-' + fooId);
+    expectCellNotToExist('budget:default:201701', 'sum-amount-' + fooId);
   });
 
   test('synced categories should have budgets deleted', async () => {
@@ -320,13 +320,13 @@ describe('Sync projections', () => {
     // Apply all but the last message (which deletes the category)
     await applyMessages(messages.slice(0, -1));
     expect((await db.getCategories()).length).toBe(1);
-    expectCellToExist('budget201701', 'sum-amount-' + fooId);
+    expectCellToExist('budget:default:201701', 'sum-amount-' + fooId);
 
     // Apply the last message and make sure it deleted the appropriate
     // budget cells
     await applyMessages([messages[messages.length - 1]]);
     expect((await db.getCategories()).length).toBe(0);
-    expectCellNotToExist('budget201701', 'sum-amount-' + fooId, true);
+    expectCellNotToExist('budget:default:201701', 'sum-amount-' + fooId, true);
   });
 
   test('creating and deleting groups in same sync', async () => {
@@ -345,9 +345,15 @@ describe('Sync projections', () => {
 
     await sheet.loadSpreadsheet(db);
     registerBudgetMonths(['2017-01', '2017-02']);
-    expectCellNotToExist('budget201701', 'group-sum-amount-' + groupId);
+    expectCellNotToExist(
+      'budget:default:201701',
+      'group-sum-amount-' + groupId,
+    );
     await fullSync();
-    expectCellNotToExist('budget201701', 'group-sum-amount-' + groupId);
+    expectCellNotToExist(
+      'budget:default:201701',
+      'group-sum-amount-' + groupId,
+    );
   });
 
   test('synced groups should have budgets deleted', async () => {
@@ -380,15 +386,19 @@ describe('Sync projections', () => {
     await applyMessages(firstMessages);
     expect((await db.getCategories()).length).toBe(1);
     expect((await db.getCategoriesGrouped()).length).toBe(1);
-    expectCellToExist('budget201701', 'sum-amount-' + fooId);
-    expectCellToExist('budget201701', 'group-sum-amount-' + groupId);
+    expectCellToExist('budget:default:201701', 'sum-amount-' + fooId);
+    expectCellToExist('budget:default:201701', 'group-sum-amount-' + groupId);
 
     // Apply the messages that deletes it
     await applyMessages(secondMessages);
     expect((await db.getCategories()).length).toBe(0);
     expect((await db.getCategoriesGrouped()).length).toBe(0);
-    expectCellNotToExist('budget201701', 'sum-amount-' + fooId, true);
-    expectCellNotToExist('budget201701', 'group-sum-amount-' + groupId, true);
+    expectCellNotToExist('budget:default:201701', 'sum-amount-' + fooId, true);
+    expectCellNotToExist(
+      'budget:default:201701',
+      'group-sum-amount-' + groupId,
+      true,
+    );
   });
 
   test('categories should update the budget when moved', async () => {
@@ -422,7 +432,7 @@ describe('Sync projections', () => {
     await applyMessages(firstMessages);
     const [cat] = await db.getCategories();
     expect(cat.cat_group).toBe('group1');
-    expectCellToExist('budget201701', 'group-sum-amount-' + groupId);
+    expectCellToExist('budget:default:201701', 'group-sum-amount-' + groupId);
 
     // Apply the messages that deletes it
     await applyMessages(secondMessages);

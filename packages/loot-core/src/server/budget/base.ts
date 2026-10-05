@@ -1,7 +1,11 @@
 import { aqlQuery } from '#server/aql';
+import {
+  getBudgetSpaces,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import * as sheet from '#server/sheet';
-import { resolveName } from '#server/spreadsheet/util';
+import { resolveName, unresolveName } from '#server/spreadsheet/util';
 // @ts-strict-ignore
 import * as monthUtils from '#shared/months';
 import { q } from '#shared/query';
@@ -12,9 +16,18 @@ import * as budgetActions from './actions';
 import * as envelopeBudget from './envelope';
 import * as trackingBudget from './tracking';
 
-export function getBudgetType() {
-  const meta = sheet.get().meta();
-  return meta.budgetType || 'envelope';
+export function getBudgetType(budgetId: string) {
+  const budgetType = sheet.get().getBudgetMeta(budgetId).budgetType;
+  if (budgetType !== 'envelope' && budgetType !== 'tracking') {
+    throw new Error(
+      `Unknown budget type for ${budgetId}: ${String(budgetType)}`,
+    );
+  }
+  return budgetType;
+}
+
+export function isTrackingBudget(budgetId: string) {
+  return getBudgetType(budgetId) === 'tracking';
 }
 
 export function getBudgetRange(start: string, end: string) {
@@ -46,6 +59,7 @@ export function getBudgetRange(start: string, end: string) {
 // of data). The filters must match the per-cell query in `createCategory`
 // exactly so balances stay identical.
 function getSumAmountsByMonth(
+  budgetId: string,
   rangeStart: number,
   rangeEnd: number,
 ): Map<string, number> {
@@ -54,12 +68,15 @@ function getSumAmountsByMonth(
             t.date / 100 AS month,
             SUM(t.amount) AS amount
        FROM v_transactions_internal_alive t
-       LEFT JOIN accounts a ON a.id = t.account
-      WHERE t.date >= ${rangeStart} AND t.date <= ${rangeEnd}
+       JOIN accounts a ON a.id = t.account
+       JOIN categories c ON c.id = t.category
+      WHERE t.date >= ? AND t.date <= ?
         AND t.category IS NOT NULL
         AND a.offbudget = 0
+        AND a.budget_id = ?
+        AND c.budget_id = ?
       GROUP BY t.category, t.date / 100`,
-    [],
+    [rangeStart, rangeEnd, budgetId, budgetId],
     true,
   );
 
@@ -70,17 +87,26 @@ function getSumAmountsByMonth(
   return sums;
 }
 
-export function createCategory(cat, sheetName, prevSheetName, start, end) {
+export function createCategory(
+  budgetId,
+  cat,
+  sheetName,
+  prevSheetName,
+  start,
+  end,
+) {
   sheet.get().createDynamic(sheetName, 'sum-amount-' + cat.id, {
     initialValue: 0,
     run: () => {
       // Making this sync is faster!
       const rows = db.runQuery<{ amount: number }>(
         `SELECT SUM(amount) as amount FROM v_transactions_internal_alive t
-           LEFT JOIN accounts a ON a.id = t.account
-         WHERE t.date >= ${start} AND t.date <= ${end}
-           AND category = '${cat.id}' AND a.offbudget = 0`,
-        [],
+           JOIN accounts a ON a.id = t.account
+           JOIN categories c ON c.id = t.category
+         WHERE t.date >= ? AND t.date <= ?
+           AND category = ? AND a.offbudget = 0
+           AND a.budget_id = ? AND c.budget_id = ?`,
+        [start, end, cat.id, budgetId, budgetId],
         true,
       );
       const row = rows[0];
@@ -89,37 +115,14 @@ export function createCategory(cat, sheetName, prevSheetName, start, end) {
     },
   });
 
-  if (getBudgetType() === 'envelope') {
+  if (getBudgetType(budgetId) === 'envelope') {
     envelopeBudget.createCategory(cat, sheetName, prevSheetName);
   } else {
     void trackingBudget.createCategory(cat, sheetName, prevSheetName);
   }
 }
 
-function handleAccountChange(months, oldValue, newValue) {
-  if (!oldValue || oldValue.offbudget !== newValue.offbudget) {
-    const rows = db.runQuery<Pick<db.DbTransaction, 'category'>>(
-      `
-        SELECT DISTINCT(category) as category FROM transactions
-        WHERE acct = ?
-      `,
-      [newValue.id],
-      true,
-    );
-
-    months.forEach(month => {
-      const sheetName = monthUtils.sheetForMonth(month);
-
-      rows.forEach(row => {
-        sheet
-          .get()
-          .recompute(resolveName(sheetName, 'sum-amount-' + row.category));
-      });
-    });
-  }
-}
-
-function handleTransactionChange(transaction, changedFields) {
+function handleTransactionChange(budgetId, transaction, changedFields) {
   if (
     (changedFields.has('date') ||
       changedFields.has('acct') ||
@@ -131,17 +134,16 @@ function handleTransactionChange(transaction, changedFields) {
     transaction.category
   ) {
     const month = monthUtils.monthFromDate(db.fromDateRepr(transaction.date));
-    const sheetName = monthUtils.sheetForMonth(month);
-
+    const sheetName = monthUtils.sheetForMonth(budgetId, month);
     sheet
       .get()
       .recompute(resolveName(sheetName, 'sum-amount-' + transaction.category));
   }
 }
 
-function handleCategoryMappingChange(months, oldValue, newValue) {
+function handleCategoryMappingChange(budgetId, months, oldValue, newValue) {
   months.forEach(month => {
-    const sheetName = monthUtils.sheetForMonth(month);
+    const sheetName = monthUtils.sheetForMonth(budgetId, month);
     if (oldValue) {
       sheet
         .get()
@@ -153,23 +155,26 @@ function handleCategoryMappingChange(months, oldValue, newValue) {
   });
 }
 
-function handleBudgetMonthChange(budget) {
-  const sheetName = monthUtils.sheetForMonth(budget.id);
-  sheet.get().set(`${sheetName}!buffered`, budget.buffered);
+function handleBudgetMonthChange(budgetMonth) {
+  const month = budgetMonth.month;
+  if (!month) return;
+  const sheetName = monthUtils.sheetForMonth(budgetMonth.budget_id, month);
+  sheet.get().set(`${sheetName}!buffered`, budgetMonth.buffered);
 }
 
 function handleBudgetChange(budget) {
   if (budget.category) {
-    const sheetName = monthUtils.sheetForMonth(budget.month.toString());
+    const month = String(budget.month);
+    const sheetName = monthUtils.sheetForMonth(
+      budget.budget_id,
+      `${month.slice(0, 4)}-${month.slice(4)}`,
+    );
     sheet
       .get()
       .set(`${sheetName}!budget-${budget.category}`, budget.amount || 0);
     sheet
       .get()
-      .set(
-        `${sheetName}!carryover-${budget.category}`,
-        budget.carryover === 1 ? true : false,
-      );
+      .set(`${sheetName}!carryover-${budget.category}`, budget.carryover === 1);
     sheet.get().set(`${sheetName}!goal-${budget.category}`, budget.goal);
     sheet
       .get()
@@ -177,87 +182,128 @@ function handleBudgetChange(budget) {
   }
 }
 
+function getTransactionBudgetId(transaction) {
+  if (!transaction?.acct) return null;
+  return (
+    db.firstSync<{ budget_id: string }>(
+      'SELECT budget_id FROM accounts WHERE id = ?',
+      [transaction.acct],
+    )?.budget_id ?? null
+  );
+}
+
 export function triggerBudgetChanges(oldValues, newValues) {
-  const { createdMonths = new Set() } = sheet.get().meta();
-  const budgetType = getBudgetType();
+  const budgetChanges: Array<{ id: string; type: string; isNew: boolean }> = [];
   sheet.startTransaction();
 
   try {
     newValues.forEach((items, table) => {
       const old = oldValues.get(table);
-
       items.forEach(newValue => {
         const oldValue = old && old.get(newValue.id);
+        const budgetId = newValue.budget_id ?? oldValue?.budget_id;
 
         if (table === 'zero_budget_months') {
           handleBudgetMonthChange(newValue);
-        } else if (table === 'zero_budgets' || table === 'reflect_budgets') {
+        } else if (
+          (table === 'zero_budgets' || table === 'reflect_budgets') &&
+          budgetId &&
+          (table === 'reflect_budgets') === isTrackingBudget(budgetId)
+        ) {
           handleBudgetChange(newValue);
         } else if (table === 'transactions') {
           const changed = new Set(
             Object.keys(getChangedValues(oldValue || {}, newValue) || {}),
           );
-
           if (oldValue) {
-            handleTransactionChange(oldValue, changed);
+            const oldBudgetId = getTransactionBudgetId(oldValue);
+            if (oldBudgetId) {
+              handleTransactionChange(oldBudgetId, oldValue, changed);
+            }
           }
-          handleTransactionChange(newValue, changed);
+          const newBudgetId = getTransactionBudgetId(newValue);
+          if (newBudgetId) {
+            handleTransactionChange(newBudgetId, newValue, changed);
+          }
         } else if (table === 'category_mapping') {
-          handleCategoryMappingChange(createdMonths, oldValue, newValue);
-        } else if (table === 'categories') {
-          if (budgetType === 'envelope') {
-            envelopeBudget.handleCategoryChange(
-              createdMonths,
-              oldValue,
-              newValue,
-            );
-          } else {
-            trackingBudget.handleCategoryChange(
-              createdMonths,
-              oldValue,
-              newValue,
-            );
-          }
-        } else if (table === 'category_groups') {
-          if (budgetType === 'envelope') {
-            envelopeBudget.handleCategoryGroupChange(
-              createdMonths,
-              oldValue,
-              newValue,
-            );
-          } else {
-            trackingBudget.handleCategoryGroupChange(
-              createdMonths,
+          const categoryOwner = db.firstSync<{ budget_id: string }>(
+            'SELECT budget_id FROM categories WHERE id = ?',
+            [newValue.id],
+          )?.budget_id;
+          if (categoryOwner) {
+            const months = sheet
+              .get()
+              .getBudgetMeta(categoryOwner).createdMonths;
+            handleCategoryMappingChange(
+              categoryOwner,
+              months,
               oldValue,
               newValue,
             );
           }
-        } else if (table === 'accounts') {
-          handleAccountChange(createdMonths, oldValue, newValue);
+        } else if (table === 'categories' && budgetId) {
+          const months = sheet.get().getBudgetMeta(budgetId).createdMonths;
+          const handle =
+            getBudgetType(budgetId) === 'envelope'
+              ? envelopeBudget.handleCategoryChange
+              : trackingBudget.handleCategoryChange;
+          handle(budgetId, months, oldValue, newValue);
+        } else if (table === 'category_groups' && budgetId) {
+          const months = sheet.get().getBudgetMeta(budgetId).createdMonths;
+          const handle =
+            getBudgetType(budgetId) === 'envelope'
+              ? envelopeBudget.handleCategoryGroupChange
+              : trackingBudget.handleCategoryGroupChange;
+          handle(budgetId, months, oldValue, newValue);
+        } else if (
+          table === 'accounts' &&
+          budgetId &&
+          (!oldValue || oldValue.offbudget !== newValue.offbudget)
+        ) {
+          const rows = db.runQuery<Pick<db.DbTransaction, 'category'>>(
+            'SELECT DISTINCT(category) AS category FROM transactions WHERE acct = ?',
+            [newValue.id],
+            true,
+          );
+          for (const month of sheet.get().getBudgetMeta(budgetId)
+            .createdMonths) {
+            const sheetName = monthUtils.sheetForMonth(budgetId, month);
+            for (const row of rows) {
+              sheet
+                .get()
+                .recompute(
+                  resolveName(sheetName, 'sum-amount-' + row.category),
+                );
+            }
+          }
+        } else if (table === 'budgets') {
+          budgetChanges.push({
+            id: newValue.id,
+            type: newValue.budget_type,
+            isNew: !oldValue,
+          });
         }
       });
     });
   } finally {
     sheet.endTransaction();
   }
+  return budgetChanges;
 }
 
-export async function doTransfer(categoryIds, transferId) {
-  const { createdMonths: months } = sheet.get().meta();
-
+export async function doTransfer(budgetId, categoryIds, transferId) {
+  const { createdMonths: months } = sheet.get().getBudgetMeta(budgetId);
   [...months].forEach(month => {
     const totalValue = categoryIds
-      .map(id => {
-        return budgetActions.getBudget({ month, category: id });
-      })
+      .map(id => budgetActions.getBudget({ budgetId, month, category: id }))
       .reduce((total, value) => total + value, 0);
-
     const transferValue = budgetActions.getBudget({
+      budgetId,
       month,
       category: transferId,
     });
-
     void budgetActions.setBudget({
+      budgetId,
       month,
       category: transferId,
       amount: totalValue + transferValue,
@@ -265,20 +311,23 @@ export async function doTransfer(categoryIds, transferId) {
   });
 }
 
-export async function createBudget(months) {
+export async function createBudget(budgetId: string, months: string[]) {
+  await validateBudgetExists(budgetId);
   const { data: groups }: { data: CategoryGroupEntity[] } = await aqlQuery(
-    q('category_groups').select('*'),
+    q('category_groups').filter({ budget_id: budgetId }).select('*'),
   );
-  const categories = groups.flatMap(group => group.categories);
+  const categories = groups
+    .flatMap(group => group.categories ?? [])
+    .filter(cat => cat.budget_id === budgetId);
 
   sheet.startTransaction();
-  const meta = sheet.get().meta();
+  const meta = sheet.get().getBudgetMeta(budgetId);
   meta.createdMonths = meta.createdMonths || new Set();
 
-  const budgetType = getBudgetType();
+  const budgetType = getBudgetType(budgetId);
 
   if (budgetType === 'envelope') {
-    envelopeBudget.createBudget(meta, categories, months);
+    envelopeBudget.createBudget(budgetId, meta, categories, months);
   }
 
   // Only months that don't already exist need to be created and seeded.
@@ -305,6 +354,7 @@ export async function createBudget(months) {
         }
       }
       sumAmounts = getSumAmountsByMonth(
+        budgetId,
         monthUtils.bounds(firstMonth).start,
         monthUtils.bounds(lastMonth).end,
       );
@@ -316,8 +366,8 @@ export async function createBudget(months) {
   monthsToCreate.forEach(month => {
     const prevMonth = monthUtils.prevMonth(month);
     const { start, end } = monthUtils.bounds(month);
-    const sheetName = monthUtils.sheetForMonth(month);
-    const prevSheetName = monthUtils.sheetForMonth(prevMonth);
+    const sheetName = monthUtils.sheetForMonth(budgetId, month);
+    const prevSheetName = monthUtils.sheetForMonth(budgetId, prevMonth);
     const dbMonth = parseInt(month.replace('-', ''));
 
     categories.forEach(cat => {
@@ -332,7 +382,7 @@ export async function createBudget(months) {
           .load(name, getSumAmounts().get(`${dbMonth}-${cat.id}`) || 0);
         seededCells.push(name);
       }
-      createCategory(cat, sheetName, prevSheetName, start, end);
+      createCategory(budgetId, cat, sheetName, prevSheetName, start, end);
     });
     groups.forEach(group => {
       if (budgetType === 'envelope') {
@@ -356,7 +406,6 @@ export async function createBudget(months) {
     meta.createdMonths.add(month);
   });
 
-  sheet.get().setMeta(meta);
   sheet.endTransaction();
 
   // Persist the seeded spend totals to the cache. Because they were loaded
@@ -373,57 +422,92 @@ export async function createBudget(months) {
   await sheet.waitOnSpreadsheet();
 }
 
-export async function createAllBudgets() {
+export async function createAllBudgets(budgetId: string) {
+  await validateBudgetExists(budgetId);
   const earliestTransaction = await db.first<db.DbTransaction>(
-    'SELECT * FROM transactions WHERE isChild=0 AND date IS NOT NULL ORDER BY date ASC LIMIT 1',
+    `SELECT t.* FROM transactions t JOIN accounts a ON a.id = t.acct
+      WHERE a.budget_id = ? AND t.isChild = 0 AND t.date IS NOT NULL
+      ORDER BY t.date ASC LIMIT 1`,
+    [budgetId],
   );
-  const earliestDate =
-    earliestTransaction && db.fromDateRepr(earliestTransaction.date);
+  const earliestTransactionMonth = earliestTransaction
+    ? monthUtils.monthFromDate(db.fromDateRepr(earliestTransaction.date))
+    : null;
+  const earliestStoredBudget = await db.first<{ month: number | null }>(
+    `SELECT MIN(month_number) AS month FROM (
+       SELECT CAST(month AS INTEGER) AS month_number FROM zero_budgets WHERE budget_id = ?
+       UNION ALL
+       SELECT CAST(month AS INTEGER) AS month_number FROM reflect_budgets WHERE budget_id = ?
+       UNION ALL
+       SELECT CAST(REPLACE(month, '-', '') AS INTEGER) AS month_number
+         FROM zero_budget_months WHERE budget_id = ?
+     )`,
+    [budgetId, budgetId, budgetId],
+  );
+  const storedMonthNumber = earliestStoredBudget?.month;
+  const earliestStoredMonth =
+    storedMonthNumber == null
+      ? null
+      : `${String(storedMonthNumber).padStart(6, '0').slice(0, 4)}-${String(storedMonthNumber).padStart(6, '0').slice(4)}`;
+  const earliestMonth = [earliestTransactionMonth, earliestStoredMonth]
+    .filter((month): month is string => month != null)
+    .sort()[0];
   const currentMonth = monthUtils.currentMonth();
-
-  // Get the range based off of the earliest transaction and the
-  // current month. If no transactions currently exist the current
-  // month is also used as the starting month
   const { start, end, range } = getBudgetRange(
-    earliestDate || currentMonth,
+    earliestMonth || currentMonth,
     currentMonth,
   );
 
-  const meta = sheet.get().meta();
-  const createdMonths = meta.createdMonths || new Set();
-  const newMonths = range.filter(m => !createdMonths.has(m));
-
+  const meta = sheet.get().getBudgetMeta(budgetId);
+  const newMonths = range.filter(month => !meta.createdMonths.has(month));
   if (newMonths.length > 0) {
-    await createBudget(range);
+    await createBudget(budgetId, range);
   }
-
   return { start, end };
 }
 
-export async function setType(type) {
-  const meta = sheet.get().meta();
-  if (type === meta.budgetType) {
-    return;
+export async function createAllBudgetSpaces() {
+  const budgets = await getBudgetSpaces();
+  const bounds = new Map<string, { start: string; end: string }>();
+  for (const budgetSpace of budgets) {
+    if (
+      budgetSpace.budget_type !== 'envelope' &&
+      budgetSpace.budget_type !== 'tracking'
+    ) {
+      throw new Error(
+        `Unknown budget type for ${budgetSpace.id}: ${budgetSpace.budget_type}`,
+      );
+    }
+    sheet.get().getBudgetMeta(budgetSpace.id).budgetType =
+      budgetSpace.budget_type;
+    bounds.set(budgetSpace.id, await createAllBudgets(budgetSpace.id));
   }
+  return bounds;
+}
 
+export async function setBudgetType(
+  budgetId: string,
+  type: 'envelope' | 'tracking',
+) {
+  const meta = sheet.get().getBudgetMeta(budgetId);
+  if (type === meta.budgetType) return;
   meta.budgetType = type;
   meta.createdMonths = new Set();
+  meta.blankSheet = undefined;
 
-  // Go through and force all the cells to be recomputed
-  const nodes = sheet.get().getNodes();
-  db.transaction(() => {
-    for (const name of nodes.keys()) {
-      const [sheetName, cellName] = name.split('!');
-      if (sheetName.match(/^budget\d+/)) {
-        sheet.get().deleteCell(sheetName, cellName);
-      }
+  for (const name of sheet.get().getNodes().keys()) {
+    const resolved = unresolveName(name);
+    if (
+      resolved.sheet &&
+      monthUtils.budgetIdFromSheetName(resolved.sheet) === budgetId
+    ) {
+      sheet.get().deleteCell(resolved.sheet, resolved.name);
     }
-  });
+  }
 
   sheet.get().startCacheBarrier();
-  void sheet.loadUserBudgets(db);
-  const bounds = await createAllBudgets();
+  await sheet.loadUserBudgets(db, budgetId);
+  const bounds = await createAllBudgets(budgetId);
   sheet.get().endCacheBarrier();
-
   return bounds;
 }

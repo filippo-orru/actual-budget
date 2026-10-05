@@ -60,6 +60,7 @@ async function createForecastWithPostedMonthlySchedule({
   });
 
   const result = await generateForecast({
+    budgetId: 'default',
     accountIds: [accountId],
     startDate: '2024-03-01',
     endDate: '2024-04-30',
@@ -114,6 +115,7 @@ async function createForecastWithPostedDailySchedule({
   });
 
   const result = await generateForecast({
+    budgetId: 'default',
     accountIds: [accountId],
     startDate: '2024-03-10',
     endDate: '2024-03-12',
@@ -163,6 +165,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: [accountId],
       startDate: '2024-01-01',
       endDate: '2024-04-30',
@@ -201,6 +204,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: [],
       startDate: '2024-01-01',
       endDate: '2024-01-31',
@@ -218,6 +222,7 @@ describe('forecast app', () => {
   it('generates tracking budget forecasts only for tracking budget files', async () => {
     await expect(
       generateForecast({
+        budgetId: 'default',
         source: 'tracking-budget',
         startDate: '2024-03-01',
         endDate: '2024-03-31',
@@ -227,8 +232,8 @@ describe('forecast app', () => {
     );
 
     await sheet.loadSpreadsheet(db);
-    sheet.get().meta().budgetType = 'tracking';
-    await db.update('preferences', { id: 'budgetType', value: 'tracking' });
+    sheet.get().getBudgetMeta('default').budgetType = 'tracking';
+    await db.update('budgets', { id: 'default', budget_type: 'tracking' });
     await db.insertCategoryGroup({
       budget_id: 'default',
       id: 'expenses',
@@ -240,7 +245,7 @@ describe('forecast app', () => {
       name: 'Income',
       is_income: 1,
     });
-    await createAllBudgets();
+    await createAllBudgets('default');
     await db.insertAccount({
       budget_id: 'default',
       id: 'acct',
@@ -254,6 +259,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       source: 'tracking-budget',
       startDate: '2024-03-01',
       endDate: '2024-03-31',
@@ -292,6 +298,7 @@ describe('forecast app', () => {
     await createSchedule({ conditions: scheduleConditions });
 
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: [accountId],
       startDate: '2024-01-01',
       endDate: '2024-04-30',
@@ -353,11 +360,13 @@ describe('forecast app', () => {
     });
 
     const combinedResult = await generateForecast({
+      budgetId: 'default',
       accountIds: [checkingId, savingsId],
       startDate: '2024-03-01',
       endDate: '2024-04-30',
     });
     const savingsOnlyResult = await generateForecast({
+      budgetId: 'default',
       accountIds: [savingsId],
       startDate: '2024-03-01',
       endDate: '2024-04-30',
@@ -444,6 +453,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: [savingsId],
       startDate: '2024-03-01',
       endDate: '2024-04-30',
@@ -511,6 +521,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       startDate: '2024-03-01',
       endDate: '2024-03-31',
       conditions: [{ op: 'is', field: 'payee', value: groceryPayeeId }],
@@ -560,6 +571,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: [accountId],
       startDate: '2024-03-01',
       endDate: '2024-03-31',
@@ -648,6 +660,7 @@ describe('forecast app', () => {
     await loadRules();
 
     const result = await generateForecast({
+      budgetId: 'default',
       startDate: '2024-03-01',
       endDate: '2024-04-30',
       conditions: [{ op: 'is', field: 'category', value: categoryId }],
@@ -703,6 +716,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       startDate: '2024-03-01',
       endDate: '2024-03-31',
       conditionsOp: 'or',
@@ -725,6 +739,7 @@ describe('forecast app', () => {
 
   it('uses the requested range for empty-account results', async () => {
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: ['missing-account'],
       startDate: '2024-03-01',
       endDate: '2024-03-31',
@@ -765,6 +780,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: [accountId],
       startDate: '2024-03-01',
       endDate: '2024-03-31',
@@ -810,6 +826,7 @@ describe('forecast app', () => {
     });
 
     const result = await generateForecast({
+      budgetId: 'default',
       accountIds: [accountId],
       startDate: '2024-03-01',
       endDate: '2024-03-31',

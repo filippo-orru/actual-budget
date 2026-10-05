@@ -4,6 +4,7 @@ import * as asyncStorage from '#platform/server/asyncStorage';
 import * as db from '#server/db';
 import * as sheet from '#server/sheet';
 import { batchMessages } from '#server/sync';
+import { budgetMonthId, DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import { getCurrency } from '#shared/currencies';
 import { getLocale } from '#shared/locale';
 import * as monthUtils from '#shared/months';
@@ -42,17 +43,32 @@ function calcBufferedAmount(
 
 type BudgetTable = 'reflect_budgets' | 'zero_budgets';
 
-function getBudgetTable(): BudgetTable {
-  return isTrackingBudget() ? 'reflect_budgets' : 'zero_budgets';
+export function getBudgetTable(budgetId: string): BudgetTable {
+  const budget = db.firstSync<{ budget_type: string }>(
+    'SELECT budget_type FROM budgets WHERE id = ? AND tombstone = 0',
+    [budgetId],
+  );
+  if (!budget) throw new Error(`Budget not found: ${budgetId}`);
+  if (budget.budget_type !== 'envelope' && budget.budget_type !== 'tracking') {
+    throw new Error(
+      `Unknown budget type for ${budgetId}: ${budget.budget_type}`,
+    );
+  }
+  return budget.budget_type === 'tracking' ? 'reflect_budgets' : 'zero_budgets';
 }
 
-export function isTrackingBudget(): boolean {
-  const budgetType = db.firstSync<Pick<db.DbPreference, 'value'>>(
-    `SELECT value FROM preferences WHERE id = ?`,
-    ['budgetType'],
+export function isTrackingBudget(budgetId: string): boolean {
+  return getBudgetTable(budgetId) === 'reflect_budgets';
+}
+
+function assertCategoryOwner(budgetId: string, categoryId: string): void {
+  const category = db.firstSync<{ budget_id: string }>(
+    'SELECT budget_id FROM categories WHERE id = ?',
+    [categoryId],
   );
-  const val = budgetType ? budgetType.value : 'envelope';
-  return val === 'tracking';
+  if (!category || category.budget_id !== budgetId) {
+    throw new Error('Category does not belong to the requested budget');
+  }
 }
 
 function dbMonth(month: string): number {
@@ -76,6 +92,7 @@ type BudgetData = {
 function getBudgetData<T extends BudgetTable>(
   table: T,
   month: string,
+  budgetId: string,
 ): Promise<BudgetData[]> {
   return db.all<
     (db.DbReflectBudget | db.DbZeroBudget) &
@@ -89,14 +106,15 @@ function getBudgetData<T extends BudgetTable>(
     FROM ${table} b
     LEFT JOIN categories c ON b.category = c.id
     LEFT JOIN category_groups g ON c.cat_group = g.id
-    WHERE c.tombstone = 0 AND b.month = ?
+    WHERE c.tombstone = 0 AND b.month = ? AND b.budget_id = ?
+      AND c.budget_id = ? AND g.budget_id = ?
   `,
-    [month],
+    [month, budgetId, budgetId, budgetId],
   );
 }
 
-function getAllMonths(startMonth: string): string[] {
-  const { createdMonths } = sheet.get().meta();
+function getAllMonths(budgetId: string, startMonth: string): string[] {
+  const { createdMonths } = sheet.get().getBudgetMeta(budgetId);
   let latest = null;
   for (const month of createdMonths) {
     if (latest == null || month > latest) {
@@ -109,38 +127,47 @@ function getAllMonths(startMonth: string): string[] {
 // TODO: Valid month format in all the functions below
 
 export function getBudget({
+  budgetId,
   category,
   month,
 }: {
+  budgetId: string;
   category: string;
   month: string;
 }): number {
-  const table = getBudgetTable();
+  assertCategoryOwner(budgetId, category);
+  const table = getBudgetTable(budgetId);
   const existing = db.firstSync<db.DbZeroBudget | db.DbReflectBudget>(
-    `SELECT * FROM ${table} WHERE month = ? AND category = ?`,
-    [dbMonth(month), category],
+    `SELECT * FROM ${table} WHERE month = ? AND category = ? AND budget_id = ?`,
+    [dbMonth(month), category, budgetId],
   );
   return existing ? existing.amount || 0 : 0;
 }
 
 export function setBudget({
+  budgetId,
   category,
   month,
   amount,
 }: {
+  budgetId: string;
   category: CategoryEntity['id'];
   month: string;
   amount: unknown;
 }): Promise<void> {
   amount = safeNumber(typeof amount === 'number' ? amount : 0);
-  const table = getBudgetTable();
+  if (category === 'to-budget' || category === 'overbudgeted') {
+    return Promise.resolve();
+  }
+  assertCategoryOwner(budgetId, category);
+  const table = getBudgetTable(budgetId);
 
   const existing = db.firstSync<
     Pick<db.DbZeroBudget | db.DbReflectBudget, 'id'>
-  >(`SELECT id FROM ${table} WHERE month = ? AND category = ?`, [
-    dbMonth(month),
-    category,
-  ]);
+  >(
+    `SELECT id FROM ${table} WHERE month = ? AND category = ? AND budget_id = ?`,
+    [dbMonth(month), category, budgetId],
+  );
   if (existing) {
     return db.update(table, { id: existing.id, amount });
   }
@@ -148,18 +175,32 @@ export function setBudget({
     id: `${dbMonth(month)}-${category}`,
     month: dbMonth(month),
     category,
+    budget_id: budgetId,
     amount,
   });
 }
 
-export function setGoal({ month, category, goal, long_goal }): Promise<void> {
-  const table = getBudgetTable();
+export function setGoal({
+  budgetId,
+  month,
+  category,
+  goal,
+  long_goal,
+}: {
+  budgetId: string;
+  month: string;
+  category: string;
+  goal: unknown;
+  long_goal: unknown;
+}): Promise<void> {
+  assertCategoryOwner(budgetId, category);
+  const table = getBudgetTable(budgetId);
   const existing = db.firstSync<
     Pick<db.DbZeroBudget | db.DbReflectBudget, 'id'>
-  >(`SELECT id FROM ${table} WHERE month = ? AND category = ?`, [
-    dbMonth(month),
-    category,
-  ]);
+  >(
+    `SELECT id FROM ${table} WHERE month = ? AND category = ? AND budget_id = ?`,
+    [dbMonth(month), category, budgetId],
+  );
   if (existing) {
     return db.update(table, {
       id: existing.id,
@@ -171,15 +212,22 @@ export function setGoal({ month, category, goal, long_goal }): Promise<void> {
     id: `${dbMonth(month)}-${category}`,
     month: dbMonth(month),
     category,
+    budget_id: budgetId,
     goal,
     long_goal,
   });
 }
 
-export function setBuffer(month: string, amount: unknown): Promise<void> {
-  const existing = db.firstSync<Pick<db.DbZeroBudget, 'id'>>(
-    `SELECT id FROM zero_budget_months WHERE id = ?`,
-    [month],
+export function setBuffer(
+  budgetId: string,
+  month: string,
+  amount: unknown,
+): Promise<void> {
+  getBudgetTable(budgetId);
+  const id = budgetMonthId(budgetId, month);
+  const existing = db.firstSync<Pick<db.DbZeroBudgetMonth, 'id'>>(
+    'SELECT id FROM zero_budget_months WHERE id = ? AND budget_id = ?',
+    [id, budgetId],
   );
   if (existing) {
     return db.update('zero_budget_months', {
@@ -187,10 +235,16 @@ export function setBuffer(month: string, amount: unknown): Promise<void> {
       buffered: amount,
     });
   }
-  return db.insert('zero_budget_months', { id: month, buffered: amount });
+  return db.insert('zero_budget_months', {
+    id,
+    month,
+    budget_id: budgetId,
+    buffered: amount,
+  });
 }
 
 function setCarryover(
+  budgetId: string,
   table: string,
   category: string,
   month: string,
@@ -198,10 +252,10 @@ function setCarryover(
 ): Promise<void> {
   const existing = db.firstSync<
     Pick<db.DbZeroBudget | db.DbReflectBudget, 'id'>
-  >(`SELECT id FROM ${table} WHERE month = ? AND category = ?`, [
-    month,
-    category,
-  ]);
+  >(
+    `SELECT id FROM ${table} WHERE month = ? AND category = ? AND budget_id = ?`,
+    [month, category, budgetId],
+  );
   if (existing) {
     return db.update(table, { id: existing.id, carryover: flag ? 1 : 0 });
   }
@@ -209,6 +263,7 @@ function setCarryover(
     id: `${month}-${category}`,
     month,
     category,
+    budget_id: budgetId,
     carryover: flag ? 1 : 0,
   });
 }
@@ -216,23 +271,26 @@ function setCarryover(
 // Actions
 
 export async function copyPreviousMonth({
+  budgetId,
   month,
 }: {
+  budgetId: string;
   month: string;
 }): Promise<void> {
   const prevMonth = dbMonth(monthUtils.prevMonth(month));
-  const table = getBudgetTable();
-  const budgetData = await getBudgetData(table, prevMonth.toString());
+  const table = getBudgetTable(budgetId);
+  const budgetData = await getBudgetData(table, prevMonth.toString(), budgetId);
 
   await batchMessages(async () => {
     budgetData.forEach(prevBudget => {
-      if (prevBudget.is_income === 1 && !isTrackingBudget()) {
+      if (prevBudget.is_income === 1 && !isTrackingBudget(budgetId)) {
         return;
       }
       if (prevBudget.hidden === 1 || prevBudget.group_hidden === 1) {
         return;
       }
       void setBudget({
+        budgetId,
         category: prevBudget.category,
         month,
         amount: prevBudget.amount,
@@ -242,40 +300,53 @@ export async function copyPreviousMonth({
 }
 
 export async function copySinglePreviousMonth({
+  budgetId,
   month,
   category,
 }: {
+  budgetId: string;
   month: string;
   category: string;
 }): Promise<void> {
+  assertCategoryOwner(budgetId, category);
   const prevMonth = monthUtils.prevMonth(month);
   const newAmount = await getSheetValue(
-    monthUtils.sheetForMonth(prevMonth),
+    monthUtils.sheetForMonth(budgetId, prevMonth),
     'budget-' + category,
   );
   await batchMessages(async () => {
-    void setBudget({ category, month, amount: newAmount });
+    void setBudget({ budgetId, category, month, amount: newAmount });
   });
 }
 
-export async function setZero({ month }: { month: string }): Promise<void> {
+export async function setZero({
+  budgetId,
+  month,
+}: {
+  budgetId: string;
+  month: string;
+}): Promise<void> {
+  getBudgetTable(budgetId);
   const categories = await db.all<db.DbViewCategory>(
-    'SELECT * FROM v_categories WHERE tombstone = 0',
+    'SELECT * FROM v_categories WHERE tombstone = 0 AND budget_id = ?',
+    [budgetId],
   );
 
   await batchMessages(async () => {
     categories.forEach(cat => {
-      if (cat.is_income === 1 && !isTrackingBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget(budgetId)) {
         return;
       }
-      void setBudget({ category: cat.id, month, amount: 0 });
+      void setBudget({ budgetId, category: cat.id, month, amount: 0 });
     });
   });
 }
 
 export async function set3MonthAvg({
+  budgetId,
   month,
 }: {
+  budgetId: string;
   month: string;
 }): Promise<void> {
   const categories = await db.all<db.DbViewCategoryWithGroupHidden>(
@@ -284,16 +355,19 @@ export async function set3MonthAvg({
   FROM categories c
   LEFT JOIN category_groups g ON c.cat_group = g.id
   WHERE c.tombstone = 0 AND c.hidden = 0 AND g.hidden = 0
+    AND c.budget_id = ? AND g.budget_id = ?
   `,
+    [budgetId, budgetId],
   );
 
   await batchMessages(async () => {
     for (const cat of categories) {
-      if (cat.is_income === 1 && !isTrackingBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget(budgetId)) {
         continue;
       }
 
       let avg = await getCategoryAverage({
+        budgetId,
         month,
         maxMonths: 3,
         categoryId: cat.id,
@@ -303,14 +377,16 @@ export async function set3MonthAvg({
         avg *= -1;
       }
 
-      void setBudget({ category: cat.id, month, amount: avg });
+      void setBudget({ budgetId, category: cat.id, month, amount: avg });
     }
   });
 }
 
 export async function set12MonthAvg({
+  budgetId,
   month,
 }: {
+  budgetId: string;
   month: string;
 }): Promise<void> {
   const categories = await db.all<db.DbViewCategoryWithGroupHidden>(
@@ -319,22 +395,26 @@ export async function set12MonthAvg({
   FROM categories c
   LEFT JOIN category_groups g ON c.cat_group = g.id
   WHERE c.tombstone = 0 AND c.hidden = 0 AND g.hidden = 0
+    AND c.budget_id = ? AND g.budget_id = ?
   `,
+    [budgetId, budgetId],
   );
 
   await batchMessages(async () => {
     for (const cat of categories) {
-      if (cat.is_income === 1 && !isTrackingBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget(budgetId)) {
         continue;
       }
-      void setNMonthAvg({ month, N: 12, category: cat.id });
+      void setNMonthAvg({ budgetId, month, N: 12, category: cat.id });
     }
   });
 }
 
 export async function set6MonthAvg({
+  budgetId,
   month,
 }: {
+  budgetId: string;
   month: string;
 }): Promise<void> {
   const categories = await db.all<db.DbViewCategoryWithGroupHidden>(
@@ -343,34 +423,39 @@ export async function set6MonthAvg({
   FROM categories c
   LEFT JOIN category_groups g ON c.cat_group = g.id
   WHERE c.tombstone = 0 AND c.hidden = 0 AND g.hidden = 0
+    AND c.budget_id = ? AND g.budget_id = ?
   `,
+    [budgetId, budgetId],
   );
 
   await batchMessages(async () => {
     for (const cat of categories) {
-      if (cat.is_income === 1 && !isTrackingBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget(budgetId)) {
         continue;
       }
-      void setNMonthAvg({ month, N: 6, category: cat.id });
+      void setNMonthAvg({ budgetId, month, N: 6, category: cat.id });
     }
   });
 }
 
 export async function setNMonthAvg({
+  budgetId,
   month,
   N,
   category,
 }: {
+  budgetId: string;
   month: string;
   N: number;
   category: string;
 }): Promise<void> {
   const categoryFromDb = await db.first<Pick<db.DbViewCategory, 'is_income'>>(
-    'SELECT is_income FROM v_categories WHERE id = ?',
-    [category],
+    'SELECT is_income FROM v_categories WHERE id = ? AND budget_id = ?',
+    [category, budgetId],
   );
 
   let avg = await getCategoryAverage({
+    budgetId,
     month,
     maxMonths: N,
     categoryId: category,
@@ -381,20 +466,24 @@ export async function setNMonthAvg({
       avg *= -1;
     }
 
-    void setBudget({ category, month, amount: avg });
+    void setBudget({ budgetId, category, month, amount: avg });
   });
 }
 
 export async function getCategoryAverage({
+  budgetId,
   month,
   maxMonths,
   categoryId,
 }: {
+  budgetId: string;
   month: string;
   maxMonths: number;
   categoryId: string;
 }): Promise<number> {
+  assertCategoryOwner(budgetId, categoryId);
   const months = await getAverageMonths({
+    budgetId,
     month,
     maxMonths,
     categoryId,
@@ -406,7 +495,7 @@ export async function getCategoryAverage({
   let sumAmount = 0;
   for (const prevMonth of months) {
     sumAmount += await getSheetValue(
-      monthUtils.sheetForMonth(prevMonth),
+      monthUtils.sheetForMonth(budgetId, prevMonth),
       'sum-amount-' + categoryId,
     );
   }
@@ -414,16 +503,19 @@ export async function getCategoryAverage({
 }
 
 async function getAverageMonths({
+  budgetId,
   month,
   maxMonths,
   categoryId,
 }: {
+  budgetId: string;
   month: string;
   maxMonths: number;
   categoryId: string;
 }): Promise<string[]> {
   const firstMonth = getAverageStartMonth(month);
   const firstActivityMonth = await getFirstActivityMonth({
+    budgetId,
     categoryId,
     endMonth: firstMonth,
   });
@@ -453,29 +545,31 @@ function getAverageStartMonth(month: string): string {
 }
 
 async function getFirstActivityMonth({
+  budgetId,
   categoryId,
   endMonth,
 }: {
+  budgetId: string;
   categoryId: string;
   endMonth: string;
 }): Promise<string | null> {
-  const table = getBudgetTable();
+  const table = getBudgetTable(budgetId);
   const endDbMonth = dbMonth(endMonth);
   const firstActivity = await db.first<{ month: number | null }>(
     `SELECT MIN(month) AS month
        FROM (
          SELECT month
            FROM ${table}
-          WHERE category = ? AND month <= ?
+          WHERE category = ? AND month <= ? AND budget_id = ?
          UNION ALL
          SELECT CAST(t.date / 100 AS INTEGER) AS month
            FROM v_transactions_internal_alive t
            LEFT JOIN accounts a ON a.id = t.account
           WHERE t.category = ?
             AND CAST(t.date / 100 AS INTEGER) <= ?
-            AND a.offbudget = 0
+            AND a.offbudget = 0 AND a.budget_id = ?
        )`,
-    [categoryId, endDbMonth, categoryId, endDbMonth],
+    [categoryId, endDbMonth, budgetId, categoryId, endDbMonth, budgetId],
   );
 
   return firstActivity?.month == null
@@ -484,18 +578,21 @@ async function getFirstActivityMonth({
 }
 
 export async function holdForNextMonth({
+  budgetId,
   month,
   amount,
 }: {
+  budgetId: string;
   month: string;
   amount: number;
 }): Promise<boolean> {
+  getBudgetTable(budgetId);
   const row = await db.first<Pick<db.DbZeroBudgetMonth, 'buffered'>>(
-    'SELECT buffered FROM zero_budget_months WHERE id = ?',
-    [month],
+    'SELECT buffered FROM zero_budget_months WHERE id = ? AND budget_id = ?',
+    [budgetMonthId(budgetId, month), budgetId],
   );
 
-  const sheetName = monthUtils.sheetForMonth(month);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
   const toBudget = await getSheetValue(sheetName, 'to-budget');
 
   if (toBudget > 0) {
@@ -505,30 +602,42 @@ export async function holdForNextMonth({
       amount,
     );
 
-    await setBuffer(month, bufferedAmount);
+    await setBuffer(budgetId, month, bufferedAmount);
     return true;
   }
   return false;
 }
 
-export async function resetHold({ month }: { month: string }): Promise<void> {
-  await setBuffer(month, 0);
+export async function resetHold({
+  budgetId,
+  month,
+}: {
+  budgetId: string;
+  month: string;
+}): Promise<void> {
+  await setBuffer(budgetId, month, 0);
 }
 
 export async function coverOverspending({
+  budgetId,
   month,
   to,
   from,
   amount,
   currencyCode,
 }: {
+  budgetId: string;
   month: string;
   to: CategoryEntity['id'] | 'to-budget';
   from: CategoryEntity['id'] | 'to-budget' | 'overbudgeted';
   amount?: IntegerAmount;
   currencyCode: string;
 }): Promise<void> {
-  const sheetName = monthUtils.sheetForMonth(month);
+  if (to !== 'to-budget') assertCategoryOwner(budgetId, to);
+  if (from !== 'to-budget' && from !== 'overbudgeted') {
+    assertCategoryOwner(budgetId, from);
+  }
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
   const toBudgeted = await getSheetValue(sheetName, 'budget-' + to);
   const leftoverFrom = await getSheetValue(
     sheetName,
@@ -553,6 +662,7 @@ export async function coverOverspending({
     if (from !== 'to-budget') {
       const fromBudgeted = await getSheetValue(sheetName, 'budget-' + from);
       await setBudget({
+        budgetId,
         category: from,
         month,
         amount: fromBudgeted - coverableAmount,
@@ -560,12 +670,14 @@ export async function coverOverspending({
     }
 
     await setBudget({
+      budgetId,
       category: to,
       month,
       amount: toBudgeted + coverableAmount,
     });
 
     await addMovementNotes({
+      budgetId,
       month,
       amount: coverableAmount,
       to,
@@ -576,34 +688,40 @@ export async function coverOverspending({
 }
 
 export async function transferAvailable({
+  budgetId,
   month,
   amount,
   category,
 }: {
+  budgetId: string;
   month: string;
   amount: number;
   category: string;
 }): Promise<void> {
-  const sheetName = monthUtils.sheetForMonth(month);
+  assertCategoryOwner(budgetId, category);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
   const leftover = await getSheetValue(sheetName, 'to-budget');
   amount = Math.max(Math.min(amount, leftover), 0);
 
   const budgeted = await getSheetValue(sheetName, 'budget-' + category);
-  await setBudget({ category, month, amount: budgeted + amount });
+  await setBudget({ budgetId, category, month, amount: budgeted + amount });
 }
 
 export async function coverOverbudgeted({
+  budgetId,
   month,
   category,
   amount,
   currencyCode,
 }: {
+  budgetId: string;
   month: string;
   category: string;
   amount?: IntegerAmount;
   currencyCode: string;
 }): Promise<void> {
-  const sheetName = monthUtils.sheetForMonth(month);
+  assertCategoryOwner(budgetId, category);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
   const categoryBudget = await getSheetValue(sheetName, 'budget-' + category);
   const categoryLeftover = await getSheetValue(
     sheetName,
@@ -625,12 +743,14 @@ export async function coverOverbudgeted({
 
   await batchMessages(async () => {
     await setBudget({
+      budgetId,
       category,
       month,
       amount: categoryBudget - coverableAmount,
     });
 
     await addMovementNotes({
+      budgetId,
       month,
       amount: coverableAmount,
       from: category,
@@ -641,32 +761,49 @@ export async function coverOverbudgeted({
 }
 
 export async function transferCategory({
+  budgetId,
   month,
   amount,
   from,
   to,
   currencyCode,
 }: {
+  budgetId: string;
   month: string;
   amount: number;
   to: CategoryEntity['id'] | 'to-budget';
   from: CategoryEntity['id'] | 'to-budget';
   currencyCode: string;
 }): Promise<void> {
-  const sheetName = monthUtils.sheetForMonth(month);
+  if (from !== 'to-budget') assertCategoryOwner(budgetId, from);
+  if (to !== 'to-budget') assertCategoryOwner(budgetId, to);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
   const fromBudgeted = await getSheetValue(sheetName, 'budget-' + from);
 
   await batchMessages(async () => {
-    await setBudget({ category: from, month, amount: fromBudgeted - amount });
+    if (from !== 'to-budget') {
+      await setBudget({
+        budgetId,
+        category: from,
+        month,
+        amount: fromBudgeted - amount,
+      });
+    }
 
     // If we are simply moving it back into available cash to budget,
     // don't do anything else
     if (to !== 'to-budget') {
       const toBudgeted = await getSheetValue(sheetName, 'budget-' + to);
-      await setBudget({ category: to, month, amount: toBudgeted + amount });
+      await setBudget({
+        budgetId,
+        category: to,
+        month,
+        amount: toBudgeted + amount,
+      });
     }
 
     await addMovementNotes({
+      budgetId,
       month,
       amount,
       to,
@@ -677,45 +814,57 @@ export async function transferCategory({
 }
 
 export async function copyUntilYearEnd({
+  budgetId,
   month,
   category,
 }: {
+  budgetId: string;
   month: string;
   category: string;
 }): Promise<void> {
+  assertCategoryOwner(budgetId, category);
   const amount = await getSheetValue(
-    monthUtils.sheetForMonth(month),
+    monthUtils.sheetForMonth(budgetId, month),
     'budget-' + category,
   );
 
   const yearEnd = monthUtils.getYearEnd(month);
-  const { createdMonths } = sheet.get().meta();
-  const futureMonths = [...(createdMonths as Set<string>)]
+  const { createdMonths } = sheet.get().getBudgetMeta(budgetId);
+  const futureMonths = [...createdMonths]
     .filter(m => m > month && m <= yearEnd)
     .sort();
 
   await batchMessages(async () => {
     for (const futureMonth of futureMonths) {
-      void setBudget({ category, month: futureMonth, amount });
+      void setBudget({ budgetId, category, month: futureMonth, amount });
     }
   });
 }
 
 export async function setCategoryCarryover({
+  budgetId,
   startMonth,
   category,
   flag,
 }: {
+  budgetId: string;
   startMonth: string;
   category: string;
   flag: boolean;
 }): Promise<void> {
-  const table = getBudgetTable();
-  const months = getAllMonths(startMonth);
+  assertCategoryOwner(budgetId, category);
+  const table = getBudgetTable(budgetId);
+  const months = getAllMonths(budgetId, startMonth);
 
   await batchMessages(async () => {
     for (const month of months) {
-      void setCarryover(table, category, dbMonth(month).toString(), flag);
+      void setCarryover(
+        budgetId,
+        table,
+        category,
+        dbMonth(month).toString(),
+        flag,
+      );
     }
   });
 }
@@ -725,12 +874,14 @@ function addNewLine(notes?: string) {
 }
 
 async function addMovementNotes({
+  budgetId,
   month,
   amount,
   to,
   from,
   currencyCode,
 }: {
+  budgetId: string;
   month: string;
   amount: number;
   to: CategoryEntity['id'] | 'to-budget' | 'overbudgeted';
@@ -744,7 +895,10 @@ async function addMovementNotes({
     currency.decimalPlaces,
   );
 
-  const monthBudgetNotesId = `budget-${month}`;
+  const monthBudgetNotesId =
+    budgetId === DEFAULT_BUDGET_ID
+      ? `budget-${month}`
+      : `budget-${budgetId}-${month}`;
   const existingMonthBudgetNotes = addNewLine(
     db.firstSync<Pick<db.DbNote, 'note'>>(
       `SELECT n.note FROM notes n WHERE n.id = ?`,
@@ -783,18 +937,27 @@ async function addMovementNotes({
 }
 
 export async function resetIncomeCarryover({
+  budgetId,
   month,
 }: {
+  budgetId: string;
   month: string;
 }): Promise<void> {
-  const table = getBudgetTable();
+  const table = getBudgetTable(budgetId);
   const categories = await db.all<db.DbViewCategory>(
-    'SELECT * FROM v_categories WHERE is_income = 1 AND tombstone = 0',
+    'SELECT * FROM v_categories WHERE is_income = 1 AND tombstone = 0 AND budget_id = ?',
+    [budgetId],
   );
 
   await batchMessages(async () => {
     for (const category of categories) {
-      await setCarryover(table, category.id, dbMonth(month).toString(), false);
+      await setCarryover(
+        budgetId,
+        table,
+        category.id,
+        dbMonth(month).toString(),
+        false,
+      );
     }
   });
 }

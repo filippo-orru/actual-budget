@@ -25,6 +25,7 @@ import {
   validatePercentageAllocation,
   validateSchedulePriorities,
 } from '#components/budget/goals/validateAutomation';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCleanupGroups } from '#hooks/useCleanupGroups';
 import { pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
@@ -69,6 +70,7 @@ export function useBudgetAutomationsEditor({
   onClose,
 }: UseBudgetAutomationsEditorArgs) {
   const dispatch = useDispatch();
+  const budgetId = useBudgetSpaceId();
   const { groups: cleanupGroups, createGroup: createCleanupGroup } =
     useCleanupGroups();
 
@@ -229,6 +231,7 @@ export function useBudgetAutomationsEditor({
     const run = debounce(async () => {
       try {
         const result = await send('budget/dry-run-category-template', {
+          budgetId,
           month,
           categoryId,
           templates,
@@ -243,7 +246,7 @@ export function useBudgetAutomationsEditor({
       cancelled = true;
       run.cancel();
     };
-  }, [templates, month, categoryId]);
+  }, [budgetId, templates, month, categoryId]);
 
   const totalMonthly = dryRun?.budgeted ?? 0;
   const contributions: (number | null)[] = entries.map((_, i) =>

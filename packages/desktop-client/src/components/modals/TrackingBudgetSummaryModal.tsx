@@ -10,6 +10,7 @@ import { ExpenseTotal } from '#components/budget/tracking/budgetsummary/ExpenseT
 import { IncomeTotal } from '#components/budget/tracking/budgetsummary/IncomeTotal';
 import { Saved } from '#components/budget/tracking/budgetsummary/Saved';
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SheetNameProvider } from '#hooks/useSheetName';
 import type { Modal as ModalType } from '#modals/modalsSlice';
 
@@ -22,6 +23,7 @@ export function TrackingBudgetSummaryModal({
   month,
 }: TrackingBudgetSummaryModalProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const currentMonth = monthUtils.currentMonth();
   return (
     <Modal name="tracking-budget-summary">
@@ -31,7 +33,7 @@ export function TrackingBudgetSummaryModal({
             title={t('Budget Summary')}
             rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
-          <SheetNameProvider name={sheetForMonth(month)}>
+          <SheetNameProvider name={sheetForMonth(budgetId, month)}>
             <SpaceBetween
               direction="vertical"
               gap={10}

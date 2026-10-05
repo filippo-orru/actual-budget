@@ -4,6 +4,7 @@ import { send } from '@actual-app/core/platform/client/connection';
 import { q } from '@actual-app/core/shared/query';
 import type { CleanupTemplate } from '@actual-app/core/types/models/cleanup-templates';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { aqlQuery } from '#queries/aqlQuery';
 
 export function useCategoryCleanup({
@@ -15,6 +16,7 @@ export function useCategoryCleanup({
   source: 'notes' | 'ui';
   onLoaded?: (cleanup: CleanupTemplate[]) => void;
 }) {
+  const budgetId = useBudgetSpaceId();
   const [cleanup, setCleanup] = useState<CleanupTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +27,10 @@ export function useCategoryCleanup({
       // notes based #cleanup lines may have been edited since they were last
       // parsed into the DB. ui-managed categories own cleanup_def directly, so skip.
       if (source !== 'ui') {
-        await send('budget/store-note-cleanups', [categoryId]);
+        await send('budget/store-note-cleanups', {
+          budgetId,
+          categoryIds: [categoryId],
+        });
       }
 
       const result = await aqlQuery(
@@ -45,7 +50,7 @@ export function useCategoryCleanup({
     return () => {
       mounted = false;
     };
-  }, [categoryId, source, onLoaded]);
+  }, [budgetId, categoryId, source, onLoaded]);
 
   return { cleanup, loading };
 }

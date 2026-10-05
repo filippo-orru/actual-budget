@@ -8,12 +8,7 @@ import { sheetForMonth } from '#shared/months';
 import * as Platform from '#shared/platform';
 
 import type * as DbModule from './db';
-import type {
-  DbPreference,
-  DbReflectBudget,
-  DbZeroBudget,
-  DbZeroBudgetMonth,
-} from './db';
+import type { DbReflectBudget, DbZeroBudget, DbZeroBudgetMonth } from './db';
 import { Spreadsheet } from './spreadsheet/spreadsheet';
 import { resolveName } from './spreadsheet/util';
 
@@ -139,6 +134,14 @@ export async function loadSpreadsheet(
     sheet = new Spreadsheet();
   }
 
+  // Old caches used file-global month sheets. Never restore those cells into
+  // the namespaced engine, but leave all database financial rows untouched.
+  sqlite.runQuery(
+    cacheDb,
+    "DELETE FROM kvcache WHERE key GLOB 'budget[0-9][0-9][0-9][0-9][0-9][0-9]!*'",
+    [],
+  );
+
   captureBreadcrumb({
     message: 'loading spreadsheet',
     category: 'server',
@@ -197,49 +200,60 @@ export async function reloadSpreadsheet(db): Promise<Spreadsheet> {
   }
 }
 
-export async function loadUserBudgets(db: typeof DbModule): Promise<void> {
+export async function loadUserBudgets(
+  db: typeof DbModule,
+  budgetId?: string,
+): Promise<void> {
   const sheet = globalSheet;
-
-  // TODO: Clear out the cache here so make sure future loads of the app
-  // don't load any extra values that aren't set here
-
-  const { value: budgetType = 'envelope' } =
-    (await db.first<Pick<DbPreference, 'value'>>(
-      'SELECT value from preferences WHERE id = ?',
-      ['budgetType'],
-    )) ?? {};
-
-  const table = budgetType === 'tracking' ? 'reflect_budgets' : 'zero_budgets';
-  const budgets = await db.all<DbReflectBudget | DbZeroBudget>(`
-      SELECT * FROM ${table} b
-      LEFT JOIN categories c ON c.id = b.category
-      WHERE c.tombstone = 0
-    `);
+  const budgetSpaces = await db.all<{ id: string; budget_type: string }>(
+    `SELECT id, budget_type FROM budgets WHERE tombstone = 0${budgetId ? ' AND id = ?' : ''}`,
+    budgetId ? [budgetId] : [],
+  );
 
   sheet.startTransaction();
 
-  // Load all the budget amounts and carryover values
-  for (const budget of budgets) {
-    if (budget.month && budget.category) {
-      const sheetName = `budget${budget.month}`;
+  for (const budgetSpace of budgetSpaces) {
+    if (
+      budgetSpace.budget_type !== 'envelope' &&
+      budgetSpace.budget_type !== 'tracking'
+    ) {
+      throw new Error(
+        `Unknown budget type for ${budgetSpace.id}: ${budgetSpace.budget_type}`,
+      );
+    }
+    const table =
+      budgetSpace.budget_type === 'tracking'
+        ? 'reflect_budgets'
+        : 'zero_budgets';
+    const budgets = await db.all<DbReflectBudget | DbZeroBudget>(
+      `SELECT b.* FROM ${table} b JOIN categories c ON c.id = b.category
+       WHERE c.tombstone = 0 AND c.budget_id = ? AND b.budget_id = ?`,
+      [budgetSpace.id, budgetSpace.id],
+    );
+    for (const budget of budgets) {
+      if (!budget.month || !budget.category) continue;
+      const monthNumber = String(budget.month).padStart(6, '0');
+      const month = `${monthNumber.slice(0, 4)}-${monthNumber.slice(4)}`;
+      const sheetName = sheetForMonth(budgetSpace.id, month);
       sheet.set(`${sheetName}!budget-${budget.category}`, budget.amount);
       sheet.set(
         `${sheetName}!carryover-${budget.category}`,
-        budget.carryover === 1 ? true : false,
+        budget.carryover === 1,
       );
       sheet.set(`${sheetName}!goal-${budget.category}`, budget.goal);
       sheet.set(`${sheetName}!long-goal-${budget.category}`, budget.long_goal);
     }
-  }
 
-  // For zero-based budgets, load the buffered amounts
-  if (budgetType !== 'tracking') {
-    const budgetMonths = await db.all<DbZeroBudgetMonth>(
-      'SELECT * FROM zero_budget_months',
-    );
-    for (const budgetMonth of budgetMonths) {
-      const sheetName = sheetForMonth(budgetMonth.id);
-      sheet.set(`${sheetName}!buffered`, budgetMonth.buffered);
+    if (budgetSpace.budget_type !== 'tracking') {
+      const budgetMonths = await db.all<DbZeroBudgetMonth>(
+        'SELECT * FROM zero_budget_months WHERE budget_id = ?',
+        [budgetSpace.id],
+      );
+      for (const budgetMonth of budgetMonths) {
+        if (!budgetMonth.month) continue;
+        const sheetName = sheetForMonth(budgetSpace.id, budgetMonth.month);
+        sheet.set(`${sheetName}!buffered`, budgetMonth.buffered);
+      }
     }
   }
 

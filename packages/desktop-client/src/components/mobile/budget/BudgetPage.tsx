@@ -47,6 +47,7 @@ import { prewarmMonth } from '#components/budget/util';
 import { FinancialText } from '#components/FinancialText';
 import { MobilePageHeader, Page } from '#components/Page';
 import { SyncRefresh } from '#components/SyncRefresh';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useFormat } from '#hooks/useFormat';
@@ -67,10 +68,6 @@ import { envelopeBudget } from '#spreadsheet/bindings';
 
 import { BudgetTable, PILL_STYLE } from './BudgetTable';
 
-function isBudgetType(input?: string): input is 'envelope' | 'tracking' {
-  return ['envelope', 'tracking'].includes(input);
-}
-
 export function BudgetPage() {
   const { t } = useTranslation();
   const locale = useLocale();
@@ -80,8 +77,9 @@ export function BudgetPage() {
       grouped: [],
     },
   } = useCategories();
-  const [budgetTypePref] = useSyncedPref('budgetType');
-  const budgetType = isBudgetType(budgetTypePref) ? budgetTypePref : 'envelope';
+  const budgetSpace = useBudgetSpace();
+  const budgetId = budgetSpace.id;
+  const budgetType = budgetSpace.budget_type;
   const goalTemplatesEnabled = useFeatureFlag('goalTemplatesEnabled');
   const goalTemplatesUIEnabled = useFeatureFlag('goalTemplatesUIEnabled');
   const spreadsheet = useSpreadsheet();
@@ -110,16 +108,16 @@ export function BudgetPage() {
 
   useEffect(() => {
     async function init() {
-      const { start, end } = await send('get-budget-bounds');
+      const { start, end } = await send('get-budget-bounds', { budgetId });
       setMonthBounds({ start, end });
 
-      await prewarmMonth(budgetType, spreadsheet, startMonth);
+      await prewarmMonth(budgetId, budgetType, spreadsheet, startMonth);
 
       setInitialized(true);
     }
 
     void init();
-  }, [budgetType, startMonth, dispatch, spreadsheet]);
+  }, [budgetId, budgetType, startMonth, dispatch, spreadsheet]);
 
   const onBudgetAction = useCallback(
     async (month, type, args) => {
@@ -284,23 +282,23 @@ export function BudgetPage() {
 
   const onPrevMonth = useCallback(async () => {
     const month = monthUtils.subMonths(startMonth, 1);
-    await prewarmMonth(budgetType, spreadsheet, month);
+    await prewarmMonth(budgetId, budgetType, spreadsheet, month);
     setStartMonthPref(month);
     setInitialized(true);
-  }, [budgetType, setStartMonthPref, spreadsheet, startMonth]);
+  }, [budgetId, budgetType, setStartMonthPref, spreadsheet, startMonth]);
 
   const onNextMonth = useCallback(async () => {
     const month = monthUtils.addMonths(startMonth, 1);
-    await prewarmMonth(budgetType, spreadsheet, month);
+    await prewarmMonth(budgetId, budgetType, spreadsheet, month);
     setStartMonthPref(month);
     setInitialized(true);
-  }, [budgetType, setStartMonthPref, spreadsheet, startMonth]);
+  }, [budgetId, budgetType, setStartMonthPref, spreadsheet, startMonth]);
 
   const onCurrentMonth = useCallback(async () => {
-    await prewarmMonth(budgetType, spreadsheet, currMonth);
+    await prewarmMonth(budgetId, budgetType, spreadsheet, currMonth);
     setStartMonthPref(currMonth);
     setInitialized(true);
-  }, [budgetType, setStartMonthPref, spreadsheet, currMonth]);
+  }, [budgetId, budgetType, setStartMonthPref, spreadsheet, currMonth]);
 
   // const onOpenMonthActionMenu = () => {
   //   const options = [
@@ -601,7 +599,7 @@ export function BudgetPage() {
         />
       }
     >
-      <SheetNameProvider name={monthUtils.sheetForMonth(startMonth)}>
+      <SheetNameProvider name={monthUtils.sheetForMonth(budgetId, startMonth)}>
         <SyncRefresh
           onSync={async () => {
             void dispatch(sync());
@@ -632,7 +630,7 @@ export function BudgetPage() {
 
 function Banners({ month, onBudgetAction }) {
   const { t } = useTranslation();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
 
   return (
     <GridList

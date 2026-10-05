@@ -14,14 +14,21 @@ export const TEMPLATE_PREFIX = '#template';
 export const GOAL_PREFIX = '#goal';
 const CLEANUP_PREFIX = '#cleanup';
 
-export async function storeNoteTemplates(
-  categoryIds?: string[],
-): Promise<void> {
-  const categoriesWithTemplates = await getCategoriesWithTemplates(categoryIds);
+export async function storeNoteTemplates({
+  budgetId,
+  categoryIds,
+}: {
+  budgetId: string;
+  categoryIds?: string[];
+}): Promise<void> {
+  const categoriesWithTemplates = await getCategoriesWithTemplates(
+    budgetId,
+    categoryIds,
+  );
 
   await storeTemplates({ categoriesWithTemplates, source: 'notes' });
 
-  await resetCategoryGoalDefsWithNoTemplates(categoryIds);
+  await resetCategoryGoalDefsWithNoTemplates(budgetId, categoryIds);
 }
 
 type CategoryWithTemplateNotes = {
@@ -30,9 +37,13 @@ type CategoryWithTemplateNotes = {
   templates: Template[];
 };
 
-export async function checkTemplateNotes(): Promise<TemplateNotification> {
-  const categoryWithTemplates = await getCategoriesWithTemplates();
-  const schedules = await getActiveSchedules();
+export async function checkTemplateNotes({
+  budgetId,
+}: {
+  budgetId: string;
+}): Promise<TemplateNotification> {
+  const categoryWithTemplates = await getCategoriesWithTemplates(budgetId);
+  const schedules = await getActiveSchedules(budgetId);
   const scheduleNames = schedules.map(({ name }) => name);
   const errors: string[] = [];
 
@@ -70,10 +81,14 @@ export async function checkTemplateNotes(): Promise<TemplateNotification> {
 }
 
 async function getCategoriesWithTemplates(
+  budgetId: string,
   categoryIds?: string[],
 ): Promise<CategoryWithTemplateNotes[]> {
   const templatesForCategory: CategoryWithTemplateNotes[] = [];
-  const templateNotes = await getCategoriesWithTemplateNotes(categoryIds);
+  const templateNotes = await getCategoriesWithTemplateNotes(
+    budgetId,
+    categoryIds,
+  );
 
   templateNotes.forEach(({ id, name, note }: CategoryWithTemplateNote) => {
     if (!note) {

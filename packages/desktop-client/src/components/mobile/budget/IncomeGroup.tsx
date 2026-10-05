@@ -18,8 +18,8 @@ import { AutoTextSize } from 'auto-text-size';
 
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue } from '#components/spreadsheet/CellValue';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
 import { getColumnWidth, ROW_HEIGHT } from './BudgetTable';
@@ -48,7 +48,7 @@ export function IncomeGroup({
 }: IncomeGroupProps) {
   const { t } = useTranslation();
   const columnWidth = getColumnWidth();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
 
   const categories = useMemo(
     () =>
@@ -239,7 +239,7 @@ type IncomeGroupCellsProps = {
 };
 
 function IncomeGroupCells({ group }: IncomeGroupCellsProps) {
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const format = useFormat();
 
   const budgeted =

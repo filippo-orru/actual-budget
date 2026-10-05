@@ -21,13 +21,13 @@ import {
   useSaveCategoryMutation,
   useSortCategoriesMutation,
 } from '#budget';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useNavigate } from '#hooks/useNavigate';
 import { SheetNameProvider } from '#hooks/useSheetName';
 import { useSpreadsheet } from '#hooks/useSpreadsheet';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 
 import { AutoSizingBudgetTable } from './DynamicBudgetTable';
 import * as envelopeBudget from './envelope/EnvelopeBudgetComponents';
@@ -38,6 +38,9 @@ import { prewarmAllMonths, prewarmMonth } from './util';
 
 export function Budget() {
   const currentMonth = monthUtils.currentMonth();
+  const budgetSpace = useBudgetSpace();
+  const budgetId = budgetSpace.id;
+  const budgetType = budgetSpace.budget_type;
   const spreadsheet = useSpreadsheet();
   const navigate = useNavigate();
   const [summaryCollapsed, setSummaryCollapsedPref] = useLocalPref(
@@ -49,7 +52,6 @@ export function Budget() {
     start: startMonth,
     end: startMonth,
   });
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
   const [maxMonthsPref] = useGlobalPref('maxMonths');
   const maxMonths = maxMonthsPref || 1;
   const [initialized, setInitialized] = useState(false);
@@ -58,10 +60,11 @@ export function Budget() {
 
   const init = useEffectEvent(() => {
     async function run() {
-      const { start, end } = await send('get-budget-bounds');
+      const { start, end } = await send('get-budget-bounds', { budgetId });
       setBounds({ start, end });
 
       await prewarmAllMonths(
+        budgetId,
         budgetType,
         spreadsheet,
         { start, end },
@@ -76,7 +79,7 @@ export function Budget() {
   useEffect(() => init(), []);
 
   const loadBoundBudgets = useEffectEvent(() => {
-    void send('get-budget-bounds').then(({ start, end }) => {
+    void send('get-budget-bounds', { budgetId }).then(({ start, end }) => {
       if (bounds.start !== start || bounds.end !== end) {
         setBounds({ start, end });
       }
@@ -98,6 +101,7 @@ export function Budget() {
     if (month < startMonth) {
       // pre-warm prev month
       await prewarmMonth(
+        budgetId,
         budgetType,
         spreadsheet,
         monthUtils.subMonths(month, 1),
@@ -105,6 +109,7 @@ export function Budget() {
     } else if (month > startMonth) {
       // pre-warm next month
       await prewarmMonth(
+        budgetId,
         budgetType,
         spreadsheet,
         monthUtils.addMonths(month, numDisplayed),
@@ -241,7 +246,7 @@ export function Budget() {
   }
 
   return (
-    <SheetNameProvider name={monthUtils.sheetForMonth(startMonth)}>
+    <SheetNameProvider name={monthUtils.sheetForMonth(budgetId, startMonth)}>
       {/*
         In a previous iteration, the wrapper needs `overflow: hidden` for
         some reason. Without it at certain dimensions the width/height
@@ -292,7 +297,7 @@ export type BudgetComponents = {
 };
 
 export function useBudgetComponents(): BudgetComponents {
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const envelopeComponents = useEnvelopeBudgetComponents();
   const trackingComponents = useTrackingBudgetComponents();
 

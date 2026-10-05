@@ -178,6 +178,7 @@ export function filterCategoriesByConditions(
 }
 
 export async function fetchBudgetData({
+  budgetId,
   startDate,
   endDate,
   interval,
@@ -187,6 +188,7 @@ export async function fetchBudgetData({
   conditionsOp,
   budgetType = 'envelope',
 }: {
+  budgetId: string;
   startDate: string;
   endDate: string;
   interval: string;
@@ -223,7 +225,7 @@ export async function fetchBudgetData({
     monthFetchConcurrency,
     async month => ({
       month,
-      monthData: await send(endpointName, { month }),
+      monthData: await send(endpointName, { budgetId, month }),
     }),
   );
 

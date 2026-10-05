@@ -215,7 +215,11 @@ export function createSpendingSpreadsheet({
       aqlQuery(
         q(budgetTable)
           .filter({
-            $and: [{ month: { $eq: budgetMonth } }, ...budgetFilters],
+            $and: [
+              { month: { $eq: budgetMonth } },
+              { budget_id: { $eq: budgetId } },
+              ...budgetFilters,
+            ],
           })
           .groupBy([{ $id: '$category' }])
           .select([

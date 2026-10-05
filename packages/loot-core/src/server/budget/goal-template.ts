@@ -97,42 +97,63 @@ export async function storeTemplates({
 }
 
 export async function applyTemplate({
+  budgetId,
   month,
 }: {
+  budgetId: string;
   month: string;
 }): Promise<TemplateNotification> {
-  await storeNoteTemplates();
-  const categoryTemplates = await getTemplates();
-  const ret = await processTemplate(month, false, categoryTemplates, []);
+  await storeNoteTemplates({ budgetId });
+  const categoryTemplates = await getTemplates(budgetId);
+  const ret = await processTemplate(
+    budgetId,
+    month,
+    false,
+    categoryTemplates,
+    [],
+  );
   return ret;
 }
 
 export async function overwriteTemplate({
+  budgetId,
   month,
 }: {
+  budgetId: string;
   month: string;
 }): Promise<TemplateNotification> {
-  await storeNoteTemplates();
-  const categoryTemplates = await getTemplates();
-  const ret = await processTemplate(month, true, categoryTemplates, []);
+  await storeNoteTemplates({ budgetId });
+  const categoryTemplates = await getTemplates(budgetId);
+  const ret = await processTemplate(
+    budgetId,
+    month,
+    true,
+    categoryTemplates,
+    [],
+  );
   return ret;
 }
 
 export async function applyMultipleCategoryTemplates({
+  budgetId,
   month,
   categoryIds,
 }: {
+  budgetId: string;
   month: string;
   categoryIds: Array<CategoryEntity['id']>;
 }) {
   const { data: categoryData }: { data: CategoryEntity[] } = await aqlQuery(
     q('categories')
-      .filter({ id: { $oneof: categoryIds } })
+      .filter({ budget_id: budgetId, id: { $oneof: categoryIds } })
       .select('*'),
   );
-  await storeNoteTemplates();
-  const categoryTemplates = await getTemplates(c => categoryIds.includes(c.id));
+  await storeNoteTemplates({ budgetId });
+  const categoryTemplates = await getTemplates(budgetId, c =>
+    categoryIds.includes(c.id),
+  );
   const ret = await processTemplate(
+    budgetId,
     month,
     true,
     categoryTemplates,
@@ -142,18 +163,24 @@ export async function applyMultipleCategoryTemplates({
 }
 
 export async function applySingleCategoryTemplate({
+  budgetId,
   month,
   category,
 }: {
+  budgetId: string;
   month: string;
   category: CategoryEntity['id'];
 }) {
   const { data: categoryData }: { data: CategoryEntity[] } = await aqlQuery(
-    q('categories').filter({ id: category }).select('*'),
+    q('categories').filter({ budget_id: budgetId, id: category }).select('*'),
   );
-  await storeNoteTemplates();
-  const categoryTemplates = await getTemplates(c => c.id === category);
+  await storeNoteTemplates({ budgetId });
+  const categoryTemplates = await getTemplates(
+    budgetId,
+    c => c.id === category,
+  );
   const ret = await processTemplate(
+    budgetId,
     month,
     true,
     categoryTemplates,
@@ -162,25 +189,30 @@ export async function applySingleCategoryTemplate({
   return ret;
 }
 
-export function runCheckTemplates() {
-  return checkTemplateNotes();
+export function runCheckTemplates({ budgetId }: { budgetId: string }) {
+  return checkTemplateNotes({ budgetId });
 }
 
-async function getCategories(): Promise<CategoryEntity[]> {
+async function getCategories(budgetId: string): Promise<CategoryEntity[]> {
   const { data: categoryGroups }: { data: CategoryGroupEntity[] } =
-    await aqlQuery(q('category_groups').filter({ hidden: false }).select('*'));
+    await aqlQuery(
+      q('category_groups')
+        .filter({ budget_id: budgetId, hidden: false })
+        .select('*'),
+    );
 
   return categoryGroups.flatMap(g => g.categories || []).filter(c => !c.hidden);
 }
 
 async function getTemplates(
+  budgetId: string,
   filter: (category: CategoryEntity) => boolean = () => true,
 ): Promise<Record<CategoryEntity['id'], Template[]>> {
   //retrieves template definitions from the database
   const { data: categoriesWithGoalDef }: { data: CategoryEntity[] } =
     await aqlQuery(
       q('categories')
-        .filter({ goal_def: { $ne: null } })
+        .filter({ budget_id: budgetId, goal_def: { $ne: null } })
         .select('*'),
     );
 
@@ -197,7 +229,11 @@ async function getTemplates(
 export async function getTemplatesForCategory(
   categoryId: CategoryEntity['id'],
 ): Promise<Record<CategoryEntity['id'], Template[]>> {
-  return getTemplates(c => c.id === categoryId);
+  const budgetId = await getBudgetIdForEntity({
+    table: 'categories',
+    id: categoryId,
+  });
+  return getTemplates(budgetId, c => c.id === categoryId);
 }
 
 type TemplateBudget = {
@@ -205,10 +241,15 @@ type TemplateBudget = {
   budgeted: number;
 };
 
-async function setBudgets(month: string, templateBudget: TemplateBudget[]) {
+async function setBudgets(
+  budgetId: string,
+  month: string,
+  templateBudget: TemplateBudget[],
+) {
   await batchMessages(async () => {
     templateBudget.forEach(element => {
       void setBudget({
+        budgetId,
         category: element.category,
         month,
         amount: element.budgeted,
@@ -223,10 +264,15 @@ type TemplateGoal = {
   longGoal: number | null;
 };
 
-async function setGoals(month: string, templateGoal: TemplateGoal[]) {
+async function setGoals(
+  budgetId: string,
+  month: string,
+  templateGoal: TemplateGoal[],
+) {
   await batchMessages(async () => {
     templateGoal.forEach(element => {
       void setGoal({
+        budgetId,
         month,
         category: element.category,
         goal: element.goal,
@@ -243,6 +289,7 @@ type ComputedTemplates = {
 };
 
 async function computeTemplates(
+  budgetId: string,
   month: string,
   force: boolean,
   categoryTemplates: Record<CategoryEntity['id'], Template[]>,
@@ -250,9 +297,9 @@ async function computeTemplates(
   skipAvailableClamp: boolean = false,
 ): Promise<ComputedTemplates> {
   // setup categories
-  const isTracking = isTrackingBudget();
+  const isTracking = isTrackingBudget(budgetId);
   if (!categories.length) {
-    categories = (await getCategories()).filter(
+    categories = (await getCategories(budgetId)).filter(
       c => isTracking || !c.is_income,
     );
   }
@@ -260,7 +307,7 @@ async function computeTemplates(
   // setup categories to process
   const templateContexts: CategoryTemplateContext[] = [];
   let availBudget = await getSheetValue(
-    monthUtils.sheetForMonth(month),
+    monthUtils.sheetForMonth(budgetId, month),
     isTracking ? `total-saved` : `to-budget`,
   );
   const prioritiesSet = new Set<number>();
@@ -268,7 +315,7 @@ async function computeTemplates(
   const orphanGoals: TemplateGoal[] = [];
   for (const category of categories) {
     const { id } = category;
-    const sheetName = monthUtils.sheetForMonth(month);
+    const sheetName = monthUtils.sheetForMonth(budgetId, month);
     const templates = categoryTemplates[id];
     const budgeted = await getSheetValue(sheetName, `budget-${id}`);
     const existingGoal = await getSheetValue(sheetName, `goal-${id}`);
@@ -328,12 +375,14 @@ async function computeTemplates(
 }
 
 async function processTemplate(
+  budgetId: string,
   month: string,
   force: boolean,
   categoryTemplates: Record<CategoryEntity['id'], Template[]>,
   categories: CategoryEntity[] = [],
 ): Promise<TemplateNotification> {
   const { contexts, errors, orphanGoals } = await computeTemplates(
+    budgetId,
     month,
     force,
     categoryTemplates,
@@ -342,7 +391,7 @@ async function processTemplate(
 
   if (contexts.length === 0 && errors.length === 0) {
     if (orphanGoals.length > 0) {
-      await setGoals(month, orphanGoals);
+      await setGoals(budgetId, month, orphanGoals);
     }
     return {
       type: 'message',
@@ -371,8 +420,8 @@ async function processTemplate(
       longGoal: values.longGoal ? 1 : null,
     });
   });
-  await setBudgets(month, budgetList);
-  await setGoals(month, goalList);
+  await setBudgets(budgetId, month, budgetList);
+  await setGoals(budgetId, month, goalList);
 
   return {
     type: 'message',
@@ -387,10 +436,12 @@ export type DryRunCategoryResult = {
 };
 
 export async function dryRunCategoryTemplate({
+  budgetId,
   month,
   categoryId,
   templates,
 }: {
+  budgetId: string;
   month: string;
   categoryId: CategoryEntity['id'];
   templates: Template[];
@@ -399,12 +450,13 @@ export async function dryRunCategoryTemplate({
   // skips the priority clamp so future months (where To Budget is empty)
   // still show the templates' intended amount instead of 0.
   const { data: categoryData }: { data: CategoryEntity[] } = await aqlQuery(
-    q('categories').filter({ id: categoryId }).select('*'),
+    q('categories').filter({ budget_id: budgetId, id: categoryId }).select('*'),
   );
   if (categoryData.length === 0) {
     return { budgeted: 0, perTemplate: templates.map(() => 0) };
   }
   const { contexts } = await computeTemplates(
+    budgetId,
     month,
     true,
     { [categoryId]: templates },

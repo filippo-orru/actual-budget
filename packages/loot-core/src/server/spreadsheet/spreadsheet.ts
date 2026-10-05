@@ -26,10 +26,15 @@ export type Node = {
   _dependencies?: string[];
 };
 
+export type BudgetMetadata = {
+  createdMonths: Set<string>;
+  budgetType: BudgetType;
+  blankSheet?: string;
+};
+
 export class Spreadsheet {
   _meta: {
-    createdMonths: Set<string>;
-    budgetType: BudgetType;
+    budgets: Map<string, BudgetMetadata>;
   };
   cacheBarrier;
   computeQueue;
@@ -52,10 +57,7 @@ export class Spreadsheet {
     this.dirtyCells = [];
     this.computeQueue = [];
     this.events = mitt();
-    this._meta = {
-      createdMonths: new Set(),
-      budgetType: 'envelope',
-    };
+    this._meta = { budgets: new Map() };
   }
 
   meta() {
@@ -64,6 +66,15 @@ export class Spreadsheet {
 
   setMeta(meta) {
     this._meta = meta;
+  }
+
+  getBudgetMeta(budgetId: string): BudgetMetadata {
+    let metadata = this._meta.budgets.get(budgetId);
+    if (!metadata) {
+      metadata = { createdMonths: new Set(), budgetType: 'envelope' };
+      this._meta.budgets.set(budgetId, metadata);
+    }
+    return metadata;
   }
 
   // Spreadsheet interface

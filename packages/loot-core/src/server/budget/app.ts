@@ -69,7 +69,7 @@ export type BudgetHandlers = {
   'budget/set-category-automations': typeof goalActions.storeTemplates;
   'budget/dry-run-category-template': typeof goalActions.dryRunCategoryTemplate;
   'budget/store-note-templates': typeof goalNoteActions.storeNoteTemplates;
-  'budget/store-note-cleanups': typeof storeNoteCleanups;
+  'budget/store-note-cleanups': typeof storeNoteCleanupsForBudget;
   'budget/render-note-templates': typeof goalNoteActions.unparse;
   'budget/create-cleanup-group': typeof cleanupGroupActions.createCleanupGroup;
 };
@@ -179,7 +179,7 @@ app.method(
   'budget/store-note-templates',
   mutator(goalNoteActions.storeNoteTemplates),
 );
-app.method('budget/store-note-cleanups', mutator(storeNoteCleanups));
+app.method('budget/store-note-cleanups', mutator(storeNoteCleanupsForBudget));
 app.method('budget/render-note-templates', goalNoteActions.unparse);
 app.method(
   'budget/create-cleanup-group',
@@ -214,13 +214,37 @@ async function getCategories({
   };
 }
 
-async function getBudgetBounds() {
-  return await budget.createAllBudgets();
+async function storeNoteCleanupsForBudget({
+  budgetId,
+  categoryIds,
+}: {
+  budgetId: string;
+  categoryIds?: string[];
+}): Promise<void> {
+  if (categoryIds?.length) {
+    await assertBudgetOwner(
+      budgetId,
+      categoryIds.map(id => ({ table: 'categories' as const, id })),
+    );
+  }
+  await storeNoteCleanups(budgetId, categoryIds);
 }
 
-async function envelopeBudgetMonth({ month }: { month: string }) {
-  const groups = await db.getCategoriesGrouped();
-  const sheetName = monthUtils.sheetForMonth(month);
+async function getBudgetBounds({ budgetId }: { budgetId: string }) {
+  await validateBudgetExists(budgetId);
+  return await budget.createAllBudgets(budgetId);
+}
+
+async function envelopeBudgetMonth({
+  budgetId,
+  month,
+}: {
+  budgetId: string;
+  month: string;
+}) {
+  await validateBudgetExists(budgetId);
+  const groups = await db.getCategoriesGrouped(undefined, budgetId);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
   function value(name: string) {
     const v = sheet.getCellValue(sheetName, name);
@@ -272,9 +296,16 @@ async function envelopeBudgetMonth({ month }: { month: string }) {
   return values;
 }
 
-async function trackingBudgetMonth({ month }: { month: string }) {
-  const groups = await db.getCategoriesGrouped();
-  const sheetName = monthUtils.sheetForMonth(month);
+async function trackingBudgetMonth({
+  budgetId,
+  month,
+}: {
+  budgetId: string;
+  month: string;
+}) {
+  await validateBudgetExists(budgetId);
+  const groups = await db.getCategoriesGrouped(undefined, budgetId);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
 
   function value(name: string) {
     const v = sheet.getCellValue(sheetName, name);
@@ -477,7 +508,7 @@ async function deleteCategory({
     // TODO: We should do this for income too if it's a tracking budget
     if (row.is_income === 0) {
       if (transferId) {
-        await budget.doTransfer([id], transferId);
+        await budget.doTransfer(owner, [id], transferId);
       }
     }
 
@@ -587,6 +618,7 @@ async function deleteCategoryGroup({
   await batchMessages(async () => {
     if (transferId) {
       await budget.doTransfer(
+        owner,
         groupCategories.map(c => c.id),
         transferId,
       );
@@ -616,8 +648,9 @@ async function isCategoryTransferRequired({
 
   // If there are any non-zero budget values, also force the user to
   // transfer the category.
-  return [...(sheet.get().meta().createdMonths as Set<string>)].some(month => {
-    const sheetName = monthUtils.sheetForMonth(month);
+  const budgetId = await getBudgetIdForEntity({ table: 'categories', id });
+  return [...sheet.get().getBudgetMeta(budgetId).createdMonths].some(month => {
+    const sheetName = monthUtils.sheetForMonth(budgetId, month);
     const value = sheet.get().getCellValue(sheetName, 'budget-' + id);
 
     return value != null && value !== 0;

@@ -13,10 +13,10 @@ import { AutoTextSize } from 'auto-text-size';
 import { makeAmountGrey } from '#components/budget/util';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue } from '#components/spreadsheet/CellValue';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
 import { useNotes } from '#hooks/useNotes';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { useUndo } from '#hooks/useUndo';
 import { pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
@@ -50,7 +50,7 @@ export function BudgetCell<
   const dispatch = useDispatch();
   const format = useFormat();
   const { showUndoNotification } = useUndo();
-  const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const budgetType = useBudgetSpace().budget_type;
   const categoryNotes = useNotes(category.id);
 
   const onSaveNotes = useCallback(async (id: string, notes: string) => {

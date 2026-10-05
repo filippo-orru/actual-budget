@@ -13,6 +13,7 @@ import { ToBudgetAmount } from '#components/budget/envelope/budgetsummary/ToBudg
 import { TotalsList } from '#components/budget/envelope/budgetsummary/TotalsList';
 import { useEnvelopeSheetValue } from '#components/budget/envelope/EnvelopeBudgetComponents';
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategoriesById } from '#hooks/useCategories';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -33,6 +34,7 @@ export function EnvelopeBudgetSummaryModal({
   onBudgetAction,
 }: EnvelopeBudgetSummaryModalProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const format = useFormat();
 
   const locale = useLocale();
@@ -159,7 +161,7 @@ export function EnvelopeBudgetSummaryModal({
             title={t('Budget Summary')}
             rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
-          <SheetNameProvider name={sheetForMonth(month)}>
+          <SheetNameProvider name={sheetForMonth(budgetId, month)}>
             <TotalsList
               prevMonthName={prevMonthName}
               style={{

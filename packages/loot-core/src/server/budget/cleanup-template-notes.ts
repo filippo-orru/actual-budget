@@ -23,8 +23,11 @@ type CategoryWithCleanupNote = {
   note: string | null;
 };
 
-export async function storeNoteCleanups(categoryIds?: string[]): Promise<void> {
-  const candidates = await getCategoriesWithCleanupNotes(categoryIds);
+export async function storeNoteCleanups(
+  budgetId: string,
+  categoryIds?: string[],
+): Promise<void> {
+  const candidates = await getCategoriesWithCleanupNotes(budgetId, categoryIds);
   if (categoryIds) {
     const requestedOwners = await Promise.all(
       categoryIds.map(id => getBudgetIdForEntity({ table: 'categories', id })),
@@ -150,6 +153,7 @@ async function resolveCleanupGroups(
 // Scoped to non-ui-managed categories so a migrated category is not
 // overwritten by stale note text.
 async function getCategoriesWithCleanupNotes(
+  budgetId: string,
   categoryIds?: string[],
 ): Promise<CategoryWithCleanupNote[]> {
   const baseQuery = `
@@ -157,15 +161,16 @@ async function getCategoriesWithCleanupNotes(
     FROM categories c
     LEFT JOIN notes n ON n.id = c.id
     WHERE c.tombstone = 0
+      AND c.budget_id = ?
       AND COALESCE(JSON_EXTRACT(c.template_settings, '$.source'), 'notes') <> 'ui'
   `;
   if (!categoryIds) {
-    return db.all<CategoryWithCleanupNote>(baseQuery);
+    return db.all<CategoryWithCleanupNote>(baseQuery, [budgetId]);
   }
   if (categoryIds.length === 0) return [];
   const placeholders = categoryIds.map(() => '?').join(',');
   return db.all<CategoryWithCleanupNote>(
     `${baseQuery} AND c.id IN (${placeholders})`,
-    categoryIds,
+    [budgetId, ...categoryIds],
   );
 }

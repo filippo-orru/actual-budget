@@ -3,13 +3,19 @@ import * as db from '#server/db';
 import * as monthUtils from '#shared/months';
 import type { CleanupTemplate } from '#types/models/cleanup-templates';
 
-import { getSheetValue, setBudget, setGoal } from './actions';
+import { getBudgetTable, getSheetValue, setBudget, setGoal } from './actions';
 import { storeNoteCleanups } from './cleanup-template-notes';
 import type { TemplateNotification } from './template-notification';
 
-export async function cleanupTemplate({ month }: { month: string }) {
-  await storeNoteCleanups();
-  return processCleanup(month);
+export async function cleanupTemplate({
+  budgetId,
+  month,
+}: {
+  budgetId: string;
+  month: string;
+}) {
+  await storeNoteCleanups(budgetId);
+  return processCleanup(budgetId, month);
 }
 
 type GroupSourceRow = { category: string; groupId: string };
@@ -17,6 +23,7 @@ type GroupSinkRow = { category: string; groupId: string; weight: number };
 type GroupOverspendRow = { category: string; groupId: string };
 
 async function applyGroupCleanups(
+  budgetId: string,
   month: string,
   sourceGroups: GroupSourceRow[],
   sinkGroups: GroupSinkRow[],
@@ -24,9 +31,10 @@ async function applyGroupCleanups(
   groupNamesById: Map<string, string>,
   categoryNamesById: Map<string, string>,
 ) {
-  const sheetName = monthUtils.sheetForMonth(month);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
   const warnings = [];
   const db_month = parseInt(month.replace('-', ''));
+  const budgetTable = getBudgetTable(budgetId);
   let groupLength = sourceGroups.length;
   while (groupLength > 0) {
     //function for each unique group
@@ -60,6 +68,7 @@ async function applyGroupCleanups(
 
         const budgeted = await getSheetValue(sheetName, `budget-${categoryId}`);
         await setBudget({
+          budgetId,
           category: categoryId,
           month,
           amount: budgeted - balance,
@@ -89,8 +98,8 @@ async function applyGroupCleanups(
         const to_budget = budgeted + Math.abs(balance);
         const categoryId = overspendGroup[ii].category;
         let carryover = await db.first<Pick<db.DbZeroBudget, 'carryover'>>(
-          `SELECT carryover FROM zero_budgets WHERE month = ? and category = ?`,
-          [db_month, categoryId],
+          `SELECT carryover FROM ${budgetTable} WHERE month = ? and category = ? AND budget_id = ?`,
+          [db_month, categoryId, budgetId],
         );
 
         if (carryover === null) {
@@ -104,6 +113,7 @@ async function applyGroupCleanups(
           carryover.carryover === 0
         ) {
           await setBudget({
+            budgetId,
             category: categoryId,
             month,
             amount: to_budget,
@@ -116,6 +126,7 @@ async function applyGroupCleanups(
           Math.abs(balance) > available_amount
         ) {
           await setBudget({
+            budgetId,
             category: categoryId,
             month,
             amount: budgeted + available_amount,
@@ -132,6 +143,7 @@ async function applyGroupCleanups(
           budgeted +
           Math.round((sinkGroup[ii].weight / total_weight) * available_amount);
         await setBudget({
+          budgetId,
           category: sinkGroup[ii].category,
           month,
           amount: to_budget,
@@ -149,7 +161,10 @@ async function applyGroupCleanups(
   return warnings;
 }
 
-async function processCleanup(month: string): Promise<TemplateNotification> {
+async function processCleanup(
+  budgetId: string,
+  month: string,
+): Promise<TemplateNotification> {
   let num_sources = 0;
   let num_sinks = 0;
   let total_weight = 0;
@@ -161,11 +176,13 @@ async function processCleanup(month: string): Promise<TemplateNotification> {
   };
   const sinkCategory: SinkCategoryRow[] = [];
   const db_month = parseInt(month.replace('-', ''));
+  const budgetTable = getBudgetTable(budgetId);
 
   const categories = await db.all<db.DbViewCategory>(
-    'SELECT * FROM v_categories WHERE tombstone = 0',
+    'SELECT * FROM v_categories WHERE tombstone = 0 AND budget_id = ?',
+    [budgetId],
   );
-  const sheetName = monthUtils.sheetForMonth(month);
+  const sheetName = monthUtils.sheetForMonth(budgetId, month);
   const groupSource: GroupSourceRow[] = [];
   const groupSink: GroupSinkRow[] = [];
   const groupOverspend: GroupOverspendRow[] = [];
@@ -190,13 +207,15 @@ async function processCleanup(month: string): Promise<TemplateNotification> {
   }
 
   const groupRows = await db.all<{ id: string; name: string }>(
-    'SELECT id, name FROM cleanup_groups WHERE tombstone = 0',
+    'SELECT id, name FROM cleanup_groups WHERE tombstone = 0 AND budget_id = ?',
+    [budgetId],
   );
   const groupNamesById = new Map(groupRows.map(g => [g.id, g.name]));
   const categoryNamesById = new Map(categories.map(c => [c.id, c.name]));
 
   //run category groups
   const newWarnings = await applyGroupCleanups(
+    budgetId,
     month,
     groupSource,
     groupSink,
@@ -218,11 +237,13 @@ async function processCleanup(month: string): Promise<TemplateNotification> {
       const budgeted = await getSheetValue(sheetName, `budget-${category.id}`);
       if (balance >= 0) {
         await setBudget({
+          budgetId,
           category: category.id,
           month,
           amount: budgeted - balance,
         });
         await setGoal({
+          budgetId,
           category: category.id,
           month,
           goal: budgeted - balance,
@@ -250,8 +271,8 @@ async function processCleanup(month: string): Promise<TemplateNotification> {
     const to_budget = budgeted + Math.abs(balance);
     const categoryId = category.id;
     let carryover = await db.first<Pick<db.DbZeroBudget, 'carryover'>>(
-      `SELECT carryover FROM zero_budgets WHERE month = ? and category = ?`,
-      [db_month, categoryId],
+      `SELECT carryover FROM ${budgetTable} WHERE month = ? and category = ? AND budget_id = ?`,
+      [db_month, categoryId, budgetId],
     );
 
     if (carryover === null) {
@@ -265,6 +286,7 @@ async function processCleanup(month: string): Promise<TemplateNotification> {
       carryover.carryover === 0
     ) {
       await setBudget({
+        budgetId,
         category: category.id,
         month,
         amount: to_budget,
@@ -276,6 +298,7 @@ async function processCleanup(month: string): Promise<TemplateNotification> {
       Math.abs(balance) > budgetAvailable
     ) {
       await setBudget({
+        budgetId,
         category: category.id,
         month,
         amount: budgeted + budgetAvailable,
@@ -304,6 +327,7 @@ async function processCleanup(month: string): Promise<TemplateNotification> {
       }
     }
     await setBudget({
+      budgetId,
       category: cat.id,
       month,
       amount: to_budget,

@@ -13,6 +13,7 @@ import { fetchBudgetData } from './budgetDataQuery';
 import { makeQuery } from './makeQuery';
 
 export async function fetchSpreadsheetQueryData({
+  budgetId,
   balanceTypeOp,
   startDate,
   endDate,
@@ -25,6 +26,7 @@ export async function fetchSpreadsheetQueryData({
   filters,
   budgetType,
 }: {
+  budgetId: string;
   balanceTypeOp: balanceTypeOpType | undefined;
   startDate: string;
   endDate: string;
@@ -39,6 +41,7 @@ export async function fetchSpreadsheetQueryData({
 }): Promise<{ assets: QueryDataEntity[]; debts: QueryDataEntity[] }> {
   if (balanceTypeOp === 'totalBudgeted') {
     return fetchBudgetData({
+      budgetId,
       startDate,
       endDate,
       interval,

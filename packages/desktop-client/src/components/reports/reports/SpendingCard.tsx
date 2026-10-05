@@ -22,9 +22,8 @@ import {
 } from '#components/reports/spendingAverageRange';
 import { createSpendingSpreadsheet } from '#components/reports/spreadsheets/spending-spreadsheet';
 import { useReport } from '#components/reports/useReport';
-import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
+import { useBudgetSpace, useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 
 type SpendingCardProps = {
   widgetId: string;
@@ -41,9 +40,7 @@ export function SpendingCard({
 }: SpendingCardProps) {
   const { t } = useTranslation();
   const format = useFormat();
-  const [budgetTypePref] = useSyncedPref('budgetType');
-  const budgetType: 'envelope' | 'tracking' =
-    budgetTypePref === 'tracking' ? 'tracking' : 'envelope';
+  const budgetType = useBudgetSpace().budget_type;
 
   const [isCardHovered, setIsCardHovered] = useState(false);
   const [nameMenuOpen, setNameMenuOpen] = useState(false);

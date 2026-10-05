@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { BudgetSpaceContext } from './hooks/useBudgetSpace';
 import { configureAppStore } from './redux/store';
 import type { AppStore } from './redux/store';
 
@@ -50,7 +51,20 @@ export function TestProviders({
 }) {
   return (
     <QueryClientProvider client={queryClient ?? testQueryClient}>
-      <Provider store={store ?? testStore}>{children}</Provider>
+      <Provider store={store ?? testStore}>
+        <BudgetSpaceContext.Provider
+          value={{
+            id: 'default',
+            name: '',
+            currency_code: 'USD',
+            budget_type: 'envelope',
+            sort_order: 0,
+            tombstone: false,
+          }}
+        >
+          {children}
+        </BudgetSpaceContext.Provider>
+      </Provider>
     </QueryClientProvider>
   );
 }

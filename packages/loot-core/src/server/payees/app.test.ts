@@ -41,7 +41,9 @@ describe('payees app', () => {
         schedule: { id: scheduleId, completed: true },
       });
 
-      const counts = await app.handlers['payees-get-rule-counts']();
+      const counts = await app.handlers['payees-get-rule-counts']({
+        budgetId: 'default',
+      });
 
       expect(counts[activePayeeId]).toBe(1);
       expect(counts[completedPayeeId]).toBeUndefined();

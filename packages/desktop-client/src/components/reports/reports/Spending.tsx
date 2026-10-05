@@ -73,6 +73,7 @@ type SpendingInternalProps = {
 };
 
 function SpendingInternal({ widget }: SpendingInternalProps) {
+  const budgetId = useBudgetSpaceId();
   const locale = useLocale();
   const dispatch = useDispatch();
   const { t } = useTranslation();
@@ -109,8 +110,10 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
 
   useEffect(() => {
     async function run() {
-      const earliestTrans = await send('get-earliest-transaction');
-      const latestTrans = await send('get-latest-transaction');
+      const earliestTrans = await send('get-earliest-transaction', {
+        budgetId,
+      });
+      const latestTrans = await send('get-latest-transaction', { budgetId });
 
       const currentMonth = monthUtils.currentMonth();
       let earliestMonth = earliestTrans
@@ -144,9 +147,8 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
       setAllIntervals(allMonths);
     }
     void run();
-  }, [locale]);
+  }, [locale, budgetId]);
 
-  const budgetId = useBudgetSpaceId();
   const getGraphData = useMemo(
     () =>
       createSpendingSpreadsheet({

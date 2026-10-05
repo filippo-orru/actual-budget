@@ -77,8 +77,12 @@ function expectQueryDateRange(
   startDate: string,
   endDate: string,
 ) {
+  const query = findQueryByCategory(queryPayloads, categoryId);
+  expect(query.filterExpressions[0]).toEqual({
+    'account.budget_id': 'default',
+  });
   expect(
-    findQueryByCategory(queryPayloads, categoryId).filterExpressions[0],
+    query.filterExpressions.find(expression => '$and' in expression),
   ).toEqual({
     $and: [{ date: { $gte: startDate } }, { date: { $lte: endDate } }],
   });
@@ -146,14 +150,18 @@ describe('formula query timeframes', () => {
   });
 
   it('applies default bounds for partial static query timeframes', async () => {
-    const query = await buildFilteredTransactionsQuery({
-      timeFrame: {
-        mode: 'static',
-        start: '2016-10',
+    const query = await buildFilteredTransactionsQuery(
+      {
+        timeFrame: {
+          mode: 'static',
+          start: '2016-10',
+        },
       },
-    });
+      'default',
+    );
 
     expect(query.serialize().filterExpressions).toEqual([
+      { 'account.budget_id': 'default' },
       {
         $and: [
           { date: { $gte: '2016-10-01' } },
@@ -164,13 +172,17 @@ describe('formula query timeframes', () => {
   });
 
   it('applies preset query timeframe modes through calculateTimeRange', async () => {
-    const query = await buildFilteredTransactionsQuery({
-      timeFrame: {
-        mode: 'lastMonth',
+    const query = await buildFilteredTransactionsQuery(
+      {
+        timeFrame: {
+          mode: 'lastMonth',
+        },
       },
-    });
+      'default',
+    );
 
     expect(query.serialize().filterExpressions).toEqual([
+      { 'account.budget_id': 'default' },
       {
         $and: [
           { date: { $gte: '2016-12-01' } },

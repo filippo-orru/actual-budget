@@ -294,7 +294,10 @@ async function findStartDate(schedule) {
     }
 
     const { data } = await aqlQuery(
-      q('transactions').filter({ $and: filters }).select('*'),
+      q('transactions')
+        .filter({ 'account.budget_id': schedule.budget_id })
+        .filter({ $and: filters })
+        .select('*'),
     );
 
     if (data.length === 0) {
@@ -316,7 +319,7 @@ async function findStartDate(schedule) {
   return schedule;
 }
 
-export async function findSchedules() {
+export async function findSchedules({ budgetId }: { budgetId: string }) {
   // Patterns to look for:
   // * Weekly
   // * Every two weeks
@@ -328,7 +331,7 @@ export async function findSchedules() {
   // and find the best one...
 
   const { data: accounts } = await aqlQuery(
-    q('accounts').filter({ closed: false }).select('*'),
+    q('accounts').filter({ budget_id: budgetId, closed: false }).select('*'),
   );
 
   let allSchedules = [];
@@ -342,46 +345,61 @@ export async function findSchedules() {
 
     if (latestTrans) {
       const latestDate = fromDateRepr(latestTrans.date);
+      const accountSchedules = await Promise.all([
+        weekly(latestDate, account.id),
+        every2weeks(latestDate, account.id),
+        monthly(latestDate, account.id),
+        monthlyLastDay(latestDate, account.id),
+        monthly1stor3rd(latestDate, account.id),
+        monthly2ndor4th(latestDate, account.id),
+      ]);
       allSchedules = allSchedules.concat(
-        await weekly(latestDate, account.id),
-        await every2weeks(latestDate, account.id),
-        await monthly(latestDate, account.id),
-        await monthlyLastDay(latestDate, account.id),
-        await monthly1stor3rd(latestDate, account.id),
-        await monthly2ndor4th(latestDate, account.id),
+        ...accountSchedules.map(schedules =>
+          schedules.map(schedule => ({
+            ...schedule,
+            budget_id: account.budget_id,
+          })),
+        ),
       );
     }
   }
 
-  const schedules = [...groupBy(allSchedules, 'payee').entries()].map(
-    ([, schedules]) => {
-      schedules.sort((s1, s2) => s2.rank - s1.rank);
-      const winner = schedules[0];
+  const schedules = [
+    ...groupBy(
+      allSchedules.map(schedule => ({
+        ...schedule,
+        owner_payee: `${schedule.budget_id}:${schedule.payee}`,
+      })),
+      'owner_payee',
+    ).entries(),
+  ].map(([, schedules]) => {
+    schedules.sort((s1, s2) => s2.rank - s1.rank);
+    const winner = schedules[0];
 
-      // Convert to schedule and return it
-      return {
-        id: uuidv4(),
-        account: winner.account,
-        payee: winner.payee,
-        date: winner.date,
-        amount: winner.amount,
-        _conditions: [
-          { op: 'is', field: 'account', value: winner.account },
-          { op: 'is', field: 'payee', value: winner.payee },
-          {
-            op: winner.exactDate ? 'is' : 'isapprox',
-            field: 'date',
-            value: winner.date,
-          },
-          {
-            op: winner.exactAmount ? 'is' : 'isapprox',
-            field: 'amount',
-            value: winner.amount,
-          },
-        ],
-      };
-    },
-  );
+    // Convert to schedule and return it
+    return {
+      id: uuidv4(),
+      budget_id: winner.budget_id,
+      account: winner.account,
+      payee: winner.payee,
+      date: winner.date,
+      amount: winner.amount,
+      _conditions: [
+        { op: 'is', field: 'account', value: winner.account },
+        { op: 'is', field: 'payee', value: winner.payee },
+        {
+          op: winner.exactDate ? 'is' : 'isapprox',
+          field: 'date',
+          value: winner.date,
+        },
+        {
+          op: winner.exactAmount ? 'is' : 'isapprox',
+          field: 'amount',
+          value: winner.amount,
+        },
+      ],
+    };
+  });
 
   const finalized: Awaited<ReturnType<typeof findStartDate>> = [];
   for (const schedule of schedules) {

@@ -37,6 +37,7 @@ import { calculateTimeRange } from '#components/reports/reportRanges';
 import { calendarSpreadsheet } from '#components/reports/spreadsheets/calendar-spreadsheet';
 import type { CalendarDataType } from '#components/reports/spreadsheets/calendar-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
 import type { FormatType } from '#hooks/useFormat';
 import { useMergedRefs } from '#hooks/useMergedRefs';
@@ -60,18 +61,19 @@ export function CalendarCard({
 }: CalendarCardProps) {
   const { t } = useTranslation();
   const format = useFormat();
+  const budgetId = useBudgetSpaceId();
 
   const [latestTransaction, setLatestTransaction] = useState<string>('');
 
   useEffect(() => {
     async function fetchLatestTransaction() {
-      const latestTrans = await send('get-latest-transaction');
+      const latestTrans = await send('get-latest-transaction', { budgetId });
       setLatestTransaction(
         latestTrans ? latestTrans.date : monthUtils.currentDay(),
       );
     }
     void fetchLatestTransaction();
-  }, []);
+  }, [budgetId]);
 
   const [start, end] = calculateTimeRange(
     meta?.timeFrame,
@@ -85,13 +87,21 @@ export function CalendarCard({
   const params = useMemo(
     () =>
       calendarSpreadsheet(
+        budgetId,
         start,
         end,
         meta?.conditions,
         meta?.conditionsOp,
         firstDayOfWeekIdx,
       ),
-    [start, end, meta?.conditions, meta?.conditionsOp, firstDayOfWeekIdx],
+    [
+      budgetId,
+      start,
+      end,
+      meta?.conditions,
+      meta?.conditionsOp,
+      firstDayOfWeekIdx,
+    ],
   );
 
   const [cardOrientation, setCardOrientation] = useState<'row' | 'column'>(
@@ -457,7 +467,10 @@ function CalendarCardInner({
             }}
             onPress={() => {
               void navigate(
-                `/reports/calendar/${widgetId}?month=${formatDate(calendar.start, 'yyyy-MM')}`,
+                `/reports/calendar/${widgetId}?month=${formatDate(
+                  calendar.start,
+                  'yyyy-MM',
+                )}`,
               );
             }}
           >
@@ -532,7 +545,10 @@ function CalendarCardInner({
         onDayClick={date => {
           if (date) {
             void navigate(
-              `/reports/calendar/${widgetId}?day=${formatDate(date, 'yyyy-MM-dd')}`,
+              `/reports/calendar/${widgetId}?day=${formatDate(
+                date,
+                'yyyy-MM-dd',
+              )}`,
             );
           } else {
             void navigate(`/reports/calendar/${widgetId}`);

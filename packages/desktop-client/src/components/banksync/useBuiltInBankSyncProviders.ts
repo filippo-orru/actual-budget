@@ -12,6 +12,7 @@ import type { SyncServerSimpleFinAccount } from '@actual-app/core/types/models/s
 import { authorizeBank as authorizeEnableBanking } from '#enablebanking';
 import { authorizeBank } from '#gocardless';
 import { useAkahuStatus } from '#hooks/useAkahuStatus';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCurrentAccess } from '#hooks/useCurrentAccess';
 import { useEnableBankingStatus } from '#hooks/useEnableBankingStatus';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
@@ -109,6 +110,7 @@ export function useBuiltInBankSyncProviders({
 }: UseBuiltInBankSyncProvidersOptions = {}) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
+  const budgetId = useBudgetSpaceId();
   const syncServerStatus = useSyncServerStatus();
   const { cloudFileId, isAdmin, isFileOwner } = useCurrentAccess();
   const canConfigureProviders = isAdmin;
@@ -381,12 +383,13 @@ export function useBuiltInBankSyncProviders({
       return;
     }
 
-    void authorizeBank(dispatch, upgradingAccountId);
+    void authorizeBank(dispatch, upgradingAccountId, budgetId);
   }, [
     dispatch,
     isGoCardlessSetupComplete,
     onGoCardlessInit,
     upgradingAccountId,
+    budgetId,
   ]);
 
   const onConnectSimpleFin = useCallback(async () => {
@@ -433,6 +436,7 @@ export function useBuiltInBankSyncProviders({
               externalAccounts,
               syncSource: 'simpleFin',
               upgradingAccountId,
+              budgetId,
             },
           },
         }),
@@ -452,6 +456,7 @@ export function useBuiltInBankSyncProviders({
       setLoadingSimpleFinAccounts(false);
     }
   }, [
+    budgetId,
     dispatch,
     isSimpleFinSetupComplete,
     loadingSimpleFinAccounts,
@@ -467,7 +472,7 @@ export function useBuiltInBankSyncProviders({
     }
 
     try {
-      await authorizeEnableBanking(dispatch, upgradingAccountId);
+      await authorizeEnableBanking(dispatch, upgradingAccountId, budgetId);
     } catch (error) {
       dispatch(
         addNotification({
@@ -483,6 +488,7 @@ export function useBuiltInBankSyncProviders({
     }
   }, [
     dispatch,
+    budgetId,
     isEnableBankingSetupComplete,
     onEnableBankingInit,
     t,
@@ -529,6 +535,7 @@ export function useBuiltInBankSyncProviders({
               externalAccounts,
               syncSource: 'pluggyai',
               upgradingAccountId,
+              budgetId,
             },
           },
         }),
@@ -547,6 +554,7 @@ export function useBuiltInBankSyncProviders({
       onPluggyAiInit();
     }
   }, [
+    budgetId,
     dispatch,
     onPluggyAiInit,
     pluggyAiStatus.configured,
@@ -607,6 +615,7 @@ export function useBuiltInBankSyncProviders({
               externalAccounts: newAccounts,
               syncSource: 'akahu',
               upgradingAccountId,
+              budgetId,
             },
           },
         }),
@@ -627,6 +636,7 @@ export function useBuiltInBankSyncProviders({
 
     setLoadingAkahuAccounts(false);
   }, [
+    budgetId,
     dispatch,
     isAkahuSetupComplete,
     loadingAkahuAccounts,

@@ -19,6 +19,7 @@ import { ReportCardName } from '#components/reports/ReportCardName';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { createAgeOfMoneySpreadsheet } from '#components/reports/spreadsheets/age-of-money-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 
 // Determine status color based on age
 export function getAgeColor(age: number | null) {
@@ -55,6 +56,7 @@ export function AgeOfMoneyCard({
 }: AgeOfMoneyCardProps) {
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
+  const budgetId = useBudgetSpaceId();
 
   const [latestTransaction, setLatestTransaction] = useState<string>('');
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
@@ -62,13 +64,13 @@ export function AgeOfMoneyCard({
 
   useEffect(() => {
     async function fetchLatestTransaction() {
-      const latestTrans = await send('get-latest-transaction');
+      const latestTrans = await send('get-latest-transaction', { budgetId });
       setLatestTransaction(
         latestTrans ? latestTrans.date : monthUtils.currentDay(),
       );
     }
     void fetchLatestTransaction();
-  }, []);
+  }, [budgetId]);
 
   const [start, end] = calculateTimeRange(
     meta?.timeFrame,
@@ -82,13 +84,21 @@ export function AgeOfMoneyCard({
   const params = useMemo(
     () =>
       createAgeOfMoneySpreadsheet({
+        budgetId,
         start,
         end,
         conditions: meta?.conditions,
         conditionsOp: meta?.conditionsOp,
         granularity: meta?.granularity ?? 'monthly',
       }),
-    [start, end, meta?.conditions, meta?.conditionsOp, meta?.granularity],
+    [
+      budgetId,
+      start,
+      end,
+      meta?.conditions,
+      meta?.conditionsOp,
+      meta?.granularity,
+    ],
   );
   const data = useReport('age_of_money', params);
 

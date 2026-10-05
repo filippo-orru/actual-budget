@@ -293,10 +293,11 @@ export type ApiHandlers = {
     maxDistance?: number;
   }) => Promise<NearbyPayeeEntity[]>;
 
-  'api/rules-get': () => Promise<RuleEntity[]>;
+  'api/rules-get': (arg?: { budgetId?: string }) => Promise<RuleEntity[]>;
 
   'api/payee-rules-get': (arg: {
     id: APIPayeeEntity['id'];
+    budgetId?: string;
   }) => Promise<RuleEntity[]>;
 
   'api/rule-create': (arg: {
@@ -306,10 +307,15 @@ export type ApiHandlers = {
 
   'api/rule-update': (arg: { rule: APIRuleEntity }) => Promise<RuleEntity>;
 
-  'api/rule-delete': (id: RuleEntity['id']) => Promise<boolean>;
+  'api/rule-delete': (arg: {
+    id: RuleEntity['id'];
+    budgetId?: string;
+  }) => Promise<boolean>;
 
   'api/schedule-create': (
-    schedule: Omit<APIScheduleEntity, 'id'>,
+    input:
+      | Omit<APIScheduleEntity, 'id'>
+      | { schedule: Omit<APIScheduleEntity, 'id'>; budgetId?: string },
   ) => Promise<ScheduleEntity['id']>;
 
   'api/schedule-update': (arg: {
@@ -318,12 +324,18 @@ export type ApiHandlers = {
     resetNextDate?: boolean;
   }) => Promise<ScheduleEntity['id']>;
 
-  'api/schedule-delete': (id: string) => Promise<void>;
+  'api/schedule-delete': (arg: {
+    id: string;
+    budgetId?: string;
+  }) => Promise<void>;
 
-  'api/schedules-get': () => Promise<APIScheduleEntity[]>;
+  'api/schedules-get': (arg?: {
+    budgetId?: string;
+  }) => Promise<APIScheduleEntity[]>;
   'api/get-id-by-name': (arg: {
     type: string;
     name: string;
+    budgetId?: string;
   }) => Promise<string>;
   'api/get-server-version': () => Promise<
     { error: 'no-server' } | { error: 'network-failure' } | { version: string }

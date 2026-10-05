@@ -86,8 +86,12 @@ function CustomReportListCardsInner({
 
   useEffect(() => {
     async function run() {
-      const earliestTrans = await send('get-earliest-transaction');
-      const latestTrans = await send('get-latest-transaction');
+      const earliestTrans = await send('get-earliest-transaction', {
+        budgetId: report.budget_id,
+      });
+      const latestTrans = await send('get-latest-transaction', {
+        budgetId: report.budget_id,
+      });
       setEarliestTransaction(
         earliestTrans ? earliestTrans.date : monthUtils.currentDay(),
       );
@@ -96,7 +100,7 @@ function CustomReportListCardsInner({
       );
     }
     void run();
-  }, []);
+  }, [report.budget_id]);
 
   const updateReportMutation = useUpdateReportMutation();
 

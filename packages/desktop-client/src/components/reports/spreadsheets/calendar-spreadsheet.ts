@@ -16,6 +16,7 @@ export type CalendarDataType = {
   expenseSize: number;
 };
 export function calendarSpreadsheet(
+  budgetId: string,
   start: string,
   end: string,
   conditions: RuleConditionEntity[] = [],
@@ -76,6 +77,7 @@ export function calendarSpreadsheet(
 
     const makeRootQuery = () =>
       q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .filter({
           $and: [
             { date: { $gte: d.format(startDay, 'yyyy-MM-dd') } },

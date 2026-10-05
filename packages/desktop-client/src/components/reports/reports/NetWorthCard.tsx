@@ -23,6 +23,7 @@ import { ReportCardName } from '#components/reports/ReportCardName';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { createSpreadsheet as netWorthSpreadsheet } from '#components/reports/spreadsheets/net-worth-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -44,6 +45,7 @@ export function NetWorthCard({
   onMetaChange,
 }: NetWorthCardProps) {
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
   const [_firstDayOfWeekIdx] = useSyncedPref('firstDayOfWeekIdx');
@@ -57,13 +59,13 @@ export function NetWorthCard({
 
   useEffect(() => {
     async function fetchLatestTransaction() {
-      const latestTrans = await send('get-latest-transaction');
+      const latestTrans = await send('get-latest-transaction', { budgetId });
       setLatestTransaction(
         latestTrans ? latestTrans.date : monthUtils.currentDay(),
       );
     }
     void fetchLatestTransaction();
-  }, []);
+  }, [budgetId]);
 
   const [start, end] = calculateTimeRange(
     meta?.timeFrame,
@@ -76,6 +78,7 @@ export function NetWorthCard({
   const params = useMemo(
     () =>
       netWorthSpreadsheet(
+        budgetId,
         start,
         end,
         accounts,
@@ -88,6 +91,7 @@ export function NetWorthCard({
         dateFormat,
       ),
     [
+      budgetId,
       start,
       end,
       accounts,

@@ -42,6 +42,7 @@ type IntervalRange = {
 };
 
 export function createSpreadsheet(
+  budgetId: string,
   start: string,
   end: string,
   accounts: AccountEntity[],
@@ -81,7 +82,9 @@ export function createSpreadsheet(
     // If the earliest transaction is on or after the first day of the start
     // month, the prior period lookback would be empty (all zeros). Skip it to
     // avoid rendering an empty data point.
-    const earliestTransaction = await send('get-earliest-transaction');
+    const earliestTransaction = await send('get-earliest-transaction', {
+      budgetId,
+    });
     if (
       earliestTransaction &&
       earliestTransaction.date >= monthUtils.firstDayOfMonth(start)
@@ -123,6 +126,7 @@ export function createSpreadsheet(
         ? Promise.resolve<TransferLeg[]>([])
         : aqlQuery(
             q('transactions')
+              .filter({ 'account.budget_id': budgetId })
               .filter({
                 [conditionsOpKey]: filters,
               })
@@ -139,6 +143,7 @@ export function createSpreadsheet(
         const [starting, balances]: [number, Balance[]] = await Promise.all([
           aqlQuery(
             q('transactions')
+              .filter({ 'account.budget_id': budgetId })
               .filter({
                 [conditionsOpKey]: filters,
                 account: acct.id,
@@ -149,6 +154,7 @@ export function createSpreadsheet(
 
           aqlQuery(
             q('transactions')
+              .filter({ 'account.budget_id': budgetId })
               .filter({
                 [conditionsOpKey]: filters,
               })
@@ -226,6 +232,7 @@ export function createSpreadsheet(
     if (missingCounterpartIds.length > 0) {
       const counterpartLegs: TransferLeg[] = await aqlQuery(
         q('transactions')
+          .filter({ 'account.budget_id': budgetId })
           .filter({
             [conditionsOpKey]: filters,
           })

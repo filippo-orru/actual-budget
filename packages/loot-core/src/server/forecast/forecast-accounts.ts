@@ -64,6 +64,7 @@ export function matchesAccountCondition(
 export async function resolveAccountIdsFromConditions(
   conditions: RuleConditionEntity[],
   conditionsOp: 'and' | 'or',
+  budgetId: string,
 ): Promise<string[] | undefined> {
   const accountConditions = conditions.filter(
     (condition): condition is AccountCondition => condition.field === 'account',
@@ -73,7 +74,9 @@ export async function resolveAccountIdsFromConditions(
     return undefined;
   }
 
-  const accountData = await db.getAllAccounts();
+  const accountData = (await db.getAllAccounts()).filter(
+    account => account.budget_id === budgetId,
+  );
 
   const filteredAccounts = accountData.filter(account => {
     const matches = accountConditions.map(condition =>
@@ -112,9 +115,12 @@ export function getAccountRestrictionMode(
 }
 
 export async function getAccounts(
+  budgetId: string,
   accountIds?: string[],
 ): Promise<AccountWithComputedBalance[]> {
-  const accounts = await db.getAllAccounts();
+  const accounts = (await db.getAllAccounts()).filter(
+    account => account.budget_id === budgetId,
+  );
   const selectedAccounts =
     accountIds === undefined
       ? accounts
@@ -154,11 +160,13 @@ export async function getAccounts(
 }
 
 export async function resolveForecastAccounts({
+  budgetId,
   accountIds,
   plainConditions,
   resolvedConditionsOp,
   canRestrictAccounts,
 }: {
+  budgetId: string;
   accountIds: string[] | undefined;
   plainConditions: RuleConditionEntity[];
   resolvedConditionsOp: 'and' | 'or';
@@ -170,6 +178,7 @@ export async function resolveForecastAccounts({
     const conditionAccountIds = await resolveAccountIdsFromConditions(
       plainConditions,
       resolvedConditionsOp,
+      budgetId,
     );
     if (conditionAccountIds !== undefined) {
       resolvedAccountIds =
@@ -179,5 +188,5 @@ export async function resolveForecastAccounts({
     }
   }
 
-  return getAccounts(resolvedAccountIds);
+  return getAccounts(budgetId, resolvedAccountIds);
 }

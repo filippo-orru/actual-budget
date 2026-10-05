@@ -308,6 +308,7 @@ export function calculateTrend(
 }
 
 export type AgeOfMoneyParams = {
+  budgetId: string;
   start: string;
   end: string;
   conditions?: RuleConditionEntity[];
@@ -473,6 +474,7 @@ export function buildTransferInclusionFilter(
 }
 
 export function createAgeOfMoneySpreadsheet({
+  budgetId,
   start,
   end,
   conditions = [],
@@ -497,13 +499,11 @@ export function createAgeOfMoneySpreadsheet({
       conditionsOp,
     );
 
-    // Query for ALL income transactions up to the end date
-    // FIFO requires complete income history to calculate ages correctly
-    // Includes: regular income + transfers from off-budget accounts
-    //   + (when account-filtered) transfers from filtered-out on-budget accounts
-    // Excludes: on-budget transfers within the filtered account set
+    // Query for ALL income transactions up to the end date within this budget.
+    // FIFO requires complete income history to calculate ages correctly.
     function makeIncomeQuery() {
       return q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .filter({
           [conditionsOpKey]: filters,
         })
@@ -516,13 +516,11 @@ export function createAgeOfMoneySpreadsheet({
         .select(['id', 'date', 'amount']);
     }
 
-    // Query for ALL expense transactions up to the end date
-    // FIFO requires complete expense history to properly consume income buckets
-    // Includes: regular expenses + transfers to off-budget accounts
-    //   + (when account-filtered) transfers to filtered-out on-budget accounts
-    // Excludes: on-budget transfers within the filtered account set
+    // Query for ALL expense transactions up to the end date within this budget.
+    // FIFO requires complete expense history to properly consume income buckets.
     function makeExpenseQuery() {
       return q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .filter({
           [conditionsOpKey]: filters,
         })

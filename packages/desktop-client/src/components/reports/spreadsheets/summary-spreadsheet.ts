@@ -12,6 +12,7 @@ import type { useSpreadsheet } from '#hooks/useSpreadsheet';
 import { aqlQuery } from '#queries/aqlQuery';
 
 export function summarySpreadsheet(
+  budgetId: string,
   start: string,
   end: string,
   conditions: RuleConditionEntity[] = [],
@@ -85,6 +86,7 @@ export function summarySpreadsheet(
 
     const makeRootQuery = () =>
       q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .filter({
           $and: [
             {
@@ -174,6 +176,7 @@ export function summarySpreadsheet(
             summaryContent,
             startDay,
             endDay,
+            budgetId,
           )),
         });
         break;
@@ -260,6 +263,7 @@ async function calculatePercentage(
   summaryContent: SummaryContent,
   startDay: Date,
   endDay: Date,
+  budgetId: string,
 ) {
   if (summaryContent.type !== 'percentage') {
     return {
@@ -290,6 +294,7 @@ async function calculatePercentage(
 
   const makeDivisorQuery = () =>
     q('transactions')
+      .filter({ 'account.budget_id': budgetId })
       .filter({
         [conditionsOpKey]: filters,
       })

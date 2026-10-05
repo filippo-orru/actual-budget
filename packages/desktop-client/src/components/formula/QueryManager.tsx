@@ -27,6 +27,7 @@ import {
   asMonthSlidingTimeFrame,
   calculateTimeRange,
 } from '#components/reports/reportRanges';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useLanguage } from '#hooks/useLocale';
 import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
@@ -138,6 +139,7 @@ type QueryManagerProps = {
 
 export function QueryManager({ queries, onQueriesChange }: QueryManagerProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const [newQueryName, setNewQueryName] = useState('');
   const [isAddingQuery, setIsAddingQuery] = useState(false);
   const dispatch = useDispatch();
@@ -266,6 +268,7 @@ export function QueryManager({ queries, onQueriesChange }: QueryManagerProps) {
           {Object.entries(queries).map(([queryName, config]) => (
             <QueryItem
               key={queryName}
+              budgetId={budgetId}
               queryName={queryName}
               defaultConfig={config}
               onUpdate={newConfig => handleUpdateQuery(queryName, newConfig)}
@@ -279,6 +282,7 @@ export function QueryManager({ queries, onQueriesChange }: QueryManagerProps) {
 }
 
 type QueryItemProps = {
+  budgetId: string;
   queryName: string;
   defaultConfig: QueryConfig;
   onUpdate: (config: QueryConfig) => void;
@@ -286,6 +290,7 @@ type QueryItemProps = {
 };
 
 function QueryItem({
+  budgetId,
   queryName,
   defaultConfig,
   onUpdate,
@@ -345,8 +350,8 @@ function QueryItem({
       try {
         const [earliestTransactionResult, latestTransactionResult] =
           await Promise.all([
-            send('get-earliest-transaction').catch(() => null),
-            send('get-latest-transaction').catch(() => null),
+            send('get-earliest-transaction', { budgetId }).catch(() => null),
+            send('get-latest-transaction', { budgetId }).catch(() => null),
           ]);
 
         const computedBounds = calculateDateRangeBoundMonths(
@@ -373,7 +378,7 @@ function QueryItem({
       }
     }
     void run();
-  }, []);
+  }, [budgetId]);
 
   const filters = useRuleConditionFilters(
     conditionsRef.current,

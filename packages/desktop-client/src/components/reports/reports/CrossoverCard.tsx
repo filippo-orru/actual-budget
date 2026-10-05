@@ -23,6 +23,7 @@ import { defaultTimeFrame } from '#components/reports/reports/Crossover';
 import { createCrossoverSpreadsheet } from '#components/reports/spreadsheets/crossover-spreadsheet';
 import type { CrossoverData } from '#components/reports/spreadsheets/crossover-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -43,6 +44,7 @@ export function CrossoverCard({
   onMetaChange,
 }: CrossoverCardProps) {
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const { t } = useTranslation();
   const { data: categories = { grouped: [], list: [] } } = useCategories();
   const { isNarrowWidth } = useResponsive();
@@ -62,7 +64,9 @@ export function CrossoverCard({
       const previousMonth = monthUtils.subMonths(currentMonth, 1);
 
       // Fetch earliest transaction to build the valid range
-      const earliestTransactionData = await send('get-earliest-transaction');
+      const earliestTransactionData = await send('get-earliest-transaction', {
+        budgetId,
+      });
       if (!isMounted) return;
 
       // Build allMonths list similar to Crossover.tsx
@@ -125,7 +129,7 @@ export function CrossoverCard({
     return () => {
       isMounted = false;
     };
-  }, [meta?.timeFrame, locale]);
+  }, [meta?.timeFrame, locale, budgetId]);
 
   const [isCardHovered, setIsCardHovered] = useState(false);
   const onCardHover = useCallback(() => setIsCardHovered(true), []);
@@ -158,6 +162,7 @@ export function CrossoverCard({
   const params = useMemo(
     () =>
       createCrossoverSpreadsheet({
+        budgetId,
         start,
         end,
         expenseCategoryIds,
@@ -169,6 +174,7 @@ export function CrossoverCard({
         expenseAdjustmentFactor,
       }),
     [
+      budgetId,
       start,
       end,
       expenseCategoryIds,

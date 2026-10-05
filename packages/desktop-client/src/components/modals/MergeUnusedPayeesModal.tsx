@@ -12,6 +12,7 @@ import type { TransObjectLiteral } from '@actual-app/core/types/util';
 
 import { Information } from '#components/alerts';
 import { Modal, ModalButtons } from '#components/common/Modal';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { usePayees } from '#hooks/usePayees';
 import { replaceModal } from '#modals/modalsSlice';
 import type { Modal as ModalType } from '#modals/modalsSlice';
@@ -30,6 +31,7 @@ export function MergeUnusedPayeesModal({
 }: MergeUnusedPayeesModalProps) {
   const { t } = useTranslation();
   const { data: allPayees = [] } = usePayees();
+  const budgetId = useBudgetSpaceId();
   const modalStack = useSelector(state => state.modals.modalStack);
   const isEditingRule = !!modalStack.find(m => m.name === 'edit-rule');
   const dispatch = useDispatch();
@@ -68,13 +70,14 @@ export function MergeUnusedPayeesModal({
         const id = await send('rule-add-payee-rename', {
           fromNames: payees.map(payee => payee.name),
           to: targetPayee.id,
+          budgetId,
         });
         ruleId = id;
       }
 
       return ruleId;
     },
-    [shouldCreateRule, isEditingRule, payees],
+    [shouldCreateRule, isEditingRule, payees, budgetId],
   );
 
   const onMergeAndCreateRule = useCallback(

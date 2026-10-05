@@ -40,11 +40,13 @@ export type FormulaQueryContext = {
   balanceOfPrefetch?: Map<string, number>;
   budgetQueryPrefetch?: Map<string, number>;
   budgetQueryErrors?: Map<string, string>;
+  userPreferences?: UserPreferences;
 };
 
 type CustomFunctionsContext = {
   balanceOfPrefetch?: Map<string, number>;
   formulaQuery?: FormulaQueryContext;
+  userPreferences?: UserPreferences;
 };
 
 export type UserPreferences = {
@@ -354,7 +356,9 @@ export class CustomFunctionsPlugin extends FunctionPlugin {
           return new CellError(ErrorType.VALUE);
         }
 
-        const prefs = getUserPreferences();
+        const prefs =
+          this.getCustomFunctionsContext()?.userPreferences ??
+          getUserPreferences();
 
         const actualThousandsSeparator =
           hasThousandsSeparatorArg && thousandsSeparator !== undefined
@@ -411,7 +415,9 @@ export class CustomFunctionsPlugin extends FunctionPlugin {
           return new CellError(ErrorType.VALUE);
         }
 
-        const prefs = getUserPreferences();
+        const prefs =
+          this.getCustomFunctionsContext()?.userPreferences ??
+          getUserPreferences();
 
         const actualCurrencySymbol = hasCurrencySymbolArg
           ? (currencySymbol ?? '')

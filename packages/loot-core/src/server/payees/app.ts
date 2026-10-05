@@ -1,4 +1,5 @@
 import { createApp } from '#server/app';
+import { validateBudgetExists } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { payeeModel } from '#server/models';
 import { mutator } from '#server/mutators';
@@ -72,20 +73,25 @@ async function getOrphanedPayees(): Promise<Array<Pick<PayeeEntity, 'id'>>> {
   return await db.syncGetOrphanedPayees();
 }
 
-async function getPayeeRuleCounts() {
+async function getPayeeRuleCounts({ budgetId }: { budgetId: string }) {
+  await validateBudgetExists(budgetId);
   const payeeCounts: Record<PayeeEntity['id'], number> = {};
   const completedScheduleRules = new Set(await getCompletedScheduleRuleIds());
 
-  rules.iterateIds(rules.getRules(), 'payee', (rule, id) => {
-    if (rule.id && completedScheduleRules.has(rule.id)) {
-      return;
-    }
+  rules.iterateIds(
+    rules.getRules().filter(rule => rule.budget_id === budgetId),
+    'payee',
+    (rule, id) => {
+      if (rule.id && completedScheduleRules.has(rule.id)) {
+        return;
+      }
 
-    if (payeeCounts[id] == null) {
-      payeeCounts[id] = 0;
-    }
-    payeeCounts[id]++;
-  });
+      if (payeeCounts[id] == null) {
+        payeeCounts[id] = 0;
+      }
+      payeeCounts[id]++;
+    },
+  );
 
   return payeeCounts;
 }
@@ -139,10 +145,13 @@ async function checkOrphanedPayees({
 
 async function getPayeeRules({
   id,
+  budgetId,
 }: {
   id: PayeeEntity['id'];
+  budgetId: string;
 }): Promise<RuleEntity[]> {
-  return rules.getRulesForPayee(id).map(rule => rule.serialize());
+  await validateBudgetExists(budgetId);
+  return rules.getRulesForPayee(id, budgetId).map(rule => rule.serialize());
 }
 
 async function createPayeeLocation({

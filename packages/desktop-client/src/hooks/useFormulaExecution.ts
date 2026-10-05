@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { send } from '@actual-app/core/platform/client/connection';
-import {
-  createBudgetQueryPrefetchKey,
-  setCachedUserPreferences,
+import { createBudgetQueryPrefetchKey } from '@actual-app/core/shared/formulas/customFunctions';
+import type {
+  FormulaQueryContext,
+  UserPreferences,
 } from '@actual-app/core/shared/formulas/customFunctions';
-import type { FormulaQueryContext } from '@actual-app/core/shared/formulas/customFunctions';
 import * as monthUtils from '@actual-app/core/shared/months';
 import { q } from '@actual-app/core/shared/query';
 import type { Query } from '@actual-app/core/shared/query';
@@ -42,10 +42,14 @@ type QueryConfig = {
 type QueriesMap = Record<string, QueryConfig>;
 
 type FormulaCellValue = number | string | boolean | null;
+type CompleteFormulaQueryContext = Required<
+  Omit<FormulaQueryContext, 'userPreferences'>
+> &
+  Pick<FormulaQueryContext, 'userPreferences'>;
 
 export type SimpleAccount = { id: string; name: string };
 
-function createFormulaQueryContext(): Required<FormulaQueryContext> {
+function createFormulaQueryContext(): CompleteFormulaQueryContext {
   return {
     queryNames: new Set(),
     queryCountNames: new Set(),
@@ -62,6 +66,7 @@ function createFormulaQueryContext(): Required<FormulaQueryContext> {
     balanceOfPrefetch: new Map(),
     budgetQueryPrefetch: new Map(),
     budgetQueryErrors: new Map(),
+    userPreferences: undefined,
   };
 }
 
@@ -96,6 +101,7 @@ function evaluateFormulaWithContext({
       dateFormats: ['DD/MM/YYYY', 'YYYY-MM-DD', 'YYYY/MM/DD'],
       context: {
         formulaQuery: formulaQueryContext,
+        userPreferences: formulaQueryContext.userPreferences,
       },
     });
 
@@ -190,18 +196,19 @@ export function useFormulaExecution(
           typeof navigator === 'undefined' ? undefined : navigator.language;
         const formulaLocale = language || browserLocale || locale || 'en-US';
 
+        let formulaPreferences: UserPreferences | undefined;
         try {
-          setCachedUserPreferences(
-            await send('formula-load-user-preferences', {
-              selectedLocale: language,
-              browserLocale,
-            }),
-          );
+          formulaPreferences = await send('formula-load-user-preferences', {
+            selectedLocale: language,
+            browserLocale,
+            budgetId,
+          });
         } catch (err) {
           console.error('Error loading formula preferences:', err);
         }
 
         const formulaQueryContext = createFormulaQueryContext();
+        formulaQueryContext.userPreferences = formulaPreferences;
 
         evaluateFormulaWithContext({
           formula,
@@ -219,6 +226,7 @@ export function useFormulaExecution(
         await prefetchAccountBalances(
           formulaQueryContext,
           currentAccounts ?? [],
+          budgetId,
         );
 
         formulaQueryContext.budgetQueryRequests.clear();
@@ -275,7 +283,7 @@ export function useFormulaExecution(
 }
 
 async function prefetchFormulaQueries(
-  formulaQueryContext: Required<FormulaQueryContext>,
+  formulaQueryContext: CompleteFormulaQueryContext,
   queries: QueriesMap,
   budgetId: string,
 ) {
@@ -288,7 +296,7 @@ async function prefetchFormulaQueries(
       continue;
     }
 
-    const data = await fetchQuerySum(queryConfig);
+    const data = await fetchQuerySum(queryConfig, budgetId);
     formulaQueryContext.querySumPrefetch.set(
       queryName,
       integerToAmount(data, 2),
@@ -306,7 +314,7 @@ async function prefetchFormulaQueries(
 
     formulaQueryContext.queryCountPrefetch.set(
       queryName,
-      await fetchQueryCount(queryConfig),
+      await fetchQueryCount(queryConfig, budgetId),
     );
   }
 
@@ -333,8 +341,9 @@ async function prefetchFormulaQueries(
 }
 
 async function prefetchAccountBalances(
-  formulaQueryContext: Required<FormulaQueryContext>,
+  formulaQueryContext: CompleteFormulaQueryContext,
   accounts: SimpleAccount[],
+  budgetId: string,
 ) {
   for (const literal of formulaQueryContext.balanceOfNames) {
     const account =
@@ -348,15 +357,18 @@ async function prefetchAccountBalances(
 
     formulaQueryContext.balanceOfPrefetch.set(
       literal,
-      await fetchAccountBalance(account.id),
+      await fetchAccountBalance(account.id, budgetId),
     );
   }
 }
 
-async function fetchAccountBalance(accountId: string): Promise<number> {
+async function fetchAccountBalance(
+  accountId: string,
+  budgetId: string,
+): Promise<number> {
   try {
     const balanceQuery = q('transactions')
-      .filter({ account: accountId })
+      .filter({ 'account.budget_id': budgetId, account: accountId })
       .calculate({ $sum: '$amount' });
     const { data } = await send('query', balanceQuery.serialize());
     return integerToAmount(data || 0, 2);
@@ -367,7 +379,7 @@ async function fetchAccountBalance(accountId: string): Promise<number> {
 }
 
 async function prefetchBudgetQueries(
-  formulaQueryContext: Required<FormulaQueryContext>,
+  formulaQueryContext: CompleteFormulaQueryContext,
   budgetId: string,
 ) {
   for (const request of formulaQueryContext.budgetQueryRequests.values()) {
@@ -398,6 +410,7 @@ async function prefetchBudgetQueries(
 
 export async function buildFilteredTransactionsQuery(
   config: QueryConfig,
+  budgetId: string,
 ): Promise<Query> {
   const conditions = config.conditions || [];
   const conditionsOp = config.conditionsOp || 'and';
@@ -411,7 +424,7 @@ export async function buildFilteredTransactionsQuery(
   const conditionsOpKey = conditionsOp === 'or' ? '$or' : '$and';
 
   // Start building the query
-  let transQuery = q('transactions');
+  let transQuery = q('transactions').filter({ 'account.budget_id': budgetId });
 
   // Add date range filter if provided
   if (timeFrame && timeFrame.mode) {
@@ -434,9 +447,12 @@ export async function buildFilteredTransactionsQuery(
   return transQuery;
 }
 
-async function fetchQuerySum(config: QueryConfig): Promise<number> {
+async function fetchQuerySum(
+  config: QueryConfig,
+  budgetId: string,
+): Promise<number> {
   try {
-    const transQuery = await buildFilteredTransactionsQuery(config);
+    const transQuery = await buildFilteredTransactionsQuery(config, budgetId);
     const summedQuery = transQuery.calculate({ $sum: '$amount' });
     const { data } = await send('query', summedQuery.serialize());
     return data || 0;
@@ -446,9 +462,12 @@ async function fetchQuerySum(config: QueryConfig): Promise<number> {
   }
 }
 
-async function fetchQueryCount(config: QueryConfig): Promise<number> {
+async function fetchQueryCount(
+  config: QueryConfig,
+  budgetId: string,
+): Promise<number> {
   try {
-    const transQuery = await buildFilteredTransactionsQuery(config);
+    const transQuery = await buildFilteredTransactionsQuery(config, budgetId);
     const countQuery = transQuery.calculate({ $count: '*' });
     const { data } = await send('query', countQuery.serialize());
     return data || 0;

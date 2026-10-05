@@ -50,6 +50,7 @@ import { SimpleTransactionsTable } from '#components/transactions/SimpleTransact
 import { BetweenAmountInput } from '#components/util/AmountInput';
 import { DisplayId } from '#components/util/DisplayId';
 import { GenericInput } from '#components/util/GenericInput';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useFormat } from '#hooks/useFormat';
@@ -1034,6 +1035,7 @@ export function RuleEditor({
   style,
 }: RuleEditorProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const [conditions, setConditions] = useState(
     defaultRule.conditions.map(parse).map(c => ({ ...c, inputKey: uuidv4() })),
   );
@@ -1282,6 +1284,7 @@ export function RuleEditor({
   async function onSave() {
     const rule = {
       ...defaultRule,
+      budget_id: 'id' in defaultRule ? defaultRule.budget_id : budgetId,
       stage,
       conditionsOp,
       conditions: conditions.map(unparse),

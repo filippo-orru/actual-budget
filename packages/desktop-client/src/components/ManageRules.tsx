@@ -176,9 +176,10 @@ export function ManageRules({
     if (payeeId) {
       loadedRules = await send('payees-get-rules', {
         id: payeeId,
+        budgetId,
       });
     } else {
-      loadedRules = await send('rules-get');
+      loadedRules = await send('rules-get', { budgetId });
     }
 
     setAllRules(loadedRules);
@@ -212,9 +213,10 @@ export function ManageRules({
   const onDeleteSelected = async () => {
     setLoading(true);
 
-    const { someDeletionsFailed } = await send('rule-delete-all', [
-      ...selectedInst.items,
-    ]);
+    const { someDeletionsFailed } = await send('rule-delete-all', {
+      ids: [...selectedInst.items],
+      budgetId,
+    });
 
     if (someDeletionsFailed) {
       alert(
@@ -229,7 +231,7 @@ export function ManageRules({
 
   async function onDeleteRule(id: string) {
     setLoading(true);
-    await send('rule-delete', id);
+    await send('rule-delete', { id, budgetId });
     await loadRules();
     setLoading(false);
   }

@@ -15,6 +15,7 @@ import type { DiscoverScheduleEntity } from '@actual-app/core/types/models';
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
 import { Field, Row, SelectCell, Table, TableHeader } from '#components/table';
 import { DisplayId } from '#components/util/DisplayId';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useLocale } from '#hooks/useLocale';
 import {
@@ -148,8 +149,11 @@ function DiscoverSchedulesTable({
 
 export function DiscoverSchedules() {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
-  const { data, isLoading } = useSendPlatformRequest('schedule/discover');
+  const { data, isLoading } = useSendPlatformRequest('schedule/discover', {
+    budgetId,
+  });
 
   const schedules = data || [];
 
@@ -167,6 +171,7 @@ export function DiscoverSchedules() {
 
     for (const schedule of selected) {
       const scheduleId = await send('schedule/create', {
+        budgetId,
         conditions: schedule._conditions,
         schedule: {},
       });
@@ -178,7 +183,10 @@ export function DiscoverSchedules() {
 
       if (filters.length > 0) {
         const { data: transactions } = await aqlQuery(
-          q('transactions').filter({ $and: filters }).select('id'),
+          q('transactions')
+            .filter({ 'account.budget_id': budgetId })
+            .filter({ $and: filters })
+            .select('id'),
         );
 
         await send('transactions-batch-update', {

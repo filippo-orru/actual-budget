@@ -38,6 +38,7 @@ import { summarySpreadsheet } from '#components/reports/spreadsheets/summary-spr
 import { useReport } from '#components/reports/useReport';
 import { fromDateRepr } from '#components/reports/util';
 import { FieldSelect } from '#components/rules/RuleEditor';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -70,6 +71,7 @@ type FilterObject = ReturnType<typeof useRuleConditionFilters>;
 
 function SummaryInner({ widget }: SummaryInnerProps) {
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const { t } = useTranslation();
   const format = useFormat();
 
@@ -116,6 +118,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
   const params = useMemo(
     () =>
       summarySpreadsheet(
+        budgetId,
         start,
         end,
         dividendFilters.conditions,
@@ -124,6 +127,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         locale,
       ),
     [
+      budgetId,
       start,
       end,
       dividendFilters.conditions,
@@ -157,14 +161,18 @@ function SummaryInner({ widget }: SummaryInnerProps) {
 
   useEffect(() => {
     async function run() {
-      const earliestTransaction = await send('get-earliest-transaction');
+      const earliestTransaction = await send('get-earliest-transaction', {
+        budgetId,
+      });
       setEarliestTransaction(
         earliestTransaction
           ? earliestTransaction.date
           : monthUtils.currentDay(),
       );
 
-      const latestTransaction = await send('get-latest-transaction');
+      const latestTransaction = await send('get-latest-transaction', {
+        budgetId,
+      });
       setLatestTransaction(
         latestTransaction ? latestTransaction.date : monthUtils.currentDay(),
       );
@@ -205,7 +213,7 @@ function SummaryInner({ widget }: SummaryInnerProps) {
       setAllMonths(allMonths);
     }
     void run();
-  }, [locale]);
+  }, [locale, budgetId]);
 
   useEffect(() => {
     if (latestTransaction) {

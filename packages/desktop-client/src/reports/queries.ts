@@ -12,11 +12,11 @@ import { aqlQuery } from '#queries/aqlQuery';
 export const reportQueries = {
   all: () => ['reports'],
   lists: () => [...reportQueries.all(), 'lists'],
-  list: () =>
+  list: (budgetId: string) =>
     queryOptions<CustomReportEntity[]>({
-      queryKey: [...reportQueries.lists()],
+      queryKey: [...reportQueries.lists(), budgetId],
       queryFn: async () => {
-        return await send('report/get');
+        return await send('report/get', { budgetId });
       },
     }),
 };
@@ -24,31 +24,34 @@ export const reportQueries = {
 export const dashboardQueries = {
   all: () => ['dashboards'],
   lists: () => [...dashboardQueries.all(), 'lists'],
-  listDashboardWidgets: <T extends DashboardWidgetEntity>() =>
+  listDashboardWidgets: <T extends DashboardWidgetEntity>(budgetId: string) =>
     queryOptions<T[]>({
-      queryKey: [...dashboardQueries.lists(), 'widgets'],
+      queryKey: [...dashboardQueries.lists(), 'widgets', budgetId],
       queryFn: async () => {
         const { data }: { data: T[] } = await aqlQuery(
-          q('dashboard').select('*'),
+          q('dashboard')
+            .filter({ 'dashboard_page_id.budget_id': budgetId })
+            .select('*'),
         );
         return data;
       },
     }),
   listDashboardPageWidgets: <T extends DashboardWidgetEntity>(
-    dashboardPageId?: DashboardPageEntity['id'] | null,
+    dashboardPageId: DashboardPageEntity['id'] | null | undefined,
+    budgetId: string,
   ) =>
     queryOptions<T[]>({
-      ...dashboardQueries.listDashboardWidgets<T>(),
+      ...dashboardQueries.listDashboardWidgets<T>(budgetId),
       select: widgets =>
         widgets.filter(w => w.dashboard_page_id === dashboardPageId),
       enabled: !!dashboardPageId,
     }),
-  listDashboardPages: () =>
+  listDashboardPages: (budgetId: string) =>
     queryOptions<DashboardPageEntity[]>({
-      queryKey: [...dashboardQueries.lists(), 'pages'],
+      queryKey: [...dashboardQueries.lists(), 'pages', budgetId],
       queryFn: async () => {
         const { data }: { data: DashboardPageEntity[] } = await aqlQuery(
-          q('dashboard_pages').select('*'),
+          q('dashboard_pages').filter({ budget_id: budgetId }).select('*'),
         );
         return data.map(page => ({ ...page, name: page.name ?? '' }));
       },

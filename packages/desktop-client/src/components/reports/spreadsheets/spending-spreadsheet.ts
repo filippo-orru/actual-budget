@@ -94,7 +94,7 @@ export function createSpendingSpreadsheet({
   ) => {
     const earliestTrans =
       averageRange?.mode === 'all-time'
-        ? await send('get-earliest-transaction')
+        ? await send('get-earliest-transaction', { budgetId })
         : null;
     const earliestMonth = earliestTrans
       ? monthUtils.monthFromDate(fromDateRepr(earliestTrans.date))
@@ -116,6 +116,7 @@ export function createSpendingSpreadsheet({
     const [assets, debts] = await Promise.all([
       aqlQuery(
         makeQuery(
+          budgetId,
           'assets',
           startDate,
           endDate,
@@ -126,6 +127,7 @@ export function createSpendingSpreadsheet({
       ).then(({ data }) => data),
       aqlQuery(
         makeQuery(
+          budgetId,
           'debts',
           startDate,
           endDate,
@@ -139,6 +141,7 @@ export function createSpendingSpreadsheet({
     const [assetsTo, debtsTo] = await Promise.all([
       aqlQuery(
         makeQuery(
+          budgetId,
           'assets',
           startDateTo,
           endDateTo,
@@ -149,6 +152,7 @@ export function createSpendingSpreadsheet({
       ).then(({ data }) => data),
       aqlQuery(
         makeQuery(
+          budgetId,
           'debts',
           startDateTo,
           endDateTo,

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '#platform/server/log';
 import { send } from '#server/main-app';
 import { safeUnzip } from '#server/util/zip';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import * as monthUtils from '#shared/months';
 import { amountToInteger, groupBy, sortByKey } from '#shared/util';
 
@@ -24,6 +25,7 @@ async function importAccounts(
     accounts.map(async account => {
       if (!account.isTombstone) {
         const id = await send('api/account-create', {
+          budgetId: DEFAULT_BUDGET_ID,
           account: {
             name: account.accountName,
             offbudget: account.onBudget ? false : true,
@@ -53,6 +55,7 @@ async function importCategories(
         masterCategory.subCategories.some(cat => !cat.isTombstone)
       ) {
         const id = await send('api/category-group-create', {
+          budgetId: DEFAULT_BUDGET_ID,
           group: {
             name: masterCategory.name,
             is_income: false,
@@ -95,6 +98,7 @@ async function importCategories(
               }
 
               const id = await send('api/category-create', {
+                budgetId: DEFAULT_BUDGET_ID,
                 category: {
                   name: categoryName,
                   group_id: entityIdMap.get(category.masterCategoryId),
@@ -143,11 +147,15 @@ export async function importTransactions(
   entityIdMap: Map<string, string>,
   tick: ImportTick,
 ) {
-  const categories = await send('api/categories-get');
+  const categories = await send('api/categories-get', {
+    budgetId: DEFAULT_BUDGET_ID,
+  });
   const incomeCategoryId: string = categories.find(
     cat => cat.name === 'Income',
   ).id;
-  const accounts = await send('api/accounts-get');
+  const accounts = await send('api/accounts-get', {
+    budgetId: DEFAULT_BUDGET_ID,
+  });
   const payees = await send('api/payees-get');
 
   function getCategory(id: string) {
@@ -322,6 +330,7 @@ async function importBudgets(
           }
 
           await send('api/budget-set-amount', {
+            budgetId: DEFAULT_BUDGET_ID,
             month,
             categoryId: catId,
             amount,
@@ -329,12 +338,14 @@ async function importBudgets(
 
           if (catBudget.overspendingHandling === 'AffectsBuffer') {
             await send('api/budget-set-carryover', {
+              budgetId: DEFAULT_BUDGET_ID,
               month,
               categoryId: catId,
               flag: false,
             });
           } else if (catBudget.overspendingHandling === 'Confined') {
             await send('api/budget-set-carryover', {
+              budgetId: DEFAULT_BUDGET_ID,
               month,
               categoryId: catId,
               flag: true,

@@ -1219,18 +1219,29 @@ export async function moveTransaction(
  */
 export async function moveSchedule(id: string, targetId: string | null) {
   await batchMessages(async () => {
-    const schedule = await first<{ id: string }>(
-      'SELECT id FROM schedules WHERE id = ? AND tombstone = 0',
+    const schedule = await first<{ id: string; budget_id: string }>(
+      'SELECT id, budget_id FROM schedules WHERE id = ? AND tombstone = 0',
       [id],
     );
     if (!schedule) {
       throw new Error(`Schedule not found: ${id}`);
     }
 
+    if (targetId) {
+      const target = await first<{ budget_id: string }>(
+        'SELECT budget_id FROM schedules WHERE id = ? AND tombstone = 0',
+        [targetId],
+      );
+      if (!target || target.budget_id !== schedule.budget_id) {
+        throw new Error('Schedules cannot be moved between budgets');
+      }
+    }
+
     const schedules = await all<{ id: string; sort_order: number }>(
       `SELECT id, sort_order FROM schedules
-       WHERE tombstone = 0
+       WHERE tombstone = 0 AND budget_id = ?
        ORDER BY sort_order DESC, id`,
+      [schedule.budget_id],
     );
 
     const { sort_order: newSortOrder, updates } = shoveSortOrdersDescending(

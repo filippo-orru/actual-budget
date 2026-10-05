@@ -12,6 +12,7 @@ import type { PayeeEntity, RuleEntity } from '@actual-app/core/types/models';
 import { Search } from '#components/common/Search';
 import { withFilterParam } from '#components/mobile/utils';
 import { MobilePageHeader, Page } from '#components/Page';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
 import { usePayeeRuleCounts } from '#hooks/usePayeeRuleCounts';
 import { usePayees } from '#hooks/usePayees';
@@ -27,6 +28,7 @@ export function MobilePayeesPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const budgetId = useBudgetSpaceId();
   const { data: payees = [], isPending } = usePayees();
   const { showUndoNotification } = useUndo();
   // Keep the filter in the URL so it is restored when navigating back from a
@@ -74,6 +76,7 @@ export function MobilePayeesPage() {
         try {
           const associatedRules: RuleEntity[] = await send('payees-get-rules', {
             id: payee.id,
+            budgetId,
           });
           const ruleIds = associatedRules.map(rule => rule.id).join(',');
           void navigate(`/rules?visible-rules=${ruleIds}`);
@@ -102,7 +105,7 @@ export function MobilePayeesPage() {
         },
       });
     },
-    [navigate, ruleCounts],
+    [navigate, ruleCounts, budgetId],
   );
 
   const handlePayeeDelete = useCallback(

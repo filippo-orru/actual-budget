@@ -1,5 +1,6 @@
 import { createApp } from '#server/app';
 import { aqlQuery } from '#server/aql';
+import { validateBudgetExists } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { mutator } from '#server/mutators';
 import { undoable } from '#server/undo';
@@ -133,9 +134,11 @@ async function exportTransactionsQuery({
   return exportQueryToCSV(new Query(queryState));
 }
 
-async function getEarliestTransaction() {
+async function getEarliestTransaction({ budgetId }: { budgetId: string }) {
+  await validateBudgetExists(budgetId);
   const { data } = await aqlQuery(
     q('transactions')
+      .filter({ 'account.budget_id': budgetId })
       .options({ splits: 'none' })
       .orderBy({ date: 'asc' })
       .select('*')
@@ -144,9 +147,11 @@ async function getEarliestTransaction() {
   return data[0] || null;
 }
 
-async function getLatestTransaction() {
+async function getLatestTransaction({ budgetId }: { budgetId: string }) {
+  await validateBudgetExists(budgetId);
   const { data } = await aqlQuery(
     q('transactions')
+      .filter({ 'account.budget_id': budgetId })
       .options({ splits: 'none' })
       .orderBy({ date: 'desc' })
       .select('*')

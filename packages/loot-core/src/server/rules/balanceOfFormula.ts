@@ -43,12 +43,14 @@ export function extractBalanceOfLiterals(formula: string): string[] {
 export function resolveAccountIdForBalanceOf(
   literal: string,
   accountsMap: Map<string, db.DbAccount>,
+  budgetId?: string,
 ): string | null {
-  if (accountsMap.has(literal)) {
+  const literalAccount = accountsMap.get(literal);
+  if (literalAccount && (!budgetId || literalAccount.budget_id === budgetId)) {
     return literal;
   }
   for (const acc of accountsMap.values()) {
-    if (acc.name === literal) {
+    if (acc.name === literal && (!budgetId || acc.budget_id === budgetId)) {
       return acc.id;
     }
   }

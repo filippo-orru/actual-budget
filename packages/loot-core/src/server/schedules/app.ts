@@ -8,6 +8,12 @@ import { logger } from '#platform/server/log';
 import { addTransactions } from '#server/accounts/sync';
 import { createApp } from '#server/app';
 import { aqlQuery } from '#server/aql';
+import {
+  assertBudgetOwner,
+  getBudgetIdForEntity,
+  resolveBudgetId,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { toDateRepr } from '#server/models';
 import { mutator, runMutator } from '#server/mutators';
@@ -22,7 +28,6 @@ import {
 } from '#server/transactions/transaction-rules';
 import { undoable } from '#server/undo';
 import { RSchedule } from '#server/util/rschedule';
-import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import { currentDay, dayFromDate } from '#shared/months';
 import { q } from '#shared/query';
 import {
@@ -195,8 +200,9 @@ async function fixRuleForSchedule(id) {
     await db.delete_('rules', ruleId);
   }
 
+  const budgetId = await getBudgetIdForEntity({ table: 'schedules', id });
   const newId = await insertRule({
-    budget_id: DEFAULT_BUDGET_ID,
+    budget_id: budgetId,
     stage: null,
     conditionsOp: 'and',
     conditions: [
@@ -272,10 +278,10 @@ export async function setNextDate({
 
 // Methods
 
-async function checkIfScheduleExists(name, scheduleId) {
+async function checkIfScheduleExists(name, scheduleId, budgetId) {
   const idForName = await db.first<Pick<db.DbSchedule, 'id'>>(
-    'SELECT id from schedules WHERE tombstone = 0 AND name = ?',
-    [name],
+    'SELECT id from schedules WHERE tombstone = 0 AND budget_id = ? AND name = ?',
+    [budgetId, name],
   );
 
   if (idForName == null) {
@@ -299,6 +305,16 @@ async function moveSchedule({
   id: string;
   targetId: string | null;
 }) {
+  const owner = await getBudgetIdForEntity({ table: 'schedules', id });
+  if (targetId) {
+    const targetOwner = await getBudgetIdForEntity({
+      table: 'schedules',
+      id: targetId,
+    });
+    if (owner !== targetOwner) {
+      throw new Error('Schedules cannot be moved between budgets');
+    }
+  }
   await db.moveSchedule(id, targetId);
   return {};
 }
@@ -306,10 +322,15 @@ async function moveSchedule({
 export async function createSchedule({
   schedule = null,
   conditions = [],
+  budgetId: requestedBudgetId,
 }: {
   schedule?: Partial<ScheduleEntity> | null;
   conditions?: RuleConditionEntity[];
+  budgetId?: string;
 } = {}): Promise<ScheduleEntity['id']> {
+  const budgetId = await resolveBudgetId(
+    requestedBudgetId ?? schedule?.budget_id,
+  );
   const scheduleId = schedule?.id || uuidv4();
 
   const { date: dateCond } = extractScheduleConds(conditions);
@@ -328,15 +349,46 @@ export async function createSchedule({
   };
   if (scheduleFields) {
     if (scheduleFields.name) {
-      if (await checkIfScheduleExists(scheduleFields.name, scheduleId)) {
+      if (
+        await checkIfScheduleExists(scheduleFields.name, scheduleId, budgetId)
+      ) {
         throw new Error('Cannot create schedules with the same name');
       }
     }
   }
 
   // Create the rule here based on the info
+  const conditionReferences: Array<{
+    table: 'accounts' | 'categories' | 'category_groups' | 'schedules';
+    id: string;
+  }> = [];
+  for (const condition of conditions) {
+    const table =
+      condition.field === 'account'
+        ? 'accounts'
+        : condition.field === 'category'
+          ? 'categories'
+          : condition.field === 'category_group'
+            ? 'category_groups'
+            : null;
+    const values =
+      condition.op === 'oneOf' || condition.op === 'notOneOf'
+        ? condition.value
+        : [condition.value];
+    if (table) {
+      for (const id of values ?? []) {
+        if (typeof id === 'string' && id.length > 0) {
+          conditionReferences.push({ table, id });
+        }
+      }
+    }
+  }
+  if (conditionReferences.length > 0) {
+    await assertBudgetOwner(budgetId, conditionReferences);
+  }
+
   const ruleId = await insertRule({
-    budget_id: DEFAULT_BUDGET_ID,
+    budget_id: budgetId,
     stage: null,
     conditionsOp: 'and',
     conditions,
@@ -354,7 +406,7 @@ export async function createSchedule({
 
   await db.insertWithSchema('schedules', {
     ...scheduleFields,
-    budget_id: DEFAULT_BUDGET_ID,
+    budget_id: budgetId,
     id: scheduleId,
     rule: ruleId,
   });
@@ -376,12 +428,53 @@ export async function updateSchedule({
   if (schedule.rule) {
     throw new Error('You cannot change the rule of a schedule');
   }
-  const scheduleFields = { ...schedule };
+  const budgetId = await getBudgetIdForEntity({
+    table: 'schedules',
+    id: schedule.id,
+  });
+  if (schedule.budget_id != null && schedule.budget_id !== budgetId) {
+    throw new Error('Schedule ownership cannot be changed');
+  }
+  const scheduleFields = { ...schedule, budget_id: budgetId };
+  if (conditions) {
+    const conditionReferences: Array<{
+      table: 'accounts' | 'categories' | 'category_groups' | 'schedules';
+      id: string;
+    }> = [];
+    for (const condition of conditions) {
+      const table =
+        condition.field === 'account'
+          ? 'accounts'
+          : condition.field === 'category'
+            ? 'categories'
+            : condition.field === 'category_group'
+              ? 'category_groups'
+              : null;
+      const values =
+        condition.op === 'oneOf' || condition.op === 'notOneOf'
+          ? condition.value
+          : [condition.value];
+      if (table) {
+        for (const id of values ?? []) {
+          if (typeof id === 'string' && id.length > 0) {
+            conditionReferences.push({ table, id });
+          }
+        }
+      }
+    }
+    if (conditionReferences.length > 0) {
+      await assertBudgetOwner(budgetId, conditionReferences);
+    }
+  }
   if ('name' in scheduleFields) {
     scheduleFields.name = normalizeScheduleName(scheduleFields.name);
     if (
       scheduleFields.name &&
-      (await checkIfScheduleExists(scheduleFields.name, scheduleFields.id))
+      (await checkIfScheduleExists(
+        scheduleFields.name,
+        scheduleFields.id,
+        await getBudgetIdForEntity({ table: 'schedules', id: schedule.id }),
+      ))
     ) {
       throw new Error('Cannot update schedules with the same name');
     }
@@ -471,8 +564,9 @@ export async function skipNextDate({ id }) {
   return setNextDate({ id, advance: true });
 }
 
-function discoverSchedules() {
-  return findSchedules();
+async function discoverSchedules({ budgetId }: { budgetId: string }) {
+  await validateBudgetExists(budgetId);
+  return findSchedules({ budgetId });
 }
 
 async function getUpcomingDates({ config, count }) {

@@ -16,6 +16,7 @@ import { ruleToString } from '#components/ManageRules';
 import { withFilterParam } from '#components/mobile/utils';
 import { MobilePageHeader, Page } from '#components/Page';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useNavigate } from '#hooks/useNavigate';
 import { usePayees } from '#hooks/usePayees';
@@ -33,6 +34,7 @@ export function MobileRulesPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const budgetId = useBudgetSpaceId();
   const { showUndoNotification } = useUndo();
   const [visibleRulesParam] = useUrlParam('visible-rules');
   const [allRules, setAllRules] = useState<RuleEntity[]>([]);
@@ -94,7 +96,7 @@ export function MobileRulesPage() {
   const loadRules = useCallback(async () => {
     try {
       setIsLoading(true);
-      const result = await send('rules-get');
+      const result = await send('rules-get', { budgetId });
       const rules = result || [];
       setAllRules(rules);
     } catch (error) {
@@ -103,7 +105,7 @@ export function MobileRulesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [budgetId]);
 
   useEffect(() => {
     void loadRules();
@@ -143,9 +145,10 @@ export function MobileRulesPage() {
   const handleRuleDelete = useCallback(
     async (rule: RuleEntity) => {
       try {
-        const { someDeletionsFailed } = await send('rule-delete-all', [
-          rule.id,
-        ]);
+        const { someDeletionsFailed } = await send('rule-delete-all', {
+          ids: [rule.id],
+          budgetId,
+        });
 
         if (someDeletionsFailed) {
           dispatch(
@@ -178,7 +181,7 @@ export function MobileRulesPage() {
         );
       }
     },
-    [dispatch, showUndoNotification, t, loadRules],
+    [dispatch, showUndoNotification, t, loadRules, budgetId],
   );
 
   return (

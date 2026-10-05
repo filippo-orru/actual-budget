@@ -5,14 +5,18 @@ import { captureException } from '#platform/exceptions';
 import * as fs from '#platform/server/fs';
 import { createApp } from '#server/app';
 import { aqlQuery } from '#server/aql';
+import {
+  assertBudgetOwner,
+  getBudgetIdForEntity,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { ValidationError } from '#server/errors';
 import { requiredFields } from '#server/models';
 import { mutator } from '#server/mutators';
-import { reportModel } from '#server/reports/app';
+import { reportModel, validateReportReferences } from '#server/reports/app';
 import { batchMessages } from '#server/sync';
 import { undoable } from '#server/undo';
-import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import { DEFAULT_DASHBOARD_STATE } from '#shared/dashboard';
 import { q } from '#shared/query';
 import type {
@@ -107,11 +111,18 @@ const exportModel = {
   },
 };
 
-async function createDashboardPage({ name }: { name: string }) {
+async function createDashboardPage({
+  name,
+  budgetId,
+}: {
+  name: string;
+  budgetId: string;
+}) {
+  await validateBudgetExists(budgetId);
   const id = uuidv4();
   await db.insertWithSchema('dashboard_pages', {
     id,
-    budget_id: DEFAULT_BUDGET_ID,
+    budget_id: budgetId,
     name,
   });
 
@@ -119,8 +130,10 @@ async function createDashboardPage({ name }: { name: string }) {
 }
 
 async function deleteDashboardPage(id: string) {
+  const budgetId = await getBudgetIdForEntity({ table: 'dashboard_pages', id });
   const res = await db.first<{ c: number }>(
-    'SELECT count(*) as c FROM dashboard_pages WHERE tombstone = 0',
+    'SELECT count(*) as c FROM dashboard_pages WHERE tombstone = 0 AND budget_id = ?',
+    [budgetId],
   );
 
   if ((res?.c ?? 0) <= 1) {
@@ -142,12 +155,105 @@ async function deleteDashboardPage(id: string) {
 }
 
 async function renameDashboardPage({ id, name }: { id: string; name: string }) {
+  await getBudgetIdForEntity({ table: 'dashboard_pages', id });
   await db.updateWithSchema('dashboard_pages', { id, name });
+}
+
+async function validateWidgetReferences(
+  widget: Partial<Pick<DashboardWidgetEntity, 'type' | 'meta'>>,
+  budgetId: string,
+  allowPendingCustomReport = false,
+) {
+  const meta =
+    typeof widget.meta === 'string' ? JSON.parse(widget.meta) : widget.meta;
+  const references: Array<{
+    table: 'accounts' | 'categories' | 'category_groups' | 'custom_reports';
+    id: string;
+  }> = [];
+  function visit(value: unknown, key = '') {
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, key);
+      return;
+    }
+    if (typeof value !== 'object' || value === null) {
+      const table = ['accountId', 'accountIds', 'incomeAccountIds'].includes(
+        key,
+      )
+        ? 'accounts'
+        : ['categoryId', 'categoryIds', 'expenseCategoryIds'].includes(key)
+          ? 'categories'
+          : null;
+      if (table && typeof value === 'string' && value.length > 0) {
+        references.push({ table, id: value });
+      }
+      return;
+    }
+    if ('field' in value && 'value' in value) {
+      const condition = value as {
+        field?: string;
+        op?: string;
+        value?: unknown;
+      };
+      const table =
+        condition.field === 'account'
+          ? 'accounts'
+          : condition.field === 'category'
+            ? 'categories'
+            : condition.field === 'category_group'
+              ? 'category_groups'
+              : null;
+      if (table) {
+        const ids =
+          condition.op === 'oneOf' || condition.op === 'notOneOf'
+            ? condition.value
+            : [condition.value];
+        if (Array.isArray(ids)) {
+          for (const id of ids) {
+            if (typeof id === 'string' && id.length > 0) {
+              references.push({ table, id });
+            }
+          }
+        }
+      }
+    }
+    for (const [childKey, childValue] of Object.entries(value)) {
+      visit(childValue, childKey);
+    }
+  }
+  visit(meta);
+  if (
+    !allowPendingCustomReport &&
+    widget.type === 'custom-report' &&
+    typeof meta?.id === 'string'
+  ) {
+    references.push({ table: 'custom_reports', id: meta.id });
+  }
+  if (references.length > 0) {
+    await assertBudgetOwner(budgetId, references);
+  }
 }
 
 async function updateDashboard(
   widgets: EverythingButIdOptional<Omit<DashboardWidgetEntity, 'tombstone'>>[],
 ) {
+  for (const widget of widgets) {
+    const owner = await getBudgetIdForEntity({
+      table: 'dashboard',
+      id: widget.id,
+    });
+    const targetOwner = widget.dashboard_page_id
+      ? await getBudgetIdForEntity({
+          table: 'dashboard_pages',
+          id: widget.dashboard_page_id,
+        })
+      : owner;
+    if (owner !== targetOwner) {
+      throw new ValidationError(
+        'Dashboard widgets cannot move between budgets',
+      );
+    }
+    await validateWidgetReferences(widget, owner);
+  }
   const { data: dbWidgets } = await aqlQuery(
     q('dashboard')
       .filter({ id: { $oneof: widgets.map(({ id }) => id) } })
@@ -168,10 +274,27 @@ async function updateDashboard(
 async function updateDashboardWidget(
   widget: EverythingButIdOptional<Omit<DashboardWidgetEntity, 'tombstone'>>,
 ) {
+  const owner = await getBudgetIdForEntity({
+    table: 'dashboard',
+    id: widget.id,
+  });
+  if (widget.dashboard_page_id) {
+    const targetOwner = await getBudgetIdForEntity({
+      table: 'dashboard_pages',
+      id: widget.dashboard_page_id,
+    });
+    if (owner !== targetOwner) {
+      throw new ValidationError(
+        'Dashboard widgets cannot move between budgets',
+      );
+    }
+  }
+  await validateWidgetReferences(widget, owner);
   await db.updateWithSchema('dashboard', widget);
 }
 
 async function resetDashboard(id: string) {
+  await getBudgetIdForEntity({ table: 'dashboard_pages', id });
   await batchMessages(async () => {
     const widgets = await db.selectWithSchema(
       'dashboard',
@@ -197,6 +320,11 @@ async function addDashboardWidget(
     'x' | 'y'
   >,
 ) {
+  const budgetId = await getBudgetIdForEntity({
+    table: 'dashboard_pages',
+    id: widget.dashboard_page_id,
+  });
+  await validateWidgetReferences(widget, budgetId);
   // If no x & y was provided - calculate it dynamically
   // The new widget should be the very last one in the list of all widgets
   if (!('x' in widget) && !('y' in widget)) {
@@ -245,10 +373,27 @@ async function copyDashboardWidget({
   if (!widget) {
     throw new Error(`Widget not found: ${id}`);
   }
+  const sourceOwner = await getBudgetIdForEntity({ table: 'dashboard', id });
+  const targetOwner = await getBudgetIdForEntity({
+    table: 'dashboard_pages',
+    id: targetDashboardPageId,
+  });
+  if (sourceOwner !== targetOwner) {
+    throw new ValidationError(
+      'Dashboard widgets cannot be copied between budgets',
+    );
+  }
 
   await batchMessages(async () => {
     // Insert the widget to target dashboard
     if (isWidgetType(widget.type)) {
+      await validateWidgetReferences(
+        {
+          type: widget.type,
+          meta: widget.meta ? JSON.parse(widget.meta) : {},
+        },
+        sourceOwner,
+      );
       const newWidget = {
         type: widget.type,
         width: widget.width,
@@ -271,6 +416,10 @@ async function importDashboard({
   dashboardPageId: string;
 }) {
   try {
+    const targetBudgetId = await getBudgetIdForEntity({
+      table: 'dashboard_pages',
+      id: dashboardPageId,
+    });
     if (!(await fs.exists(filePath))) {
       throw new Error(`File not found at the provided path: ${filePath}`);
     }
@@ -280,10 +429,29 @@ async function importDashboard({
 
     exportModel.validate(parsedContent);
 
-    const customReportIds = await db.all<Pick<db.DbCustomReport, 'id'>>(
-      'SELECT id from custom_reports',
+    const customReports = await db.all<
+      Pick<db.DbCustomReport, 'id' | 'budget_id'>
+    >('SELECT id, budget_id from custom_reports');
+    const customReportsById = new Map(
+      customReports.map(report => [report.id, report]),
     );
-    const customReportIdSet = new Set(customReportIds.map(({ id }) => id));
+    for (const widget of parsedContent.widgets) {
+      await validateWidgetReferences(widget, targetBudgetId, true);
+    }
+    for (const { meta } of parsedContent.widgets.filter(
+      isExportedCustomReportWidget,
+    )) {
+      const existing = customReportsById.get(meta.id);
+      if (existing && existing.budget_id !== targetBudgetId) {
+        throw new ValidationError(
+          'Cannot import a custom report owned by another budget',
+        );
+      }
+      await validateReportReferences(
+        { ...meta, budget_id: targetBudgetId },
+        targetBudgetId,
+      );
+    }
 
     const existingWidgets = await db.selectWithSchema(
       'dashboard',
@@ -314,24 +482,29 @@ async function importDashboard({
         // Insert new custom reports
         ...parsedContent.widgets
           .filter(isExportedCustomReportWidget)
-          .filter(({ meta }) => !customReportIdSet.has(meta.id))
+          .filter(({ meta }) => !customReportsById.has(meta.id))
           .map(({ meta }) =>
-            db.insertWithSchema('custom_reports', reportModel.fromJS(meta)),
+            db.insertWithSchema(
+              'custom_reports',
+              reportModel.fromJS({ ...meta, budget_id: targetBudgetId }),
+            ),
           ),
 
         // Update existing reports
         ...parsedContent.widgets
           .filter(isExportedCustomReportWidget)
-          .filter(({ meta }) => customReportIdSet.has(meta.id))
+          .filter(({ meta }) => customReportsById.has(meta.id))
           .map(({ meta }) =>
             db.updateWithSchema('custom_reports', {
               // Replace `undefined` values with `null`
               // (null clears the value in DB; undefined breaks the operation)
               ...Object.fromEntries(
-                Object.entries(reportModel.fromJS(meta)).map(([key, value]) => [
-                  key,
-                  value ?? null,
-                ]),
+                Object.entries(
+                  reportModel.fromJS({
+                    ...meta,
+                    budget_id: targetBudgetId,
+                  }),
+                ).map(([key, value]) => [key, value ?? null]),
               ),
               tombstone: false,
             }),

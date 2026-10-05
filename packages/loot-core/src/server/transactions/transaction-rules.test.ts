@@ -2,6 +2,7 @@ import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
 import { loadMappings } from '#server/db/mappings';
 // @ts-strict-ignore
+import { currentDay } from '#shared/months';
 import { q } from '#shared/query';
 
 import {
@@ -28,6 +29,14 @@ beforeEach(async () => {
   await loadMappings();
 });
 
+async function addRuleTestAccount() {
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'rule-account',
+    name: 'Rule account',
+  });
+}
+
 async function getMatchingTransactions(conds) {
   const { filters } = conditionsToAQL(conds);
   const { data } = await aqlQuery(
@@ -37,6 +46,63 @@ async function getMatchingTransactions(conds) {
 }
 
 describe('Transaction rules', () => {
+  test('runs only the rules owned by the transaction account budget', async () => {
+    await loadRules();
+    await db.insertWithSchema('budgets', {
+      id: 'budget-b',
+      name: 'Budget B',
+      currency_code: 'USD',
+      budget_type: 'envelope',
+      sort_order: 1,
+    });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'account-a',
+      name: 'Account A',
+    });
+    await db.insertAccount({
+      budget_id: 'budget-b',
+      id: 'account-b',
+      name: 'Account B',
+    });
+    await db.insertPayee({ id: 'shared-payee', name: 'Shared payee' });
+
+    await insertRule({
+      budget_id: 'default',
+      stage: null,
+      conditionsOp: 'and',
+      conditions: [{ op: 'is', field: 'payee', value: 'shared-payee' }],
+      actions: [{ op: 'set', field: 'notes', value: 'A rule' }],
+    });
+    await insertRule({
+      budget_id: 'budget-b',
+      stage: null,
+      conditionsOp: 'and',
+      conditions: [{ op: 'is', field: 'payee', value: 'shared-payee' }],
+      actions: [{ op: 'set', field: 'notes', value: 'B rule' }],
+    });
+
+    const transactionA = await runRules({
+      id: 'transaction-a',
+      account: 'account-a',
+      payee: 'shared-payee',
+      amount: -100,
+      date: '2024-01-01',
+      notes: '',
+    });
+    const transactionB = await runRules({
+      id: 'transaction-b',
+      account: 'account-b',
+      payee: 'shared-payee',
+      amount: -100,
+      date: '2024-01-01',
+      notes: '',
+    });
+
+    expect(transactionA.notes).toBe('A rule');
+    expect(transactionB.notes).toBe('B rule');
+  });
+
   test('makeRule validates rule data', () => {
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => null);
 
@@ -92,6 +158,7 @@ describe('Transaction rules', () => {
 
   test('insert a rule into the database', async () => {
     await loadRules();
+    await addRuleTestAccount();
     await insertRule({
       budget_id: 'default',
       stage: 'pre',
@@ -130,6 +197,7 @@ describe('Transaction rules', () => {
 
     // Finally make sure the rule is actually in place and runs
     const transaction = await runRules({
+      account: 'rule-account',
       date: '2019-05-10',
       notes: '',
       category: null,
@@ -141,6 +209,7 @@ describe('Transaction rules', () => {
 
   test('update a rule in the database', async () => {
     await loadRules();
+    await addRuleTestAccount();
     const id = await insertRule({
       budget_id: 'default',
       stage: 'pre',
@@ -154,6 +223,7 @@ describe('Transaction rules', () => {
     expect(getRules().length).toBe(1);
 
     let transaction = await runRules({
+      account: 'rule-account',
       imported_payee: 'Kroger',
       notes: '',
       category: null,
@@ -170,6 +240,7 @@ describe('Transaction rules', () => {
     expect(getRules().length).toBe(1);
 
     transaction = await runRules({
+      account: 'rule-account',
       imported_payee: 'Kroger',
       notes: '',
       category: null,
@@ -184,6 +255,7 @@ describe('Transaction rules', () => {
       conditions: [{ op: 'is', field: 'imported_payee', value: 'ABC' }],
     });
     transaction = await runRules({
+      account: 'rule-account',
       imported_payee: 'ABC',
       notes: '',
       category: null,
@@ -226,6 +298,7 @@ describe('Transaction rules', () => {
 
   test('delete a rule in the database', async () => {
     await loadRules();
+    await addRuleTestAccount();
     const id = await insertRule({
       budget_id: 'default',
       stage: 'pre',
@@ -239,6 +312,7 @@ describe('Transaction rules', () => {
     expect(getRules().length).toBe(1);
 
     let transaction = await runRules({
+      account: 'rule-account',
       payee: 'Kroger',
       notes: '',
       category: null,
@@ -249,6 +323,7 @@ describe('Transaction rules', () => {
     await deleteRule(id);
     expect(getRules().length).toBe(0);
     transaction = await runRules({
+      account: 'rule-account',
       payee: 'Kroger',
       notes: '',
       category: null,
@@ -259,6 +334,7 @@ describe('Transaction rules', () => {
 
   test('payee rules match after a staged formula sets payee name', async () => {
     await loadRules();
+    await addRuleTestAccount();
 
     await db.insertPayee({ id: 'amazon_id', name: 'Amazon' });
 
@@ -286,6 +362,7 @@ describe('Transaction rules', () => {
     });
 
     const transaction = await runRules({
+      account: 'rule-account',
       imported_payee: 'AMZN MKTP',
       payee: null,
       category: null,
@@ -297,6 +374,7 @@ describe('Transaction rules', () => {
 
   test('loadRules loads all the rules', async () => {
     await loadRules();
+    await addRuleTestAccount();
     await insertRule({
       budget_id: 'default',
       stage: 'pre',
@@ -320,6 +398,7 @@ describe('Transaction rules', () => {
     expect(getRules().length).toBe(2);
 
     let transaction = await runRules({
+      account: 'rule-account',
       imported_payee: 'blah Lowes blah',
       payee: null,
       category: null,
@@ -327,6 +406,7 @@ describe('Transaction rules', () => {
     expect(transaction.payee).toBe('lowes');
 
     transaction = await runRules({
+      account: 'rule-account',
       imported_payee: 'kroger',
       category: null,
     });
@@ -400,6 +480,7 @@ describe('Transaction rules', () => {
 
   test('await runRules runs all the rules in each phase', async () => {
     await loadRules();
+    await addRuleTestAccount();
     await insertRule({
       budget_id: 'default',
       stage: 'post',
@@ -442,11 +523,12 @@ describe('Transaction rules', () => {
 
     expect(
       await runRules({
+        account: 'rule-account',
         imported_payee: '123 kroger',
         date: '2020-08-11',
         amount: 50,
       }),
-    ).toEqual({
+    ).toMatchObject({
       date: '2020-08-11',
       imported_payee: '123 kroger',
       payee: 'kroger4',
@@ -457,6 +539,7 @@ describe('Transaction rules', () => {
 
   test('category_group condition matches categories in that group (live)', async () => {
     await loadRules();
+    await addRuleTestAccount();
     const billsGroupId = await db.insertCategoryGroup({
       budget_id: 'default',
       name: 'Bills',
@@ -475,6 +558,7 @@ describe('Transaction rules', () => {
     });
 
     const transaction = await runRules({
+      account: 'rule-account',
       date: '2020-01-01',
       category: electricId,
       notes: '',
@@ -486,6 +570,7 @@ describe('Transaction rules', () => {
 
   test('category_group condition does not match an unrelated group (live)', async () => {
     await loadRules();
+    await addRuleTestAccount();
     const billsGroupId = await db.insertCategoryGroup({
       budget_id: 'default',
       name: 'Bills',
@@ -508,6 +593,7 @@ describe('Transaction rules', () => {
     });
 
     const transaction = await runRules({
+      account: 'rule-account',
       date: '2020-01-01',
       category: moviesId,
       notes: '',
@@ -519,6 +605,7 @@ describe('Transaction rules', () => {
 
   test('category_group condition observes a category set earlier in the same rule chain (live)', async () => {
     await loadRules();
+    await addRuleTestAccount();
     const billsGroupId = await db.insertCategoryGroup({
       budget_id: 'default',
       name: 'Bills',
@@ -551,6 +638,7 @@ describe('Transaction rules', () => {
     });
 
     const transaction = await runRules({
+      account: 'rule-account',
       date: '2020-01-01',
       payee: 'power_co_id',
       category: null,
@@ -980,6 +1068,68 @@ describe('Learning categories', () => {
     await db.insertPayee({ id: 'foo', name: 'foo' });
     await db.insertPayee({ id: 'bar', name: 'bar' });
   }
+
+  test('learns independent categories for a shared payee in separate budgets', async () => {
+    await loadData();
+    await db.insertWithSchema('budgets', {
+      id: 'budget-b',
+      name: 'Budget B',
+      currency_code: 'USD',
+      budget_type: 'envelope',
+      sort_order: 1,
+    });
+    await db.insertAccount({
+      budget_id: 'budget-b',
+      id: 'acct-b',
+      name: 'Account B',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'budget-b',
+      id: 'catg-b',
+      name: 'Group B',
+    });
+    await db.insertCategory({
+      budget_id: 'budget-b',
+      id: 'groceries-b',
+      name: 'Groceries',
+      cat_group: 'catg-b',
+    });
+
+    const today = currentDay();
+    const transactionsA = ['a1', 'a2', 'a3'].map(id => ({
+      id,
+      date: today,
+      account: 'acct',
+      payee: 'foo',
+      category: 'food',
+      amount: -100,
+    }));
+    const transactionsB = ['b1', 'b2', 'b3'].map(id => ({
+      id,
+      date: today,
+      account: 'acct-b',
+      payee: 'foo',
+      category: 'groceries-b',
+      amount: -200,
+    }));
+
+    for (const transaction of [...transactionsA, ...transactionsB]) {
+      await db.insertTransaction(transaction);
+    }
+    await updateCategoryRules(transactionsA, 'default');
+    await updateCategoryRules(transactionsB, 'budget-b');
+
+    expect(
+      getRules()
+        .filter(rule => rule.budget_id === 'default')
+        .map(rule => rule.actions[0].value),
+    ).toContain('food');
+    expect(
+      getRules()
+        .filter(rule => rule.budget_id === 'budget-b')
+        .map(rule => rule.actions[0].value),
+    ).toContain('groceries-b');
+  });
 
   test('getProbableCategory estimates a category winner', () => {
     let winner = getProbableCategory([{ category: 'foo' }]);

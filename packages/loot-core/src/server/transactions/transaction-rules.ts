@@ -12,6 +12,7 @@ import { getAccount, getCategory, getPayee, getPayeeByName } from '#server/db';
 import { getMappings } from '#server/db/mappings';
 import { RuleError, ValidationError } from '#server/errors';
 import { ensureFormulaPreferencesLoaded } from '#server/formulas/bootstrap';
+import { loadUserPreferencesForFormulas } from '#server/formulas/customFunctionsPreferences';
 import { requiredFields, toDateRepr } from '#server/models';
 import {
   Action,
@@ -29,7 +30,6 @@ import {
   resolveAccountIdForBalanceOf,
 } from '#server/rules/balanceOfFormula';
 import { addSyncListener, batchMessages } from '#server/sync';
-import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import {
   addDays,
   currentDay,
@@ -344,16 +344,31 @@ export async function runRules(
     accountsMap = accounts;
   }
 
-  const rules = rankRules(
-    fastSetMerge(
-      firstcharIndexer.getApplicableRules(trans),
-      payeeIndexer.getApplicableRules(trans),
-    ),
-  );
+  const ownerBudgetId = trans.account
+    ? accountsMap.get(trans.account)?.budget_id
+    : undefined;
+  const rules = ownerBudgetId
+    ? rankRules(
+        [
+          ...new Set<Rule>([
+            ...firstcharIndexer.getApplicableRules(trans),
+            ...payeeIndexer.getApplicableRules(trans),
+          ]),
+        ].filter(rule => rule.budget_id === ownerBudgetId),
+      )
+    : [];
 
   let finalTrans = await prepareTransactionForRules({ ...trans }, accountsMap, {
     includeBalance: false,
   });
+  const budgetId = finalTrans.account
+    ? accountsMap.get(finalTrans.account)?.budget_id
+    : undefined;
+  if (budgetId) {
+    finalTrans._formulaPreferences = await loadUserPreferencesForFormulas({
+      budgetId,
+    });
+  }
   let lastCategoryIdForGroup: string | null = finalTrans.category ?? null;
 
   // The running balance is a query over every earlier transaction in
@@ -800,9 +815,24 @@ export async function applyActions(
   const accountsMap = new Map(accounts.map(account => [account.id, account]));
   const includeBalance = actionsReferenceBalance(parsedActions);
   const transactionsForRules = await Promise.all(
-    transactions.map(transaction =>
-      prepareTransactionForRules(transaction, accountsMap, { includeBalance }),
-    ),
+    transactions.map(async transaction => {
+      const prepared = await prepareTransactionForRules(
+        transaction,
+        accountsMap,
+        {
+          includeBalance,
+        },
+      );
+      const budgetId = prepared.account
+        ? accountsMap.get(prepared.account)?.budget_id
+        : undefined;
+      if (budgetId) {
+        prepared._formulaPreferences = await loadUserPreferencesForFormulas({
+          budgetId,
+        });
+      }
+      return prepared;
+    }),
   );
 
   const formulaStrings = collectFormulasFromActions(parsedActions);
@@ -831,13 +861,17 @@ export async function applyActions(
   });
 }
 
-export function getRulesForPayee(payeeId) {
+export function getRulesForPayee(payeeId, budgetId: string) {
   const rules = new Set<Rule>();
-  iterateIds(getRules(), 'payee', (rule, id) => {
-    if (id === payeeId) {
-      rules.add(rule);
-    }
-  });
+  iterateIds(
+    getRules().filter(rule => rule.budget_id === budgetId),
+    'payee',
+    (rule, id) => {
+      if (id === payeeId) {
+        rules.add(rule);
+      }
+    },
+  );
 
   return rankRules([...rules]);
 }
@@ -873,13 +907,18 @@ function* getOneOfSetterRules(
   stage,
   condField,
   actionField,
-  { condValue, actionValue }: { condValue?: string; actionValue: string },
+  {
+    condValue,
+    actionValue,
+    budgetId,
+  }: { condValue?: string; actionValue: string; budgetId?: string },
 ) {
   const rules = getRules();
   for (let i = 0; i < rules.length; i++) {
     const rule = rules[i];
 
     if (
+      (budgetId === undefined || rule.budget_id === budgetId) &&
       rule.stage === stage &&
       rule.actions.length === 1 &&
       rule.actions[0].op === 'set' &&
@@ -897,9 +936,14 @@ function* getOneOfSetterRules(
   return null;
 }
 
-export async function updatePayeeRenameRule(fromNames: string[], to: string) {
+export async function updatePayeeRenameRule(
+  fromNames: string[],
+  to: string,
+  budgetId: string,
+) {
   const renameRule = getOneOfSetterRules('pre', 'imported_payee', 'payee', {
     actionValue: to,
+    budgetId,
   }).next().value;
 
   // Note that we don't check for existing rules that set this
@@ -924,7 +968,7 @@ export async function updatePayeeRenameRule(fromNames: string[], to: string) {
     return renameRule.id;
   } else {
     const rule = new Rule({
-      budget_id: DEFAULT_BUDGET_ID,
+      budget_id: budgetId,
       stage: 'pre',
       conditionsOp: 'and',
       conditions: [{ op: 'oneOf', field: 'imported_payee', value: fromNames }],
@@ -1055,6 +1099,9 @@ export type TransactionForRules = TransactionEntity & {
   _account_name?: string;
   /** The transaction's category's group id; see prepareTransactionForRules */
   category_group?: string;
+  _formulaPreferences?: Awaited<
+    ReturnType<typeof loadUserPreferencesForFormulas>
+  >;
   parent_amount?: number;
   parent_notes?: string;
   parent_imported_payee?: string;
@@ -1122,7 +1169,14 @@ export async function prefetchBalanceOfForTransaction(
     }
   }
   for (const literal of literals) {
-    const accountId = resolveAccountIdForBalanceOf(literal, accountsMap);
+    const budgetId = trans.account
+      ? accountsMap.get(trans.account)?.budget_id
+      : undefined;
+    const accountId = resolveAccountIdForBalanceOf(
+      literal,
+      accountsMap,
+      budgetId,
+    );
     if (accountId) {
       map.set(
         literal,
@@ -1271,6 +1325,9 @@ export async function finalizeTransactionForRules(
 
   if ('balance' in trans) {
     delete trans.balance;
+  }
+  if ('_formulaPreferences' in trans) {
+    delete trans._formulaPreferences;
   }
 
   // Synthetic field used only for `category_group` condition matching;

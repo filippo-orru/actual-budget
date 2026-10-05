@@ -21,6 +21,7 @@ import { ReportCardName } from '#components/reports/ReportCardName';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { simpleCashFlow } from '#components/reports/spreadsheets/cash-flow-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
 
 import { defaultTimeFrame } from './CashFlow';
@@ -105,19 +106,20 @@ export function CashFlowCard({
   onMetaChange,
 }: CashFlowCardProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const animationProps = useRechartsAnimation();
   const [latestTransaction, setLatestTransaction] = useState<string>('');
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
 
   useEffect(() => {
     async function fetchLatestTransaction() {
-      const latestTrans = await send('get-latest-transaction');
+      const latestTrans = await send('get-latest-transaction', { budgetId });
       setLatestTransaction(
         latestTrans ? latestTrans.date : monthUtils.currentDay(),
       );
     }
     void fetchLatestTransaction();
-  }, []);
+  }, [budgetId]);
 
   const [start, end] = calculateTimeRange(
     meta?.timeFrame,
@@ -126,8 +128,15 @@ export function CashFlowCard({
   );
 
   const params = useMemo(
-    () => simpleCashFlow(start, end, meta?.conditions, meta?.conditionsOp),
-    [start, end, meta?.conditions, meta?.conditionsOp],
+    () =>
+      simpleCashFlow(
+        budgetId,
+        start,
+        end,
+        meta?.conditions,
+        meta?.conditionsOp,
+      ),
+    [budgetId, start, end, meta?.conditions, meta?.conditionsOp],
   );
   const data = useReport('cash_flow_simple', params);
 

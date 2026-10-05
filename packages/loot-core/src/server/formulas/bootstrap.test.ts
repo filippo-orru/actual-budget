@@ -13,9 +13,14 @@ import {
 } from './bootstrap';
 import { loadUserPreferencesForFormulas } from './customFunctionsPreferences';
 
-function executeFormula(formula: string) {
+function executeFormula(
+  formula: string,
+  formulaPreferences?: Awaited<
+    ReturnType<typeof loadUserPreferencesForFormulas>
+  >,
+) {
   const action = new Action('set', 'notes', null, { formula });
-  const transaction = { notes: '' };
+  const transaction = { notes: '', _formulaPreferences: formulaPreferences };
 
   action.exec(transaction);
 
@@ -43,6 +48,38 @@ describe('formula preference bootstrap', () => {
     await ensureFormulaPreferencesLoaded();
 
     expect(executeFormula('=FORMATNUMBER(1234.5, 2)')).toBe('1.234,50');
+  });
+
+  it('keeps concurrent budget formula formatting isolated by currency', async () => {
+    await db.update('preferences', {
+      id: 'flags.currency',
+      value: 'true',
+    });
+    await db.update('budgets', { id: 'default', currency_code: 'EUR' });
+    await db.insertWithSchema('budgets', {
+      id: 'yen-budget',
+      name: 'JPY budget',
+      currency_code: 'JPY',
+      budget_type: 'envelope',
+      sort_order: 1,
+    });
+
+    const [euroPreferences, yenPreferences] = await Promise.all([
+      loadUserPreferencesForFormulas({ budgetId: 'default' }),
+      loadUserPreferencesForFormulas({ budgetId: 'yen-budget' }),
+    ]);
+    const [euroResult, yenResult] = await Promise.all([
+      Promise.resolve().then(() =>
+        executeFormula('=FORMATCURRENCY(1234)', euroPreferences),
+      ),
+      Promise.resolve().then(() =>
+        executeFormula('=FORMATCURRENCY(1234)', yenPreferences),
+      ),
+    ]);
+
+    expect(euroResult).toContain('€');
+    expect(yenResult).toContain('¥');
+    expect(euroResult).not.toBe(yenResult);
   });
 
   it('infers number separators from locale formatting', async () => {

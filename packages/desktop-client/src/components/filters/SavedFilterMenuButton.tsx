@@ -12,6 +12,8 @@ import type {
   TransactionFilterEntity,
 } from '@actual-app/core/types/models';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
+
 import { FilterMenu } from './FilterMenu';
 import { NameFilter } from './NameFilter';
 
@@ -39,6 +41,7 @@ export function SavedFilterMenuButton({
   savedFilters: TransactionFilterEntity[];
 }) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const [nameOpen, setNameOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -121,6 +124,7 @@ export function SavedFilterMenuButton({
       };
 
       const response = await sendCatch('filter-create', {
+        budgetId,
         state: newSavedFilter,
         filters: [...savedFilters],
       });

@@ -630,6 +630,18 @@ describe('API CRUD operations', () => {
     await api.createPayee({ name: 'test-payee' });
     await api.createPayee({ name: 'test-payee2' });
 
+    const categoryId = (await api.getCategories())[0].id;
+    const legacyExpectedCategoryId = 'fc3825fd-b982-4b72-b768-5b30844cf832';
+    const normalizeRuleCategories = (rules: RuleEntity[]) =>
+      rules.map(rule => ({
+        ...rule,
+        actions: rule.actions.map(action =>
+          'field' in action && action.field === 'category'
+            ? { ...action, value: legacyExpectedCategoryId }
+            : action,
+        ),
+      }));
+
     // create our test rules
     const rule = await api.createRule({
       stage: 'pre',
@@ -645,7 +657,7 @@ describe('API CRUD operations', () => {
         {
           op: 'set',
           field: 'category',
-          value: 'fc3825fd-b982-4b72-b768-5b30844cf832',
+          value: categoryId,
         },
       ],
     });
@@ -663,14 +675,14 @@ describe('API CRUD operations', () => {
         {
           op: 'set',
           field: 'category',
-          value: 'fc3825fd-b982-4b72-b768-5b30844cf832',
+          value: categoryId,
         },
       ],
     });
 
     // get existing rules
     const rules = await api.getRules();
-    expect(rules).toEqual(
+    expect(normalizeRuleCategories(rules)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           actions: expect.arrayContaining([
@@ -718,7 +730,9 @@ describe('API CRUD operations', () => {
     );
 
     // get by payee
-    expect(await api.getPayeeRules('test-payee')).toEqual(
+    expect(
+      normalizeRuleCategories(await api.getPayeeRules('test-payee')),
+    ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           actions: expect.arrayContaining([
@@ -744,7 +758,9 @@ describe('API CRUD operations', () => {
       ]),
     );
 
-    expect(await api.getPayeeRules('test-payee2')).toEqual(
+    expect(
+      normalizeRuleCategories(await api.getPayeeRules('test-payee2')),
+    ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           actions: expect.arrayContaining([
@@ -778,7 +794,7 @@ describe('API CRUD operations', () => {
     } satisfies RuleEntity;
     expect(await api.updateRule(updatedRule)).toEqual(updatedRule);
 
-    expect(await api.getRules()).toEqual(
+    expect(normalizeRuleCategories(await api.getRules())).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           actions: expect.arrayContaining([

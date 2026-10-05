@@ -10,6 +10,7 @@ import type { NumberFormats } from '#shared/util';
 type FormulaPreferencesOptions = {
   selectedLocale?: string;
   browserLocale?: string;
+  budgetId?: string;
 };
 
 type CurrencySymbolPosition = 'before' | 'after';
@@ -106,6 +107,7 @@ const DEFAULT_CURRENCY_SYMBOL_POSITION: CurrencySymbolPosition = 'before';
 export async function loadUserPreferencesForFormulas({
   selectedLocale,
   browserLocale,
+  budgetId,
 }: FormulaPreferencesOptions = {}): Promise<UserPreferences> {
   try {
     const preferencesQuery = await aqlQuery(
@@ -120,7 +122,15 @@ export async function loadUserPreferencesForFormulas({
     }
 
     const isCurrencyFeatureEnabled = preferences['flags.currency'] === 'true';
-    const currencyCode = preferences.defaultCurrencyCode ?? null;
+    const budgetCurrencyCode = budgetId
+      ? (
+          await aqlQuery(
+            q('budgets').filter({ id: budgetId }).select('currency_code'),
+          )
+        ).data[0]?.currency_code
+      : null;
+    const currencyCode =
+      budgetCurrencyCode ?? preferences.defaultCurrencyCode ?? null;
     const currencyFromPreference = isCurrencyFeatureEnabled
       ? getCurrencyFromPreference(currencyCode)
       : null;

@@ -162,6 +162,62 @@ describe('schedule app', () => {
       ).rejects.toThrow(/date condition is required/);
     });
 
+    it('binds schedule and linked rule ownership and rejects foreign references', async () => {
+      await db.insertWithSchema('budgets', {
+        id: 'budget-b',
+        name: 'Budget B',
+        currency_code: 'USD',
+        budget_type: 'envelope',
+        sort_order: 1,
+      });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'account-a',
+        name: 'Account A',
+      });
+      await db.insertAccount({
+        budget_id: 'budget-b',
+        id: 'account-b',
+        name: 'Account B',
+      });
+
+      const scheduleId = await createSchedule({
+        budgetId: 'budget-b',
+        conditions: [
+          { op: 'is', field: 'account', value: 'account-b' },
+          { op: 'is', field: 'date', value: '2025-03-15' },
+        ],
+      });
+      const {
+        data: [schedule],
+      } = await aqlQuery(q('schedules').filter({ id: scheduleId }).select('*'));
+      const { data: rule } = await aqlQuery(
+        q('rules').filter({ id: schedule.rule }).select('*'),
+      );
+      expect(schedule.budget_id).toBe('budget-b');
+      expect(rule[0].budget_id).toBe('budget-b');
+
+      await expect(
+        createSchedule({
+          budgetId: 'default',
+          conditions: [
+            { op: 'is', field: 'account', value: 'account-b' },
+            { op: 'is', field: 'date', value: '2025-03-15' },
+          ],
+        }),
+      ).rejects.toThrow(/requested budget/);
+      await expect(
+        updateSchedule({
+          schedule: { id: scheduleId, budget_id: 'default' },
+        }),
+      ).rejects.toThrow(/ownership cannot be changed/);
+      expect(
+        await db.first<{ count: number }>(
+          'SELECT count(*) as count FROM schedules',
+        ),
+      ).toEqual({ count: 1 });
+    });
+
     it('identifies schedules with split actions', async () => {
       const id = await createSchedule({
         conditions: [{ op: 'is', field: 'date', value: '2020-12-20' }],
@@ -707,6 +763,77 @@ describe('schedule app', () => {
         } = await aqlQuery(q('schedules').filter({ id }).select(['next_date']));
 
         expect(schedule.next_date).toBe('2017-01-02');
+      } finally {
+        MockDate.reset();
+        await schedulesApp.stopServices();
+      }
+    });
+
+    it('posts due schedules for inactive budgets into their owning accounts', async () => {
+      MockDate.set(new Date(2016, 11, 31, 12));
+      schedulesApp.startServices();
+
+      try {
+        await db.insertWithSchema('budgets', {
+          id: 'budget-b',
+          name: 'Budget B',
+          currency_code: 'USD',
+          budget_type: 'envelope',
+          sort_order: 1,
+        });
+        const accountA = await db.insertAccount({
+          budget_id: 'default',
+          name: 'Account A',
+          offbudget: 0,
+          closed: 0,
+        });
+        const accountB = await db.insertAccount({
+          budget_id: 'budget-b',
+          name: 'Account B',
+          offbudget: 0,
+          closed: 0,
+        });
+        const scheduleA = await createSchedule({
+          budgetId: 'default',
+          schedule: { posts_transaction: true },
+          conditions: [
+            { op: 'is', field: 'account', value: accountA },
+            { op: 'is', field: 'amount', value: -100 },
+            { op: 'is', field: 'date', value: '2016-12-31' },
+          ],
+        });
+        const scheduleB = await createSchedule({
+          budgetId: 'budget-b',
+          schedule: { posts_transaction: true },
+          conditions: [
+            { op: 'is', field: 'account', value: accountB },
+            { op: 'is', field: 'amount', value: -200 },
+            { op: 'is', field: 'date', value: '2016-12-31' },
+          ],
+        });
+
+        const { data: dueSchedules } = await aqlQuery(
+          q('schedules')
+            .filter({ completed: false, '_account.closed': false })
+            .select(['id', 'budget_id', 'next_date', 'posts_transaction']),
+        );
+        expect(dueSchedules).toHaveLength(2);
+        await advanceSchedulesService(true);
+
+        const { data: posted } = await aqlQuery(
+          q('transactions')
+            .filter({ schedule: { $oneof: [scheduleA, scheduleB] } })
+            .select(['schedule', 'account']),
+        );
+        expect(posted).toHaveLength(2);
+        expect(
+          posted.map(({ schedule, account }) => ({ schedule, account })),
+        ).toEqual(
+          expect.arrayContaining([
+            { schedule: scheduleA, account: accountA },
+            { schedule: scheduleB, account: accountB },
+          ]),
+        );
       } finally {
         MockDate.reset();
         await schedulesApp.stopServices();

@@ -106,9 +106,9 @@ export function AccountSyncCheck() {
 
       if (acc.account_id) {
         if (acc.account_sync_source === 'enableBanking') {
-          void authorizeEnableBanking(dispatch);
+          void authorizeEnableBanking(dispatch, acc.id, acc.budget_id);
         } else if (acc.account_sync_source === 'goCardless') {
-          void authorizeGoCardless(dispatch);
+          void authorizeGoCardless(dispatch, acc.id, acc.budget_id);
         }
       }
     },

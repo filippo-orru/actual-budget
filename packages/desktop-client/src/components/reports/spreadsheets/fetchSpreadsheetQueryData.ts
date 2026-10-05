@@ -56,6 +56,7 @@ export async function fetchSpreadsheetQueryData({
   const [assets, debts] = await Promise.all([
     aqlQuery(
       makeQuery(
+        budgetId,
         'assets',
         startDate,
         endDate,
@@ -66,6 +67,7 @@ export async function fetchSpreadsheetQueryData({
     ).then(({ data }) => data),
     aqlQuery(
       makeQuery(
+        budgetId,
         'debts',
         startDate,
         endDate,

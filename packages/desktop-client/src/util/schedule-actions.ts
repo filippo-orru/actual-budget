@@ -31,6 +31,7 @@ export function calculateFutureTransactionInfo(
 
 export async function createSingleTimeScheduleFromTransaction(
   transaction: TransactionEntity,
+  budgetId: string,
 ): Promise<ScheduleEntity['id']> {
   const conditions: RuleConditionEntity[] = [
     { op: 'is', field: 'date', value: transaction.date },
@@ -119,6 +120,7 @@ export async function createSingleTimeScheduleFromTransaction(
   const scheduleName = `Auto-created future transaction (${formattedDate}) - ${timestamp}`;
 
   const scheduleId = await send('schedule/create', {
+    budgetId,
     conditions,
     schedule: {
       posts_transaction: true,

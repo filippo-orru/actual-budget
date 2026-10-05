@@ -48,6 +48,7 @@ import { fromDateRepr } from '#components/reports/util';
 import type { TableHandleRef } from '#components/table';
 import { TransactionList } from '#components/transactions/TransactionList';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
 import { useCategories } from '#hooks/useCategories';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
@@ -93,6 +94,7 @@ type CalendarInnerProps = {
 };
 
 function CalendarInner({ widget, parameters }: CalendarInnerProps) {
+  const budgetId = useBudgetSpaceId();
   const locale = useLocale();
   const { t } = useTranslation();
   const format = useFormat();
@@ -179,13 +181,22 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
     }
 
     return calendarSpreadsheet(
+      budgetId,
       start,
       end,
       conditions,
       conditionsOp,
       firstDayOfWeekIdx,
     );
-  }, [start, end, conditions, conditionsOp, firstDayOfWeekIdx, dirty]);
+  }, [
+    budgetId,
+    start,
+    end,
+    conditions,
+    conditionsOp,
+    firstDayOfWeekIdx,
+    dirty,
+  ]);
 
   const [sortField, setSortField] = useState('');
   const [ascDesc, setAscDesc] = useState<'asc' | 'desc'>('desc');
@@ -198,6 +209,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
     })
       .then((data: { filters: unknown[] }) => {
         let query = q('transactions')
+          .filter({ 'account.budget_id': budgetId })
           .filter({
             [conditionsOpKey]: data.filters,
           })
@@ -220,7 +232,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
       .catch((error: unknown) => {
         console.error('Error generating filters:', error);
       });
-  }, [start, end, conditions, conditionsOp, sortField, ascDesc]);
+  }, [budgetId, start, end, conditions, conditionsOp, sortField, ascDesc]);
 
   const [flexAlignment, setFlexAlignment] = useState('center');
   const scrollbarContainer = useRef<HTMLDivElement>(null);
@@ -249,14 +261,18 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
 
   useEffect(() => {
     async function run() {
-      const earliestTransaction = await send('get-earliest-transaction');
+      const earliestTransaction = await send('get-earliest-transaction', {
+        budgetId,
+      });
       setEarliestTransaction(
         earliestTransaction
           ? earliestTransaction.date
           : monthUtils.currentDay(),
       );
 
-      const latestTransaction = await send('get-latest-transaction');
+      const latestTransaction = await send('get-latest-transaction', {
+        budgetId,
+      });
       setLatestTransaction(
         latestTransaction ? latestTransaction.date : monthUtils.currentDay(),
       );
@@ -297,7 +313,7 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
       setAllMonths(allMonths);
     }
     void run();
-  }, [locale]);
+  }, [locale, budgetId]);
 
   useEffect(() => {
     if (latestTransaction) {

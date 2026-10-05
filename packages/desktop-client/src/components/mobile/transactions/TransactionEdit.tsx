@@ -84,6 +84,7 @@ import { getPrettyPayee } from '#components/mobile/utils';
 import { MobilePageHeader, Page } from '#components/Page';
 import { shouldApplyRuleChange } from '#components/transactions/table/utils';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useLocalPref } from '#hooks/useLocalPref';
@@ -645,6 +646,7 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
     const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const budgetId = useBudgetSpaceId();
     const [showHiddenCategories] = useLocalPref('budget.showHiddenCategories');
     const [upcomingLength = DEFAULT_UPCOMING_SCHEDULE_DAYS] = useSyncedPref(
       'upcomingScheduledTransactionLength',
@@ -823,7 +825,10 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
 
       const createSchedule = async () => {
         try {
-          await createSingleTimeScheduleFromTransaction(transactionForSchedule);
+          await createSingleTimeScheduleFromTransaction(
+            transactionForSchedule,
+            budgetId,
+          );
         } catch {
           dispatch(
             addNotification({
@@ -898,6 +903,7 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
       unserializedTransactions,
       upcomingLength,
       t,
+      budgetId,
     ]);
 
     const onUpdateInner = useCallback(

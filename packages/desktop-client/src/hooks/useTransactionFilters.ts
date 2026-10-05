@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { q } from '@actual-app/core/shared/query';
 import type { TransactionFilterEntity } from '@actual-app/core/types/models';
 
+import { useBudgetSpaceId } from './useBudgetSpace';
 import { useQuery } from './useQuery';
 
 function toJS(rows): TransactionFilterEntity[] {
@@ -21,9 +22,10 @@ function toJS(rows): TransactionFilterEntity[] {
 }
 
 export function useTransactionFilters(): TransactionFilterEntity[] {
+  const budgetId = useBudgetSpaceId();
   const { data } = useQuery<TransactionFilterEntity>(
-    () => q('transaction_filters').select('*'),
-    [],
+    () => q('transaction_filters').filter({ budget_id: budgetId }).select('*'),
+    [budgetId],
   );
 
   return useMemo(

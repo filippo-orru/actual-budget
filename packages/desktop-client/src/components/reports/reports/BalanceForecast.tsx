@@ -37,7 +37,7 @@ import { Header } from '#components/reports/Header';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { useAccounts } from '#hooks/useAccounts';
 import { useBalanceForecast } from '#hooks/useBalanceForecast';
-import { useBudgetSpace } from '#hooks/useBudgetSpace';
+import { useBudgetSpace, useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -80,6 +80,7 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
   const locale = useLocale();
   const dispatch = useDispatch();
   const { data: accounts = [] } = useAccounts();
+  const budgetId = useBudgetSpaceId();
   const budgetType = useBudgetSpace().budget_type;
 
   const {
@@ -212,6 +213,7 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
 
       const earliestTransactionResponse = await send(
         'get-earliest-transaction',
+        { budgetId },
       );
 
       const earliestMonth = earliestTransactionResponse
@@ -263,7 +265,7 @@ function BalanceForecastInner({ widget }: BalanceForecastInnerProps) {
     return () => {
       cancelled = true;
     };
-  }, [locale, end, normalizedForecastData?.forecastEndDate]);
+  }, [budgetId, locale, end, normalizedForecastData?.forecastEndDate]);
 
   const onChangeDates = (
     newStart: string,

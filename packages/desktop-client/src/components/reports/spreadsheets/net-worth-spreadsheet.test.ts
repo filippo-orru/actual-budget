@@ -113,6 +113,7 @@ async function runReport({
 
   let report: SpreadsheetData | undefined;
   const spreadsheet = createSpreadsheet(
+    'default',
     start,
     end,
     accounts,

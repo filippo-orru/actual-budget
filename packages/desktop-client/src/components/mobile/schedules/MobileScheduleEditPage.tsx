@@ -20,6 +20,7 @@ import { MobileBackButton } from '#components/mobile/MobileBackButton';
 import { MobilePageHeader, Page } from '#components/Page';
 import { updateScheduleConditions } from '#components/schedules/schedule-edit-utils';
 import { ScheduleEditForm } from '#components/schedules/ScheduleEditForm';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
 import { useScheduleEdit } from '#hooks/useScheduleEdit';
 import { useSelected } from '#hooks/useSelected';
@@ -29,6 +30,7 @@ import { aqlQuery } from '#queries/aqlQuery';
 export function MobileScheduleEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const { id } = useParams<{ id?: string }>();
   const { showUndoNotification } = useUndo();
 
@@ -74,7 +76,9 @@ export function MobileScheduleEditPage() {
 
     if (state.fields.name) {
       const { data: sameName } = await aqlQuery(
-        q('schedules').filter({ name: state.fields.name }).select('id'),
+        q('schedules')
+          .filter({ budget_id: budgetId, name: state.fields.name })
+          .select('id'),
       );
       if (sameName.length > 0 && sameName[0].id !== state.schedule.id) {
         dispatch({
@@ -98,6 +102,7 @@ export function MobileScheduleEditPage() {
     const res = await sendCatch(
       adding ? 'schedule/create' : 'schedule/update',
       {
+        budgetId,
         schedule: {
           id: state.schedule.id,
           posts_transaction: state.fields.posts_transaction,

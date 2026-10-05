@@ -50,7 +50,7 @@ describe('MobilePayeesPage', () => {
 
     queryClient.setQueryData(payeeQueries.list().queryKey, mockPayees);
     queryClient.setQueryData(
-      payeeQueries.ruleCounts().queryKey,
+      payeeQueries.ruleCounts('default').queryKey,
       new Map([
         ['payee-1', 2],
         ['payee-2', 0],
@@ -195,7 +195,10 @@ describe('MobilePayeesPage', () => {
   it('handles empty payee list', () => {
     // Set empty payee list in the cache
     queryClient.setQueryData(payeeQueries.list().queryKey, []);
-    queryClient.setQueryData(payeeQueries.ruleCounts().queryKey, new Map());
+    queryClient.setQueryData(
+      payeeQueries.ruleCounts('default').queryKey,
+      new Map(),
+    );
 
     renderPayeesPage();
 

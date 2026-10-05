@@ -48,6 +48,7 @@ import {
 } from '#components/reports/spreadsheets/sankey-spreadsheet';
 import type { Graph } from '#components/reports/spreadsheets/sankey-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormatList } from '#hooks/useFormatList';
@@ -576,6 +577,7 @@ function SankeyInner({ widget }: SankeyInnerProps) {
 
   const { data: { grouped: groupedCategories = [] } = { grouped: [] } } =
     useCategories();
+  const budgetId = useBudgetSpaceId();
 
   const baseGraphParams = useMemo(() => {
     if (!datesInitialized) {
@@ -590,6 +592,7 @@ function SankeyInner({ widget }: SankeyInnerProps) {
     );
 
     return createBaseGraphSpreadsheet(
+      budgetId,
       boundedStart,
       boundedEnd,
       groupedCategories,
@@ -600,6 +603,7 @@ function SankeyInner({ widget }: SankeyInnerProps) {
       showTransfers,
     );
   }, [
+    budgetId,
     earliestTransaction,
     latestTransaction,
     datesInitialized,
@@ -652,13 +656,17 @@ function SankeyInner({ widget }: SankeyInnerProps) {
 
   useEffect(() => {
     async function run() {
-      const earliestTransaction = await send('get-earliest-transaction');
+      const earliestTransaction = await send('get-earliest-transaction', {
+        budgetId,
+      });
       const earliestTransactionDate = earliestTransaction
         ? earliestTransaction.date
         : monthUtils.currentDay();
       setEarliestTransaction(earliestTransactionDate);
 
-      const latestTransaction = await send('get-latest-transaction');
+      const latestTransaction = await send('get-latest-transaction', {
+        budgetId,
+      });
       const latestTransactionDate = latestTransaction
         ? latestTransaction.date
         : monthUtils.currentDay();
@@ -694,7 +702,7 @@ function SankeyInner({ widget }: SankeyInnerProps) {
       setAllMonths(allMonths);
     }
     void run();
-  }, [locale, widget?.meta?.timeFrame]);
+  }, [locale, widget?.meta?.timeFrame, budgetId]);
   function onChangeDates(start: string, end: string, mode: TimeFrame['mode']) {
     setStart(start);
     setEnd(end);

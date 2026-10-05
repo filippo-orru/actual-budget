@@ -2,6 +2,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { createApp } from '#server/app';
 import { aqlQuery } from '#server/aql';
+import {
+  assertBudgetOwner,
+  getBudgetIdForEntity,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { ValidationError } from '#server/errors';
 import { requiredFields } from '#server/models';
@@ -95,22 +100,24 @@ function sort(reports: CustomReportEntity[]) {
   );
 }
 
-async function getReports() {
+async function getReports({ budgetId }: { budgetId: string }) {
+  await validateBudgetExists(budgetId);
   // Use aql because it auto deserialized json columns e.g. conditions
   const { data }: { data: CustomReportData[] } = await aqlQuery(
-    q('custom_reports').select('*'),
+    q('custom_reports').filter({ budget_id: budgetId }).select('*'),
   );
   return sort(data.map(r => reportModel.toJS(r)));
 }
 
 async function reportNameExists(
+  budgetId: string,
   name: string,
   reportId: string,
   newItem: boolean,
 ) {
   const idForName = await db.first<Pick<db.DbCustomReport, 'id'>>(
-    'SELECT id from custom_reports WHERE tombstone = 0 AND name = ?',
-    [name],
+    'SELECT id from custom_reports WHERE tombstone = 0 AND budget_id = ? AND name = ?',
+    [budgetId, name],
   );
 
   //no existing name found
@@ -133,7 +140,47 @@ async function reportNameExists(
   return true;
 }
 
+export async function validateReportReferences(
+  report: CustomReportEntity,
+  budgetId: string,
+) {
+  const references: Array<{
+    table: 'accounts' | 'categories' | 'category_groups' | 'schedules';
+    id: string;
+  }> = [];
+  for (const condition of report.conditions ?? []) {
+    const table =
+      condition.field === 'account'
+        ? 'accounts'
+        : condition.field === 'category'
+          ? 'categories'
+          : condition.field === 'category_group'
+            ? 'category_groups'
+            : null;
+    if (!table) {
+      continue;
+    }
+    const values =
+      condition.op === 'oneOf' || condition.op === 'notOneOf'
+        ? condition.value
+        : [condition.value];
+    for (const id of values ?? []) {
+      if (typeof id === 'string' && id.length > 0) {
+        references.push({ table, id });
+      }
+    }
+  }
+  if (references.length > 0) {
+    await assertBudgetOwner(budgetId, references);
+  }
+}
+
 async function createReport(report: CustomReportEntity) {
+  if (!report.budget_id) {
+    throw new ValidationError('Budget ID is required to create a report');
+  }
+  await validateBudgetExists(report.budget_id);
+  await validateReportReferences(report, report.budget_id);
   const reportId = uuidv4();
   const item: CustomReportEntity = {
     ...report,
@@ -143,7 +190,12 @@ async function createReport(report: CustomReportEntity) {
     throw new Error('Report name is required');
   }
 
-  const nameExists = await reportNameExists(item.name, item.id ?? '', true);
+  const nameExists = await reportNameExists(
+    item.budget_id,
+    item.name,
+    item.id ?? '',
+    true,
+  );
   if (nameExists) {
     throw new Error('There is already a report named ' + item.name);
   }
@@ -163,7 +215,20 @@ async function updateReport(item: CustomReportEntity) {
     throw new Error('Report recall error');
   }
 
-  const nameExists = await reportNameExists(item.name, item.id, false);
+  const budgetId = await getBudgetIdForEntity({
+    table: 'custom_reports',
+    id: item.id,
+  });
+  if (item.budget_id !== budgetId) {
+    throw new ValidationError('Report ownership cannot be changed');
+  }
+  await validateReportReferences(item, budgetId);
+  const nameExists = await reportNameExists(
+    budgetId,
+    item.name,
+    item.id,
+    false,
+  );
   if (nameExists) {
     throw new Error('There is already a report named ' + item.name);
   }
@@ -172,6 +237,7 @@ async function updateReport(item: CustomReportEntity) {
 }
 
 async function deleteReport(id: CustomReportEntity['id']) {
+  await getBudgetIdForEntity({ table: 'custom_reports', id });
   await db.delete_('custom_reports', id);
 }
 

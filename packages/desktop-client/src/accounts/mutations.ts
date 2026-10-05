@@ -377,6 +377,7 @@ export function useUnlinkAccountMutation() {
 
 // Shared base type for link account payloads
 type LinkAccountBasePayload = {
+  budgetId?: string;
   upgradingId?: AccountEntity['id'];
   offBudget?: boolean;
   startingDate?: string;
@@ -396,6 +397,7 @@ export function useLinkAccountMutation() {
 
   return useMutation({
     mutationFn: async ({
+      budgetId: targetBudgetId,
       requisitionId,
       account,
       upgradingId,
@@ -404,7 +406,7 @@ export function useLinkAccountMutation() {
       startingBalance,
     }: LinkAccountPayload) => {
       await send('gocardless-accounts-link', {
-        budgetId,
+        budgetId: targetBudgetId ?? budgetId,
         requisitionId,
         account,
         upgradingId,
@@ -440,6 +442,7 @@ export function useLinkAccountSimpleFinMutation() {
 
   return useMutation({
     mutationFn: async ({
+      budgetId: targetBudgetId,
       externalAccount,
       upgradingId,
       offBudget,
@@ -447,7 +450,7 @@ export function useLinkAccountSimpleFinMutation() {
       startingBalance,
     }: LinkAccountSimpleFinPayload) => {
       await send('simplefin-accounts-link', {
-        budgetId,
+        budgetId: targetBudgetId ?? budgetId,
         externalAccount,
         upgradingId,
         offBudget,
@@ -484,6 +487,7 @@ export function useLinkAccountPluggyAiMutation() {
 
   return useMutation({
     mutationFn: async ({
+      budgetId: targetBudgetId,
       externalAccount,
       upgradingId,
       offBudget,
@@ -491,7 +495,7 @@ export function useLinkAccountPluggyAiMutation() {
       startingBalance,
     }: LinkAccountPluggyAiPayload) => {
       await send('pluggyai-accounts-link', {
-        budgetId,
+        budgetId: targetBudgetId ?? budgetId,
         externalAccount,
         upgradingId,
         offBudget,
@@ -528,6 +532,7 @@ export function useLinkAccountAkahuMutation() {
 
   return useMutation({
     mutationFn: async ({
+      budgetId: targetBudgetId,
       externalAccount,
       upgradingId,
       offBudget,
@@ -535,7 +540,7 @@ export function useLinkAccountAkahuMutation() {
       startingBalance,
     }: LinkAccountAkahuPayload) => {
       await send('akahu-accounts-link', {
-        budgetId,
+        budgetId: targetBudgetId ?? budgetId,
         externalAccount,
         upgradingId,
         offBudget,
@@ -570,6 +575,7 @@ export function useLinkAccountEnableBankingMutation() {
 
   return useMutation({
     mutationFn: async ({
+      budgetId: targetBudgetId,
       externalAccount,
       upgradingId,
       offBudget,
@@ -577,7 +583,7 @@ export function useLinkAccountEnableBankingMutation() {
       startingBalance,
     }: LinkAccountEnableBankingPayload) => {
       await send('enablebanking-accounts-link', {
-        budgetId,
+        budgetId: targetBudgetId ?? budgetId,
         externalAccount,
         upgradingId,
         offBudget,

@@ -84,6 +84,7 @@ export async function generateForecast({
       [budgetId],
     );
     const accounts = await resolveForecastAccounts({
+      budgetId,
       accountIds: budgetAccounts.map(account => account.id),
       plainConditions: [],
       resolvedConditionsOp: 'and',
@@ -108,6 +109,7 @@ export async function generateForecast({
     conditionsOp,
   );
   let accounts = await resolveForecastAccounts({
+    budgetId,
     accountIds,
     plainConditions,
     resolvedConditionsOp,
@@ -135,9 +137,12 @@ export async function generateForecast({
     getTransactions(accountIdsToQuery, filterInfo),
     db.getAllAccounts(),
   ]);
+  const ownedSchedules = schedulesRaw.filter(
+    schedule => schedule.budget_id === budgetId,
+  );
   const schedules = includeUnassigned
-    ? schedulesRaw
-    : schedulesRaw.filter(
+    ? ownedSchedules
+    : ownedSchedules.filter(
         schedule => schedule._account !== FORECAST_UNASSIGNED_ACCOUNT_ID,
       );
 

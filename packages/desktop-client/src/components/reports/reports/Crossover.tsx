@@ -39,6 +39,7 @@ import { createCrossoverSpreadsheet } from '#components/reports/spreadsheets/cro
 import type { CrossoverData } from '#components/reports/spreadsheets/crossover-spreadsheet';
 import { useReport } from '#components/reports/useReport';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
@@ -72,6 +73,7 @@ export function Crossover() {
 type CrossoverInnerProps = { widget?: CrossoverWidget };
 
 function CrossoverInner({ widget }: CrossoverInnerProps) {
+  const budgetId = useBudgetSpaceId();
   const locale = useLocale();
   const { t } = useTranslation();
   const dispatch = useDispatch();
@@ -169,7 +171,9 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
 
   useEffect(() => {
     async function run() {
-      const earliestTransactionData = await send('get-earliest-transaction');
+      const earliestTransactionData = await send('get-earliest-transaction', {
+        budgetId,
+      });
 
       const currentMonth = monthUtils.currentMonth();
       const previousMonth = monthUtils.subMonths(currentMonth, 1);
@@ -195,7 +199,7 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
       setAllMonths(allMonths);
     }
     void run();
-  }, [locale]);
+  }, [locale, budgetId]);
 
   useEffect(() => {
     if (latestTransaction && allMonths?.length) {
@@ -339,6 +343,7 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
       }
 
       const crossoverSpreadsheet = createCrossoverSpreadsheet({
+        budgetId,
         start,
         end,
         expenseCategoryIds,
@@ -354,6 +359,7 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
       await crossoverSpreadsheet(spreadsheet, setData);
     },
     [
+      budgetId,
       start,
       end,
       swr,

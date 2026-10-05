@@ -37,6 +37,7 @@ import { calculateTimeRange } from '#components/reports/reportRanges';
 import { createAgeOfMoneySpreadsheet } from '#components/reports/spreadsheets/age-of-money-spreadsheet';
 import { useReport } from '#components/reports/useReport';
 import { fromDateRepr } from '#components/reports/util';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useLocale } from '#hooks/useLocale';
 import { useNavigate } from '#hooks/useNavigate';
@@ -83,6 +84,7 @@ function AgeOfMoneyInner({ widget }: AgeOfMoneyInnerProps) {
     widget?.meta?.conditionsOp,
   );
 
+  const budgetId = useBudgetSpaceId();
   const [allMonths, setAllMonths] = useState<Array<{
     name: string;
     pretty: string;
@@ -104,24 +106,27 @@ function AgeOfMoneyInner({ widget }: AgeOfMoneyInnerProps) {
   const reportParams = useMemo(
     () =>
       createAgeOfMoneySpreadsheet({
+        budgetId,
         start,
         end,
         conditions,
         conditionsOp,
         granularity,
       }),
-    [start, end, conditions, conditionsOp, granularity],
+    [budgetId, start, end, conditions, conditionsOp, granularity],
   );
   const data = useReport('age_of_money', reportParams);
 
   useEffect(() => {
     async function run() {
-      const earliestTrans = await send('get-earliest-transaction');
+      const earliestTrans = await send('get-earliest-transaction', {
+        budgetId,
+      });
       setEarliestTransaction(
         earliestTrans ? earliestTrans.date : monthUtils.currentDay(),
       );
 
-      const latestTrans = await send('get-latest-transaction');
+      const latestTrans = await send('get-latest-transaction', { budgetId });
       setLatestTransaction(
         latestTrans ? latestTrans.date : monthUtils.currentDay(),
       );
@@ -155,7 +160,7 @@ function AgeOfMoneyInner({ widget }: AgeOfMoneyInnerProps) {
       setAllMonths(months);
     }
     void run();
-  }, [locale]);
+  }, [locale, budgetId]);
 
   useEffect(() => {
     if (latestTransaction) {

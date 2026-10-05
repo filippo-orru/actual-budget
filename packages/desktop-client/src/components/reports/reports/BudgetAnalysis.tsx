@@ -144,6 +144,7 @@ type BudgetAnalysisInternalProps = {
 };
 
 function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
+  const budgetId = useBudgetSpaceId();
   const locale = useLocale();
   const dispatch = useDispatch();
   const { t } = useTranslation();
@@ -202,8 +203,10 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
 
   useEffect(() => {
     async function run() {
-      const earliestTrans = await send('get-earliest-transaction');
-      const latestTrans = await send('get-latest-transaction');
+      const earliestTrans = await send('get-earliest-transaction', {
+        budgetId,
+      });
+      const latestTrans = await send('get-latest-transaction', { budgetId });
       const latestTransDate = latestTrans
         ? fromDateRepr(latestTrans.date)
         : monthUtils.currentDay();
@@ -266,13 +269,12 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
       }
     }
     void run();
-  }, [locale, widget?.meta?.timeFrame]);
+  }, [locale, widget?.meta?.timeFrame, budgetId]);
 
   // `start`/`end` may be `yyyy-MM` or `yyyy-MM-dd`; collapse to months first.
   const startDate = `${monthUtils.getMonth(start)}-01`;
   const endDate = monthUtils.getMonthEnd(`${monthUtils.getMonth(end)}-01`);
 
-  const budgetId = useBudgetSpaceId();
   const getGraphData = useMemo(
     () =>
       createBudgetAnalysisSpreadsheet({

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '#platform/server/log';
 import { send } from '#server/main-app';
 import { ruleModel } from '#server/transactions/transaction-rules';
+import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import * as monthUtils from '#shared/months';
 import { q } from '#shared/query';
 import { groupBy, sortByKey } from '#shared/util';
@@ -279,6 +280,7 @@ function importAccounts(
     data.accounts.map(async account => {
       if (!account.deleted) {
         const id = await send('api/account-create', {
+          budgetId: DEFAULT_BUDGET_ID,
           account: {
             name: account.name,
             offbudget: account.on_budget ? false : true,
@@ -300,7 +302,9 @@ async function importCategories(
   // Hidden categories are put in its own group by YNAB,
   // so it's already handled.
 
-  const categories = await send('api/categories-get');
+  const categories = await send('api/categories-get', {
+    budgetId: DEFAULT_BUDGET_ID,
+  });
   const incomeCatId = findIdByName(categories, 'Income');
   const ynabIncomeCategories = ['To be Budgeted', 'Inflow: Ready to Assign'];
 
@@ -344,6 +348,7 @@ async function importCategories(
       const name = count === 0 ? baseName : `${baseName} (${count})`;
       try {
         const id = await send('api/category-group-create', {
+          budgetId: DEFAULT_BUDGET_ID,
           group: { ...params, name },
         });
         return { id, name };
@@ -369,6 +374,7 @@ async function importCategories(
       const name = count === 0 ? baseName : `${baseName} (${count})`;
       try {
         const id = await send('api/category-create', {
+          budgetId: DEFAULT_BUDGET_ID,
           category: { ...params, name },
         });
         return { id, name };
@@ -593,7 +599,9 @@ export async function importTransactions(
   tick?: ImportTick,
 ) {
   const payees = await send('api/payees-get');
-  const categories = await send('api/categories-get');
+  const categories = await send('api/categories-get', {
+    budgetId: DEFAULT_BUDGET_ID,
+  });
   const incomeCatId = findIdByName(categories, 'Income');
   const startingBalanceCatId = findIdByName(categories, 'Starting Balances'); //better way to do it?
 
@@ -910,8 +918,8 @@ export async function importScheduledTransactions(
     while (true) {
       try {
         return await send('api/schedule-create', {
-          ...params,
-          name: params.name,
+          schedule: { ...params, name: params.name },
+          budgetId: DEFAULT_BUDGET_ID,
         });
       } catch (e) {
         if (count >= MAX_RETRY) {
@@ -1172,6 +1180,7 @@ async function importBudgets(
           }
 
           await send('api/budget-set-amount', {
+            budgetId: DEFAULT_BUDGET_ID,
             month,
             categoryId: catId,
             amount,

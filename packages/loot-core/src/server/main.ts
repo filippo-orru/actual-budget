@@ -15,6 +15,7 @@ import { installAPI } from './api';
 import { aqlQuery } from './aql';
 import { app as authApp } from './auth/app';
 import { app as budgetSpacesApp } from './budget-spaces/app';
+import { startBudgetIntegrityMonitor } from './budget-spaces/integrity';
 import { app as budgetApp } from './budget/app';
 import { app as budgetFilesApp } from './budgetfiles/app';
 import { app as dashboardApp } from './dashboard/app';
@@ -157,6 +158,8 @@ app.combine(
   encryptionApp,
   tagsApp,
 );
+
+app.service(startBudgetIntegrityMonitor);
 
 export function getDefaultDocumentDir() {
   return fs.join(process.env.ACTUAL_DOCUMENT_DIR, 'Actual');

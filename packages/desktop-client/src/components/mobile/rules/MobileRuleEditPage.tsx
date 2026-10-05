@@ -12,6 +12,7 @@ import type { NewRuleEntity, RuleEntity } from '@actual-app/core/types/models';
 import { MobileBackButton } from '#components/mobile/MobileBackButton';
 import { MobilePageHeader, Page } from '#components/Page';
 import { RuleEditor } from '#components/rules/RuleEditor';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
 import { useSchedules } from '#hooks/useSchedules';
 import { useUndo } from '#hooks/useUndo';
@@ -25,6 +26,7 @@ export function MobileRuleEditPage() {
   const { id } = useParams<{ id?: string }>();
   const location = useLocation();
   const dispatch = useDispatch();
+  const budgetId = useBudgetSpaceId();
   const { showUndoNotification } = useUndo();
   // Carries the rules list filter so it survives the round trip.
   const rulesListPath = `/rules${location.search}`;
@@ -122,7 +124,7 @@ export function MobileRuleEditPage() {
             message: t('Are you sure you want to delete this rule?'),
             onConfirm: async () => {
               try {
-                await send('rule-delete', id);
+                await send('rule-delete', { id, budgetId });
                 showUndoNotification({
                   message: t('Rule deleted successfully'),
                 });

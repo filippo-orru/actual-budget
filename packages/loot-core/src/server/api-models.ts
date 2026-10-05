@@ -267,28 +267,37 @@ export const scheduleModel = {
   },
   //just an update
 
-  fromExternal(schedule: APIScheduleEntity): ScheduleEntity {
+  fromExternal(
+    schedule: APIScheduleEntity,
+    budgetId = DEFAULT_BUDGET_ID,
+  ): ScheduleEntity {
     const amount = schedule.amount ?? 0;
+    const conditions: ScheduleEntity['_conditions'] = [];
+    if (schedule.payee) {
+      conditions.push({ op: 'is', field: 'payee', value: schedule.payee });
+    }
+    if (schedule.account) {
+      conditions.push({ op: 'is', field: 'account', value: schedule.account });
+    }
+    conditions.push(
+      { op: 'isapprox', field: 'date', value: schedule.date },
+      { op: schedule.amountOp, field: 'amount', value: amount },
+    );
     const result: ScheduleEntity = {
       id: schedule.id,
-      budget_id: DEFAULT_BUDGET_ID,
+      budget_id: budgetId,
       name: schedule.name,
       rule: String(schedule.rule),
       next_date: String(schedule.next_date),
       completed: Boolean(schedule.completed),
       posts_transaction: schedule.posts_transaction,
       tombstone: false,
-      _payee: String(schedule.payee),
-      _account: String(schedule.account),
+      _payee: schedule.payee ?? '',
+      _account: schedule.account ?? '',
       _amount: amount,
       _amountOp: schedule.amountOp, // e.g. 'isapprox', 'is', etc.
       _date: schedule.date,
-      _conditions: [
-        { op: 'is', field: 'payee', value: String(schedule.payee) },
-        { op: 'is', field: 'account', value: String(schedule.account) },
-        { op: 'isapprox', field: 'date', value: schedule.date },
-        { op: schedule.amountOp, field: 'amount', value: amount },
-      ],
+      _conditions: conditions,
       _actions: [], // empty array, as you requested
     };
 

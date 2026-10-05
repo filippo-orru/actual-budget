@@ -18,6 +18,7 @@ import { liveQuery } from '#queries/liveQuery';
 import type { LiveQuery } from '#queries/liveQuery';
 import { getStatusLabel } from '#util/schedule';
 
+import { useBudgetSpaceId } from './useBudgetSpace';
 import { useSyncedPref } from './useSyncedPref';
 
 export type ScheduleStatusLabelType = ReturnType<typeof getStatusLabel>;
@@ -76,6 +77,7 @@ export function useSchedules({
     statusLabels: new Map(),
   });
   const [upcomingLength] = useSyncedPref('upcomingScheduledTransactionLength');
+  const budgetId = useBudgetSpaceId();
 
   const scheduleQueryRef = useRef<LiveQuery<ScheduleEntity> | null>(null);
   const statusQueryRef = useRef<LiveQuery<TransactionEntity> | null>(null);
@@ -104,7 +106,8 @@ export function useSchedules({
 
     setIsLoading(true);
 
-    scheduleQueryRef.current = liveQuery<ScheduleEntity>(query, {
+    const scopedQuery = query.filter({ budget_id: budgetId });
+    scheduleQueryRef.current = liveQuery<ScheduleEntity>(scopedQuery, {
       onData: async schedules => {
         // `onData` fires again whenever the schedules change, so tear down the
         // previous status query first. Otherwise each refresh orphans a live
@@ -139,7 +142,7 @@ export function useSchedules({
       scheduleQueryRef.current?.unsubscribe();
       statusQueryRef.current?.unsubscribe();
     };
-  }, [query, upcomingLength]);
+  }, [query, upcomingLength, budgetId]);
 
   return {
     isLoading,

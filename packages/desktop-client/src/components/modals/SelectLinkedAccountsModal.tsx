@@ -169,30 +169,35 @@ export type SelectLinkedAccountsModalProps =
       externalAccounts: SyncServerGoCardlessAccount[];
       syncSource: 'goCardless';
       upgradingAccountId?: string;
+      budgetId: string;
     }
   | {
       requisitionId?: undefined;
       externalAccounts: SyncServerSimpleFinAccount[];
       syncSource: 'simpleFin';
       upgradingAccountId?: string;
+      budgetId: string;
     }
   | {
       requisitionId?: undefined;
       externalAccounts: SyncServerPluggyAiAccount[];
       syncSource: 'pluggyai';
       upgradingAccountId?: string;
+      budgetId: string;
     }
   | {
       requisitionId?: undefined;
       externalAccounts: SyncServerEnableBankingAccount[];
       syncSource: 'enableBanking';
       upgradingAccountId?: string;
+      budgetId: string;
     }
   | {
       requisitionId?: undefined;
       externalAccounts: SyncServerAkahuAccount[];
       syncSource: 'akahu';
       upgradingAccountId?: string;
+      budgetId: string;
     };
 
 export function SelectLinkedAccountsModal(
@@ -211,6 +216,7 @@ function SelectLinkedAccountsModalContent({
   externalAccounts,
   syncSource,
   upgradingAccountId,
+  budgetId,
 }: SelectLinkedAccountsModalProps) {
   const propsWithSortedExternalAccounts =
     useMemo<SelectLinkedAccountsModalProps>(() => {
@@ -226,18 +232,21 @@ function SelectLinkedAccountsModalContent({
             syncSource: 'simpleFin',
             externalAccounts: toSort as SyncServerSimpleFinAccount[],
             upgradingAccountId,
+            budgetId,
           };
         case 'pluggyai':
           return {
             syncSource: 'pluggyai',
             externalAccounts: toSort as SyncServerPluggyAiAccount[],
             upgradingAccountId,
+            budgetId,
           };
         case 'akahu':
           return {
             syncSource: 'akahu',
             externalAccounts: toSort as SyncServerAkahuAccount[],
             upgradingAccountId,
+            budgetId,
           };
         case 'goCardless':
           return {
@@ -245,23 +254,33 @@ function SelectLinkedAccountsModalContent({
             requisitionId: requisitionId!,
             externalAccounts: toSort as SyncServerGoCardlessAccount[],
             upgradingAccountId,
+            budgetId,
           };
         case 'enableBanking':
           return {
             syncSource: 'enableBanking',
             externalAccounts: toSort as SyncServerEnableBankingAccount[],
             upgradingAccountId,
+            budgetId,
           };
         default:
           throw new Error(`Unrecognized sync source: ${String(syncSource)}`);
       }
-    }, [externalAccounts, syncSource, requisitionId, upgradingAccountId]);
+    }, [
+      externalAccounts,
+      syncSource,
+      requisitionId,
+      upgradingAccountId,
+      budgetId,
+    ]);
 
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
   const dispatch = useDispatch();
   const { data: allAccounts = [] } = useAccounts();
-  const localAccounts = allAccounts.filter(a => a.closed === 0);
+  const localAccounts = allAccounts.filter(
+    account => account.closed === 0 && account.budget_id === budgetId,
+  );
   const { initialDraftLinkAccounts, initiallyChosenAccounts } = useMemo(
     () =>
       computeInitialLinkState(
@@ -327,6 +346,7 @@ function SelectLinkedAccountsModalContent({
 
         if (propsWithSortedExternalAccounts.syncSource === 'simpleFin') {
           linkAccountSimpleFin.mutate({
+            budgetId,
             externalAccount:
               propsWithSortedExternalAccounts.externalAccounts[
                 externalAccountIndex
@@ -342,6 +362,7 @@ function SelectLinkedAccountsModalContent({
           });
         } else if (propsWithSortedExternalAccounts.syncSource === 'pluggyai') {
           linkAccountPluggyAi.mutate({
+            budgetId,
             externalAccount:
               propsWithSortedExternalAccounts.externalAccounts[
                 externalAccountIndex
@@ -357,6 +378,7 @@ function SelectLinkedAccountsModalContent({
           });
         } else if (propsWithSortedExternalAccounts.syncSource === 'akahu') {
           linkAccountAkahu.mutate({
+            budgetId,
             externalAccount:
               propsWithSortedExternalAccounts.externalAccounts[
                 externalAccountIndex
@@ -374,6 +396,7 @@ function SelectLinkedAccountsModalContent({
           propsWithSortedExternalAccounts.syncSource === 'enableBanking'
         ) {
           linkAccountEnableBanking.mutate({
+            budgetId,
             externalAccount:
               propsWithSortedExternalAccounts.externalAccounts[
                 externalAccountIndex
@@ -389,6 +412,7 @@ function SelectLinkedAccountsModalContent({
           });
         } else {
           linkAccount.mutate({
+            budgetId,
             requisitionId: propsWithSortedExternalAccounts.requisitionId,
             account:
               propsWithSortedExternalAccounts.externalAccounts[

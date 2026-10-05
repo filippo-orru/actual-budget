@@ -15,6 +15,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import type { AppDispatch } from '#redux/store';
@@ -119,13 +120,17 @@ type CreateReportMutationPayload = {
 };
 
 export function useCreateReportMutation() {
+  const budgetId = useBudgetSpaceId();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: async ({ report }: CreateReportMutationPayload) => {
-      return await sendThrow('report/create', report);
+      return await sendThrow('report/create', {
+        ...report,
+        budget_id: budgetId,
+      });
     },
     onSuccess: () => invalidateReportQueries(queryClient),
     onError: error => {
@@ -144,13 +149,14 @@ type CreateDashboardPageMutationPayload = {
 };
 
 export function useCreateDashboardPageMutation() {
+  const budgetId = useBudgetSpaceId();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: async ({ name }: CreateDashboardPageMutationPayload) => {
-      return await sendThrow('dashboard-create', { name });
+      return await sendThrow('dashboard-create', { name, budgetId });
     },
     onSuccess: () => invalidateDashboardQueries(queryClient),
     onError: error => {

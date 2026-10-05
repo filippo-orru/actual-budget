@@ -395,12 +395,12 @@ export function mergePayees(
   return send('api/payees-merge', { targetId, mergeIds });
 }
 
-export function getRules() {
-  return send('api/rules-get');
+export function getRules(budgetId?: string) {
+  return send('api/rules-get', { budgetId });
 }
 
-export function getPayeeRules(id: RuleEntity['id']) {
-  return send('api/payee-rules-get', { id });
+export function getPayeeRules(id: RuleEntity['id'], budgetId?: string) {
+  return send('api/payee-rules-get', { id, budgetId });
 }
 
 export function createRule(rule: Omit<APIRuleEntity, 'id'>, budgetId?: string) {
@@ -411,8 +411,8 @@ export function updateRule(rule: APIRuleEntity) {
   return send('api/rule-update', { rule });
 }
 
-export function deleteRule(id: RuleEntity['id']) {
-  return send('api/rule-delete', id);
+export function deleteRule(id: RuleEntity['id'], budgetId?: string) {
+  return send('api/rule-delete', { id, budgetId });
 }
 
 export function holdBudgetForNextMonth(month: string, amount: number) {
@@ -423,8 +423,11 @@ export function resetBudgetHold(month: string) {
   return send('api/budget-reset-hold', { month });
 }
 
-export function createSchedule(schedule: Omit<APIScheduleEntity, 'id'>) {
-  return send('api/schedule-create', schedule);
+export function createSchedule(
+  schedule: Omit<APIScheduleEntity, 'id'>,
+  budgetId?: string,
+) {
+  return send('api/schedule-create', { schedule, budgetId });
 }
 
 export function updateSchedule(
@@ -439,19 +442,23 @@ export function updateSchedule(
   });
 }
 
-export function deleteSchedule(scheduleId: APIScheduleEntity['id']) {
-  return send('api/schedule-delete', scheduleId);
+export function deleteSchedule(
+  scheduleId: APIScheduleEntity['id'],
+  budgetId?: string,
+) {
+  return send('api/schedule-delete', { id: scheduleId, budgetId });
 }
 
-export function getSchedules() {
-  return send('api/schedules-get');
+export function getSchedules(budgetId?: string) {
+  return send('api/schedules-get', { budgetId });
 }
 
 export function getIDByName(
   type: 'accounts' | 'schedules' | 'categories' | 'payees',
   name: string,
+  budgetId?: string,
 ) {
-  return send('api/get-id-by-name', { type, name });
+  return send('api/get-id-by-name', { type, name, budgetId });
 }
 
 export function getServerVersion() {

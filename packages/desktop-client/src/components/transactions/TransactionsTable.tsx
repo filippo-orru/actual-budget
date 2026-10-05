@@ -3064,6 +3064,7 @@ export const TransactionTable = forwardRef(
     ref: ForwardedRef<TableHandleRef<TransactionEntity>>,
   ) => {
     const { t } = useTranslation();
+    const budgetId = useBudgetSpaceId();
 
     const dispatch = useDispatch();
     const [showHiddenCategories] = useLocalPref('budget.showHiddenCategories');
@@ -3374,7 +3375,10 @@ export const TransactionTable = forwardRef(
         const createSchedule = () => {
           afterSave(async () => {
             try {
-              await createSingleTimeScheduleFromTransaction(transaction);
+              await createSingleTimeScheduleFromTransaction(
+                transaction,
+                budgetId,
+              );
               dispatch(
                 addNotification({
                   notification: {

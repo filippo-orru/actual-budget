@@ -27,6 +27,7 @@ export const FORECAST_UNASSIGNED_ACCOUNT_ID = '__unassigned_schedule__';
 
 type ScheduleDataBase = {
   id: string;
+  budget_id: string;
   name: string | null;
   next_date: string;
   rule?: string | null;
@@ -43,6 +44,7 @@ export type ScheduleData =
 
 type RawScheduleData = {
   id: string;
+  budget_id: string;
   name: string | null;
   next_date: string;
   rule?: string | null;
@@ -96,6 +98,7 @@ export function normalizeSchedule(
 
   return {
     id: schedule.id,
+    budget_id: schedule.budget_id,
     name: schedule.name,
     next_date: schedule.next_date,
     rule: schedule.rule,

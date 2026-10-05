@@ -228,6 +228,13 @@ describe('importScheduledTransactions', () => {
     );
 
     expect(tick).toHaveBeenCalledOnce();
+    expect(vi.mocked(send)).toHaveBeenCalledWith(
+      'api/schedule-create',
+      expect.objectContaining({
+        budgetId: 'default',
+        schedule: expect.any(Object),
+      }),
+    );
   });
 
   it('does not advance progress when schedule creation fails', async () => {

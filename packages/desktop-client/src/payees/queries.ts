@@ -50,11 +50,11 @@ export const payeeQueries = {
       // Manually invalidated when payees change via sync events
       staleTime: Infinity,
     }),
-  ruleCounts: () =>
+  ruleCounts: (budgetId: string) =>
     queryOptions<Map<PayeeEntity['id'], number>>({
-      queryKey: [...payeeQueries.lists(), 'ruleCounts'],
+      queryKey: [...payeeQueries.lists(), 'ruleCounts', budgetId],
       queryFn: async () => {
-        const counts = await send('payees-get-rule-counts');
+        const counts = await send('payees-get-rule-counts', { budgetId });
         return new Map(Object.entries(counts ?? {}));
       },
       placeholderData: new Map(),

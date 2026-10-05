@@ -9,7 +9,10 @@ import {
 } from '#shared/formulas/customFunctions';
 import type { FormulaQueryContext } from '#shared/formulas/customFunctions';
 
-function createFormulaQueryContext(): Required<FormulaQueryContext> {
+function createFormulaQueryContext(): Required<
+  Omit<FormulaQueryContext, 'userPreferences'>
+> &
+  Pick<FormulaQueryContext, 'userPreferences'> {
   return {
     queryNames: new Set(),
     queryCountNames: new Set(),
@@ -26,6 +29,7 @@ function createFormulaQueryContext(): Required<FormulaQueryContext> {
     balanceOfPrefetch: new Map(),
     budgetQueryPrefetch: new Map(),
     budgetQueryErrors: new Map(),
+    userPreferences: undefined,
   };
 }
 

@@ -31,6 +31,7 @@ import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { cashFlowByDate } from '#components/reports/spreadsheets/cash-flow-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -99,6 +100,7 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
   const [latestTransaction, setLatestTransaction] = useState('');
 
   const [isConcise, setIsConcise] = useState(false);
+  const budgetId = useBudgetSpaceId();
 
   useEffect(() => {
     const numDays = d.differenceInCalendarDays(
@@ -111,6 +113,7 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
   const params = useMemo(
     () =>
       cashFlowByDate(
+        budgetId,
         start,
         end,
         isConcise,
@@ -119,20 +122,24 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
         locale,
         format,
       ),
-    [start, end, isConcise, conditions, conditionsOp, locale, format],
+    [budgetId, start, end, isConcise, conditions, conditionsOp, locale, format],
   );
   const data = useReport('cash_flow', params);
 
   useEffect(() => {
     async function run() {
-      const earliestTransaction = await send('get-earliest-transaction');
+      const earliestTransaction = await send('get-earliest-transaction', {
+        budgetId,
+      });
       setEarliestTransaction(
         earliestTransaction
           ? earliestTransaction.date
           : monthUtils.currentDay(),
       );
 
-      const latestTransaction = await send('get-latest-transaction');
+      const latestTransaction = await send('get-latest-transaction', {
+        budgetId,
+      });
       setLatestTransaction(
         latestTransaction ? latestTransaction.date : monthUtils.currentDay(),
       );
@@ -161,7 +168,7 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
       setAllMonths(allMonths);
     }
     void run();
-  }, [locale]);
+  }, [locale, budgetId]);
 
   useEffect(() => {
     if (latestTransaction) {

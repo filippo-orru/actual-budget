@@ -3,6 +3,7 @@ import { q } from '@actual-app/core/shared/query';
 import { ReportOptions } from '#components/reports/ReportOptions';
 
 export function makeQuery(
+  budgetId: string,
   name: string,
   startDate: string,
   endDate: string,
@@ -22,6 +23,7 @@ export function makeQuery(
       : '$' + ReportOptions.intervalMap.get(interval)?.toLowerCase() || 'month';
 
   const query = q('transactions')
+    .filter({ 'account.budget_id': budgetId })
     //Apply filters and split by "Group By"
     .filter({
       [conditionsOpKey]: filters,

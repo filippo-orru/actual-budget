@@ -16,6 +16,7 @@ import type { FormatType } from '#hooks/useFormat';
 import type { useSpreadsheet } from '#hooks/useSpreadsheet';
 
 export function simpleCashFlow(
+  budgetId: string,
   startMonth: string,
   endMonth: string,
   conditions: RuleConditionEntity[] = [],
@@ -35,6 +36,7 @@ export function simpleCashFlow(
 
     function makeQuery() {
       return q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .filter({
           [conditionsOpKey]: filters,
         })
@@ -72,6 +74,7 @@ export function simpleCashFlow(
 }
 
 export function cashFlowByDate(
+  budgetId: string,
   startMonth: string,
   endMonth: string,
   isConcise: boolean,
@@ -96,6 +99,7 @@ export function cashFlowByDate(
 
     function makeQuery() {
       const query = q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .filter({
           [conditionsOpKey]: filters,
         })
@@ -129,6 +133,7 @@ export function cashFlowByDate(
     return runAll(
       [
         q('transactions')
+          .filter({ 'account.budget_id': budgetId })
           .filter({
             [conditionsOpKey]: filters,
             date: { $transform: '$month', $lt: start },

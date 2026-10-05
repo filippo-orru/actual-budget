@@ -17,6 +17,7 @@ import { calculateTimeRange } from '#components/reports/reportRanges';
 import { summarySpreadsheet } from '#components/reports/spreadsheets/summary-spreadsheet';
 import { SummaryNumber } from '#components/reports/SummaryNumber';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useLocale } from '#hooks/useLocale';
 
 type SummaryCardProps = {
@@ -33,19 +34,20 @@ export function SummaryCard({
   onMetaChange,
 }: SummaryCardProps) {
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const { t } = useTranslation();
   const [latestTransaction, setLatestTransaction] = useState<string>('');
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
 
   useEffect(() => {
     async function fetchLatestTransaction() {
-      const latestTrans = await send('get-latest-transaction');
+      const latestTrans = await send('get-latest-transaction', { budgetId });
       setLatestTransaction(
         latestTrans ? latestTrans.date : monthUtils.currentDay(),
       );
     }
     void fetchLatestTransaction();
-  }, []);
+  }, [budgetId]);
 
   const [start, end] = calculateTimeRange(
     meta?.timeFrame,
@@ -75,6 +77,7 @@ export function SummaryCard({
   const params = useMemo(
     () =>
       summarySpreadsheet(
+        budgetId,
         start,
         end,
         meta?.conditions,
@@ -82,7 +85,15 @@ export function SummaryCard({
         content,
         locale,
       ),
-    [start, end, meta?.conditions, meta?.conditionsOp, content, locale],
+    [
+      budgetId,
+      start,
+      end,
+      meta?.conditions,
+      meta?.conditionsOp,
+      content,
+      locale,
+    ],
   );
 
   const data = useReport('summary', params);

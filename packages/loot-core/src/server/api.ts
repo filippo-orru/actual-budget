@@ -41,6 +41,7 @@ import {
 import type { AmountOPType, APIScheduleEntity } from './api-models';
 import { aqlQuery } from './aql';
 import {
+  assertBudgetOwner,
   getBudgetDecimalPlaces,
   getBudgetIdForEntity,
   resolveBudgetId,
@@ -390,7 +391,7 @@ handlers['api/query'] = async function ({ query }) {
   return aqlQuery(query);
 };
 
-handlers['api/budget-months'] = async function ({ budgetId }) {
+handlers['api/budget-months'] = async function ({ budgetId } = {}) {
   checkFileOpen();
   const resolvedBudgetId = await resolveBudgetId(budgetId);
   const { start, end } = await handlers['get-budget-bounds']({
@@ -979,14 +980,17 @@ handlers['api/payees-get-nearby'] = async function ({
   return handlers['payees-get-nearby']({ latitude, longitude, maxDistance });
 };
 
-handlers['api/rules-get'] = async function () {
+handlers['api/rules-get'] = async function ({ budgetId } = {}) {
   checkFileOpen();
-  return handlers['rules-get']();
+  return handlers['rules-get']({ budgetId: await resolveBudgetId(budgetId) });
 };
 
-handlers['api/payee-rules-get'] = async function ({ id }) {
+handlers['api/payee-rules-get'] = async function ({ id, budgetId }) {
   checkFileOpen();
-  return handlers['payees-get-rules']({ id });
+  return handlers['payees-get-rules']({
+    id,
+    budgetId: await resolveBudgetId(budgetId),
+  });
 };
 
 handlers['api/rule-create'] = withMutation(async function ({ rule, budgetId }) {
@@ -1023,28 +1027,44 @@ handlers['api/rule-update'] = withMutation(async function ({ rule }) {
   return updatedRule;
 });
 
-handlers['api/rule-delete'] = withMutation(async function (id) {
+handlers['api/rule-delete'] = withMutation(async function ({ id, budgetId }) {
   checkFileOpen();
-  return handlers['rule-delete'](id);
+  return handlers['rule-delete']({
+    id,
+    budgetId: await resolveBudgetId(budgetId),
+  });
 });
 
-handlers['api/schedules-get'] = async function () {
+handlers['api/schedules-get'] = async function ({ budgetId } = {}) {
   checkFileOpen();
-  const { data } = await aqlQuery(q('schedules').select('*'));
+  const owner = await resolveBudgetId(budgetId);
+  const { data } = await aqlQuery(
+    q('schedules').filter({ budget_id: owner }).select('*'),
+  );
   const schedules = data as ScheduleEntity[];
   return schedules.map(schedule => scheduleModel.toExternal(schedule));
 };
 
 handlers['api/schedule-create'] = withMutation(async function (
-  schedule: Omit<APIScheduleEntity, 'id'>,
+  input:
+    | Omit<APIScheduleEntity, 'id'>
+    | { schedule: Omit<APIScheduleEntity, 'id'>; budgetId?: string },
 ) {
   checkFileOpen();
-  const internalSchedule = scheduleModel.fromExternal({ ...schedule, id: '' });
+  const isWrappedInput = 'schedule' in input;
+  const schedule = isWrappedInput ? input.schedule : input;
+  const budgetId = isWrappedInput ? input.budgetId : undefined;
+  const owner = await resolveBudgetId(budgetId);
+  const internalSchedule = scheduleModel.fromExternal(
+    { ...schedule, id: '' },
+    owner,
+  );
   const partialSchedule = {
     name: internalSchedule.name,
     posts_transaction: internalSchedule.posts_transaction,
   };
   return handlers['schedule/create']({
+    budgetId: owner,
     schedule: partialSchedule,
     conditions: internalSchedule._conditions,
   });
@@ -1077,7 +1097,9 @@ handlers['api/schedule-update'] = withMutation(async function ({
       case 'name': {
         const newName = String(value);
         const { data: existing } = await aqlQuery(
-          q('schedules').filter({ name: newName }).select('*'),
+          q('schedules')
+            .filter({ name: newName, budget_id: sched.budget_id })
+            .select('*'),
         );
         if (!existing || existing.length === 0 || existing[0].id === sched.id) {
           sched.name = newName;
@@ -1192,12 +1214,20 @@ handlers['api/schedule-update'] = withMutation(async function ({
   }
 });
 
-handlers['api/schedule-delete'] = withMutation(async function (id: string) {
+handlers['api/schedule-delete'] = withMutation(async function ({
+  id,
+  budgetId,
+}: {
+  id: string;
+  budgetId?: string;
+}) {
   checkFileOpen();
+  const owner = await resolveBudgetId(budgetId);
+  await assertBudgetOwner(owner, [{ table: 'schedules', id }]);
   return handlers['schedule/delete']({ id });
 });
 
-handlers['api/get-id-by-name'] = async function ({ type, name }) {
+handlers['api/get-id-by-name'] = async function ({ type, name, budgetId }) {
   checkFileOpen();
 
   const allowedTypes = ['payees', 'categories', 'schedules', 'accounts'];
@@ -1206,7 +1236,12 @@ handlers['api/get-id-by-name'] = async function ({ type, name }) {
     throw APIError('Provide a valid type');
   }
 
-  const { data } = await aqlQuery(q(type).filter({ name }).select('*'));
+  const owner = type === 'payees' ? undefined : await resolveBudgetId(budgetId);
+  const { data } = await aqlQuery(
+    q(type)
+      .filter({ name, ...(owner ? { budget_id: owner } : {}) })
+      .select('*'),
+  );
 
   if (!data || data.length === 0) {
     throw APIError(`Not found: ${type} with name ${name}`);

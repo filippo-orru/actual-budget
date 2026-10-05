@@ -427,8 +427,12 @@ function CustomReportInner({
     async function run() {
       onApplyFilterConditions(report.conditions, report.conditionsOp);
 
-      const earliestTransaction = await send('get-earliest-transaction');
-      const latestTransaction = await send('get-latest-transaction');
+      const earliestTransaction = await send('get-earliest-transaction', {
+        budgetId,
+      });
+      const latestTransaction = await send('get-latest-transaction', {
+        budgetId,
+      });
       const currentDay = monthUtils.currentDay();
       const earliestTransactionDate = earliestTransaction?.date ?? currentDay;
       const latestTransactionDate = latestTransaction?.date ?? currentDay;
@@ -464,6 +468,7 @@ function CustomReportInner({
     // and being an effect event it reads it without re-triggering -- so the
     // labels would stay stale until another dependency happened to change.
     dateFormat,
+    budgetId,
   ]);
 
   useEffect(() => {

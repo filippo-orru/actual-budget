@@ -13,6 +13,7 @@ import type {
 } from '@actual-app/core/types/models';
 
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { usePayeesById } from '#hooks/usePayees';
 import { useScheduleEdit } from '#hooks/useScheduleEdit';
 import { useSelected } from '#hooks/useSelected';
@@ -31,6 +32,7 @@ type ScheduleEditModalProps = Extract<
 
 export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   const adding = id == null;
   const fromTrans = transaction != null;
@@ -100,7 +102,9 @@ export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
 
     if (state.fields.name) {
       const { data: sameName } = await aqlQuery(
-        q('schedules').filter({ name: state.fields.name }).select('id'),
+        q('schedules')
+          .filter({ budget_id: budgetId, name: state.fields.name })
+          .select('id'),
       );
       if (sameName.length > 0 && sameName[0].id !== state.schedule.id) {
         dispatch({
@@ -124,6 +128,7 @@ export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
     const res = await sendCatch(
       adding ? 'schedule/create' : 'schedule/update',
       {
+        budgetId,
         schedule: {
           id: state.schedule.id,
           posts_transaction: state.fields.posts_transaction,

@@ -33,6 +33,7 @@ import type {
   GraphLayers,
 } from '#components/reports/spreadsheets/sankey-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useLocale } from '#hooks/useLocale';
 import { useResizeObserver } from '#hooks/useResizeObserver';
@@ -56,6 +57,7 @@ export function SankeyCard({
 }: SankeyCardProps) {
   const { t } = useTranslation();
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
   const [earliestTransaction, setEarliestTransaction] = useState('');
   const [latestTransaction, setLatestTransaction] = useState('');
@@ -65,15 +67,15 @@ export function SankeyCard({
 
   useEffect(() => {
     void Promise.all([
-      send('get-earliest-transaction'),
-      send('get-latest-transaction'),
+      send('get-earliest-transaction', { budgetId }),
+      send('get-latest-transaction', { budgetId }),
     ]).then(([earliest, latest]) => {
       const today = monthUtils.currentDay();
       setEarliestTransaction(earliest?.date ?? today);
       setLatestTransaction(latest?.date ?? today);
       setDatesInitialized(true);
     });
-  }, []);
+  }, [budgetId]);
 
   const [start, end] = calculateTimeRange(
     meta?.timeFrame,
@@ -135,6 +137,7 @@ export function SankeyCard({
     );
 
     return createBaseGraphSpreadsheet(
+      budgetId,
       boundedStart,
       boundedEnd,
       groupedCategories,
@@ -145,6 +148,7 @@ export function SankeyCard({
       meta?.showTransfers ?? false,
     );
   }, [
+    budgetId,
     datesInitialized,
     earliestTransaction,
     latestTransaction,

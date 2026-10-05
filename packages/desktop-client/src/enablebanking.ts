@@ -128,7 +128,8 @@ function _authorize(
 
 export async function authorizeBank(
   dispatch: AppDispatch,
-  upgradingAccountId?: AccountEntity['id'],
+  upgradingAccountId: AccountEntity['id'] | undefined,
+  budgetId: string,
 ) {
   _authorize(dispatch, {
     onSuccess: async data => {
@@ -140,6 +141,7 @@ export async function authorizeBank(
               externalAccounts: data.accounts,
               syncSource: 'enableBanking',
               upgradingAccountId,
+              budgetId,
             },
           },
         }),

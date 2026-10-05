@@ -161,6 +161,7 @@ export function isGraphLayer(value: unknown): value is GraphLayers {
 }
 
 export function createBaseGraphSpreadsheet(
+  budgetId: string,
   start: string,
   end: string,
   categories: CategoryGroupEntity[],
@@ -175,6 +176,7 @@ export function createBaseGraphSpreadsheet(
     setData: (data: Graph) => void,
   ) => {
     const baseGraph = await createBaseGraph(
+      budgetId,
       start,
       end,
       categories,
@@ -190,6 +192,7 @@ export function createBaseGraphSpreadsheet(
 }
 
 async function createBaseGraph(
+  budgetId: string,
   start: string,
   end: string,
   categories: CategoryGroupEntity[],
@@ -205,6 +208,7 @@ async function createBaseGraph(
 
   if (mode === 'budgeted') {
     ({ data, aggregated } = await createBudgetSpreadsheet(
+      budgetId,
       start,
       end,
       conditions,
@@ -212,6 +216,7 @@ async function createBaseGraph(
     )());
   } else if (mode === 'spent') {
     const res = await createTransactionsSpreadsheet(
+      budgetId,
       start,
       end,
       categories,
@@ -255,6 +260,7 @@ export function buildSankeyData(
 }
 
 export function createBudgetSpreadsheet(
+  budgetId: string,
   start: string,
   end: string,
   conditions: RuleConditionEntity[] = [],
@@ -268,6 +274,7 @@ export function createBudgetSpreadsheet(
       months.map(
         m =>
           send('api/budget-month', {
+            budgetId,
             month: m,
           }) as unknown as Promise<BudgetMonthResponse>,
       ),
@@ -370,6 +377,7 @@ export function createBudgetSpreadsheet(
 }
 
 export function createTransactionsSpreadsheet(
+  budgetId: string,
   start: string,
   end: string,
   categories: CategoryGroupEntity[],
@@ -386,6 +394,7 @@ export function createTransactionsSpreadsheet(
     const conditionsOpKey = conditionsOp === 'or' ? '$or' : '$and';
 
     const categoryData = await fetchCategoryData(
+      budgetId,
       categories,
       conditionsOpKey,
       filters,
@@ -397,6 +406,7 @@ export function createTransactionsSpreadsheet(
     let transferData: TransferPair[] = [];
     if (showTransfers) {
       transferData = await fetchTransferData(
+        budgetId,
         conditionsOpKey,
         filters,
         start,
@@ -522,6 +532,7 @@ export function filterCategoryGroups(
 
 // retrieve sum of group expenses
 async function fetchCategoryData(
+  budgetId: string,
   categoryGroups: CategoryGroupEntity[],
   conditionsOpKey: string = '$and',
   filters: unknown[] = [],
@@ -535,6 +546,7 @@ async function fetchCategoryData(
         (categoryGroup.categories || []).map(async category => {
           const results = await aqlQuery(
             q('transactions')
+              .filter({ 'account.budget_id': budgetId })
               .filter({ [conditionsOpKey]: filters })
               .filter({
                 $and: [
@@ -603,6 +615,7 @@ async function fetchCategoryData(
 
 // Fetch transactions that are transfers within the provided month range
 async function fetchTransferData(
+  budgetId: string,
   conditionsOpKey: string = '$and',
   filters: unknown[] = [],
   start: string,
@@ -610,6 +623,7 @@ async function fetchTransferData(
 ): Promise<TransferPair[]> {
   const results = await aqlQuery(
     q('transactions')
+      .filter({ 'account.budget_id': budgetId })
       .filter({ [conditionsOpKey]: filters })
       .filter({
         $and: [

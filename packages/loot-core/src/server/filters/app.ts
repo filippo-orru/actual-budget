@@ -2,12 +2,16 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import { createApp } from '#server/app';
+import {
+  assertBudgetOwner,
+  getBudgetIdForEntity,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { requiredFields } from '#server/models';
 import { mutator } from '#server/mutators';
 import { parseConditionsOrActions } from '#server/transactions/transaction-rules';
 import { undoable } from '#server/undo';
-import { DEFAULT_BUDGET_ID } from '#shared/budget-spaces';
 import type { TransactionFilterEntity } from '#types/models';
 
 const filterModel = {
@@ -41,10 +45,42 @@ const filterModel = {
   },
 };
 
-async function filterNameExists(name, filterId, newItem) {
+async function validateFilterReferences(conditions, budgetId: string) {
+  const references: Array<{
+    table: 'accounts' | 'categories' | 'category_groups';
+    id: string;
+  }> = [];
+  for (const condition of conditions ?? []) {
+    const table =
+      condition.field === 'account'
+        ? 'accounts'
+        : condition.field === 'category'
+          ? 'categories'
+          : condition.field === 'category_group'
+            ? 'category_groups'
+            : null;
+    if (!table) {
+      continue;
+    }
+    const values =
+      condition.op === 'oneOf' || condition.op === 'notOneOf'
+        ? condition.value
+        : [condition.value];
+    for (const id of values ?? []) {
+      if (typeof id === 'string' && id.length > 0) {
+        references.push({ table, id });
+      }
+    }
+  }
+  if (references.length > 0) {
+    await assertBudgetOwner(budgetId, references);
+  }
+}
+
+async function filterNameExists(budgetId, name, filterId, newItem) {
   const idForName = await db.first<Pick<db.DbTransactionFilter, 'id'>>(
-    'SELECT id from transaction_filters WHERE tombstone = 0 AND name = ?',
-    [name],
+    'SELECT id from transaction_filters WHERE tombstone = 0 AND budget_id = ? AND name = ?',
+    [budgetId, name],
   );
 
   if (idForName === null) {
@@ -111,17 +147,22 @@ function filterOptionsMatch(options1, options2) {
 }
 
 async function createFilter(filter): Promise<TransactionFilterEntity['id']> {
+  const budgetId = filter.budgetId ?? filter.state.budget_id;
+  if (!budgetId) {
+    throw new Error('Budget ID is required to create a saved filter');
+  }
+  await validateBudgetExists(budgetId);
   const filterId = uuidv4();
   const item = {
     id: filterId,
-    budget_id: DEFAULT_BUDGET_ID,
+    budget_id: budgetId,
     conditions: filter.state.conditions,
     conditionsOp: filter.state.conditionsOp,
     name: filter.state.name,
   };
 
   if (item.name) {
-    if (await filterNameExists(item.name, item.id, true)) {
+    if (await filterNameExists(budgetId, item.name, item.id, true)) {
       throw new Error('There is already a filter named ' + item.name);
     }
   } else {
@@ -140,6 +181,7 @@ async function createFilter(filter): Promise<TransactionFilterEntity['id']> {
     throw new Error('Conditions are required');
   }
 
+  await validateFilterReferences(item.conditions, budgetId);
   // Create the filter here based on the info
   await db.insertWithSchema('transaction_filters', filterModel.fromJS(item));
 
@@ -147,14 +189,19 @@ async function createFilter(filter): Promise<TransactionFilterEntity['id']> {
 }
 
 async function updateFilter(filter) {
+  const budgetId = await getBudgetIdForEntity({
+    table: 'transaction_filters',
+    id: filter.state.id,
+  });
   const item = {
     id: filter.state.id,
+    budget_id: budgetId,
     conditions: filter.state.conditions,
     conditionsOp: filter.state.conditionsOp,
     name: filter.state.name,
   };
   if (item.name) {
-    if (await filterNameExists(item.name, item.id, false)) {
+    if (await filterNameExists(budgetId, item.name, item.id, false)) {
       throw new Error('There is already a filter named ' + item.name);
     }
   } else {
@@ -173,10 +220,12 @@ async function updateFilter(filter) {
     throw new Error('Conditions are required');
   }
 
+  await validateFilterReferences(item.conditions, budgetId);
   await db.updateWithSchema('transaction_filters', filterModel.fromJS(item));
 }
 
 async function deleteFilter(id: TransactionFilterEntity['id']) {
+  await getBudgetIdForEntity({ table: 'transaction_filters', id });
   await db.delete_('transaction_filters', id);
 }
 

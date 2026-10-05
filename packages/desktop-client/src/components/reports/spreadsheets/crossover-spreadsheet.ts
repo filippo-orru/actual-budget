@@ -73,6 +73,7 @@ export type CrossoverData = {
 };
 
 export type CrossoverParams = {
+  budgetId: string;
   start: string;
   end: string;
   expenseCategoryIds: string[]; // which categories count as expenses
@@ -85,6 +86,7 @@ export type CrossoverParams = {
 };
 
 export function createCrossoverSpreadsheet({
+  budgetId,
   start,
   end,
   expenseCategoryIds,
@@ -127,6 +129,7 @@ export function createCrossoverSpreadsheet({
       }
 
       const query = q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .filter({
           $and: [
             { $or: expenseCategoryIds.map(id => ({ category: id })) },
@@ -150,7 +153,7 @@ export function createCrossoverSpreadsheet({
         // Get the account balance at the end of the first month (start month)
         const startingBalance = await aqlQuery(
           q('transactions')
-            .filter({ account: accountId })
+            .filter({ 'account.budget_id': budgetId, account: accountId })
             .filter({
               date: { $lte: monthUtils.lastDayOfMonth(start) },
             })
@@ -162,6 +165,7 @@ export function createCrossoverSpreadsheet({
         const balances = await aqlQuery(
           q('transactions')
             .filter({
+              'account.budget_id': budgetId,
               account: accountId,
               date: { $gte: monthUtils.firstDayOfMonth(start) },
             })

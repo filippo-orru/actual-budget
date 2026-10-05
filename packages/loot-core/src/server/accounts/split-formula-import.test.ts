@@ -12,8 +12,14 @@ beforeEach(async () => {
 });
 
 test('import keeps one parent, matches its schedule and transfers only the formula split', async () => {
-  await db.insertAccount({ id: 'source', name: 'Source', offbudget: 0 });
   await db.insertAccount({
+    budget_id: 'default',
+    id: 'source',
+    name: 'Source',
+    offbudget: 0,
+  });
+  await db.insertAccount({
+    budget_id: 'default',
     id: 'destination',
     name: 'Destination',
     offbudget: 1,
@@ -29,7 +35,12 @@ test('import keeps one parent, matches its schedule and transfers only the formu
     transfer_acct: 'destination',
   });
   await db.insertPayee({ id: 'bank', name: 'Bank' });
-  await db.insertCategoryGroup({ id: 'group', name: 'Expenses', is_income: 0 });
+  await db.insertCategoryGroup({
+    budget_id: 'default',
+    id: 'group',
+    name: 'Expenses',
+    is_income: 0,
+  });
   await db.insertCategory({
     id: 'category',
     name: 'Payment',

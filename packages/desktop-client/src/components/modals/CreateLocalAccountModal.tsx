@@ -12,6 +12,7 @@ import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { getCurrency } from '@actual-app/core/shared/currencies';
 import { toRelaxedNumber } from '@actual-app/core/shared/util';
 
 import { useCreateAccountMutation } from '#accounts';
@@ -26,13 +27,21 @@ import {
 import { Checkbox } from '#components/forms';
 import { validateAccountName } from '#components/util/accountValidation';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
+import { useSyncedPref } from '#hooks/useSyncedPref';
 import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
 import { closeModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 
 export function CreateLocalAccountModal() {
   const { t } = useTranslation();
+  const { currency_code: currencyCode } = useBudgetSpace();
+  const [currencyEnabled] = useSyncedPref('flags.currency');
+  const decimalPlaces =
+    currencyEnabled === 'true' && currencyCode
+      ? getCurrency(currencyCode).decimalPlaces
+      : 2;
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const isUsingServer = useSyncServerStatus() !== 'no-server';
@@ -70,7 +79,7 @@ export function CreateLocalAccountModal() {
       createAccount.mutate(
         {
           name,
-          balance: toRelaxedNumber(balance),
+          balance: toRelaxedNumber(balance, decimalPlaces),
           offBudget: offbudget,
         },
         {

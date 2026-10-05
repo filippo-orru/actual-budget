@@ -1,0 +1,9 @@
+{
+  "skills": [
+    "-skills/committing-actual-changes/SKILL.md",
+    "-skills/review-actual-pr/SKILL.md",
+    "-skills/running-vrts/SKILL.md",
+    "-skills/writing-actual-docs/SKILL.md",
+    "-skills/writing-release-notes/SKILL.md"
+  ]
+}

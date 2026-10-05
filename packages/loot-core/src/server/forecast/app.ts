@@ -128,7 +128,7 @@ export async function generateForecast({
   const [schedulesRaw, transactions, ruleAccounts] = await Promise.all([
     getNormalizedSchedules(),
     getTransactions(accountIdsToQuery, filterInfo),
-    db.getAccounts(),
+    db.getAllAccounts(),
   ]);
   const schedules = includeUnassigned
     ? schedulesRaw

@@ -148,9 +148,21 @@ describe('Budgets', () => {
 describe('Accounts', () => {
   test('Transfers are properly updated', async () => {
     await runMutator(async () => {
-      await db.insertAccount({ id: 'one', name: 'one' });
-      await db.insertAccount({ id: 'two', name: 'two' });
-      await db.insertAccount({ id: 'three', name: 'three' });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'one',
+        name: 'one',
+      });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'two',
+        name: 'two',
+      });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'three',
+        name: 'three',
+      });
       await db.insertPayee({
         id: 'transfer-one',
         name: '',
@@ -203,11 +215,16 @@ describe('Budget', () => {
 
     await runMutator(async () => {
       await db.insertCategoryGroup({
+        budget_id: 'default',
         id: 'incomeGroup',
         name: 'incomeGroup',
         is_income: 1,
       });
-      await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+      await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
       await db.insertCategory({ name: 'foo', cat_group: 'group1' });
       await db.insertCategory({ name: 'bar', cat_group: 'group1' });
     });
@@ -267,22 +284,30 @@ describe('Budget', () => {
     let categories;
     await captureChangedCells(async () => {
       await runMutator(() =>
-        db.insertCategoryGroup({ id: 'group1', name: 'group1' }),
+        db.insertCategoryGroup({
+          budget_id: 'default',
+          id: 'group1',
+          name: 'group1',
+        }),
       );
       categories = [
         await runHandler(handlers['category-create'], {
+          budgetId: 'default',
           name: 'foo',
           groupId: 'group1',
         }),
         await runHandler(handlers['category-create'], {
+          budgetId: 'default',
           name: 'bar',
           groupId: 'group1',
         }),
         await runHandler(handlers['category-create'], {
+          budgetId: 'default',
           name: 'baz',
           groupId: 'group1',
         }),
         await runHandler(handlers['category-create'], {
+          budgetId: 'default',
           name: 'biz',
           groupId: 'group1',
         }),
@@ -329,7 +354,11 @@ describe('Categories', () => {
     await sheet.loadSpreadsheet(db);
 
     await runMutator(async () => {
-      await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+      await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
       await db.insertCategory({ id: 'foo', name: 'foo', cat_group: 'group1' });
       await db.insertCategory({ id: 'bar', name: 'bar', cat_group: 'group1' });
     });
@@ -349,9 +378,18 @@ describe('Categories', () => {
     await sheet.loadSpreadsheet(db);
 
     const transId = await runMutator(async () => {
-      await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
-      await db.insertCategoryGroup({ id: 'group1b', name: 'group1b' });
       await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
+      await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1b',
+        name: 'group1b',
+      });
+      await db.insertCategoryGroup({
+        budget_id: 'default',
         id: 'group2',
         name: 'group2',
         is_income: 1,
@@ -434,15 +472,24 @@ describe('Categories', () => {
     await sheet.loadSpreadsheet(db);
 
     await runMutator(async () => {
-      await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
       await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
+      await db.insertCategoryGroup({
+        budget_id: 'default',
         id: 'group2',
         name: 'income',
         is_income: 1,
       });
       await db.insertCategory({ id: 'foo', name: 'foo', cat_group: 'group1' });
       await db.insertCategory({ id: 'bar', name: 'bar', cat_group: 'group1' });
-      await db.insertAccount({ id: 'acct', name: 'acct' });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'acct',
+        name: 'acct',
+      });
 
       // A deposit straight into the category, like a refund
       await db.insertTransaction({

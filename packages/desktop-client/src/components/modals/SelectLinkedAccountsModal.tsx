@@ -32,11 +32,13 @@ import {
 import { Autocomplete } from '#components/autocomplete/Autocomplete';
 import type { AutocompleteItem } from '#components/autocomplete/Autocomplete';
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { CurrencyProvider } from '#components/CurrencyProvider';
 import { FinancialText } from '#components/FinancialText';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { Cell, Field, Row, Table, TableHeader } from '#components/table';
 import { AmountInput } from '#components/util/AmountInput';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
 import { closeModal } from '#modals/modalsSlice';
@@ -193,7 +195,18 @@ export type SelectLinkedAccountsModalProps =
       upgradingAccountId?: string;
     };
 
-export function SelectLinkedAccountsModal({
+export function SelectLinkedAccountsModal(
+  props: SelectLinkedAccountsModalProps,
+) {
+  const { currency_code: currencyCode } = useBudgetSpace();
+  return (
+    <CurrencyProvider currencyCode={currencyCode || null}>
+      <SelectLinkedAccountsModalContent {...props} />
+    </CurrencyProvider>
+  );
+}
+
+function SelectLinkedAccountsModalContent({
   requisitionId,
   externalAccounts,
   syncSource,

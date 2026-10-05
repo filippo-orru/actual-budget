@@ -38,7 +38,7 @@ async function createScheduleList(
 ) {
   const t: Array<ScheduleTemplateTarget> = [];
   const errors: string[] = [];
-  const accounts = (await db.getAccounts()) ?? [];
+  const accounts = (await db.getAllAccounts()) ?? [];
   const accountsMap = new Map(accounts.map(a => [a.id, a]));
 
   for (const template of templates) {

@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { sync } from '#app/appSlice';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { addNotification } from '#notifications/notificationsSlice';
 import { payeeQueries } from '#payees';
 import { useDispatch, useStore } from '#redux';
@@ -66,10 +67,12 @@ export function useCreateAccountMutation() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   return useMutation({
     mutationFn: async ({ name, balance, offBudget }: CreateAccountPayload) => {
       const id = await send('account-create', {
+        budgetId,
         name,
         balance,
         offBudget,
@@ -389,6 +392,7 @@ export function useLinkAccountMutation() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   return useMutation({
     mutationFn: async ({
@@ -400,6 +404,7 @@ export function useLinkAccountMutation() {
       startingBalance,
     }: LinkAccountPayload) => {
       await send('gocardless-accounts-link', {
+        budgetId,
         requisitionId,
         account,
         upgradingId,
@@ -431,6 +436,7 @@ export function useLinkAccountSimpleFinMutation() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   return useMutation({
     mutationFn: async ({
@@ -441,6 +447,7 @@ export function useLinkAccountSimpleFinMutation() {
       startingBalance,
     }: LinkAccountSimpleFinPayload) => {
       await send('simplefin-accounts-link', {
+        budgetId,
         externalAccount,
         upgradingId,
         offBudget,
@@ -473,6 +480,7 @@ export function useLinkAccountPluggyAiMutation() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   return useMutation({
     mutationFn: async ({
@@ -483,6 +491,7 @@ export function useLinkAccountPluggyAiMutation() {
       startingBalance,
     }: LinkAccountPluggyAiPayload) => {
       await send('pluggyai-accounts-link', {
+        budgetId,
         externalAccount,
         upgradingId,
         offBudget,
@@ -515,6 +524,7 @@ export function useLinkAccountAkahuMutation() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   return useMutation({
     mutationFn: async ({
@@ -525,6 +535,7 @@ export function useLinkAccountAkahuMutation() {
       startingBalance,
     }: LinkAccountAkahuPayload) => {
       await send('akahu-accounts-link', {
+        budgetId,
         externalAccount,
         upgradingId,
         offBudget,
@@ -555,6 +566,7 @@ export function useLinkAccountEnableBankingMutation() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   return useMutation({
     mutationFn: async ({
@@ -565,6 +577,7 @@ export function useLinkAccountEnableBankingMutation() {
       startingBalance,
     }: LinkAccountEnableBankingPayload) => {
       await send('enablebanking-accounts-link', {
+        budgetId,
         externalAccount,
         upgradingId,
         offBudget,

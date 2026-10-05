@@ -643,6 +643,7 @@ describe('schedule app', () => {
 
       try {
         const accountId = await db.insertAccount({
+          budget_id: 'default',
           name: 'Checking',
           offbudget: 0,
           closed: 0,
@@ -718,6 +719,7 @@ describe('schedule app', () => {
 
       try {
         const accountId = await db.insertAccount({
+          budget_id: 'default',
           name: 'Checking',
           offbudget: 0,
           closed: 0,
@@ -805,6 +807,7 @@ describe('schedule app', () => {
 
       try {
         const accountId = await db.insertAccount({
+          budget_id: 'default',
           name: 'Checking',
           offbudget: 0,
           closed: 0,
@@ -888,6 +891,7 @@ describe('schedule app', () => {
 
       try {
         const accountId = await db.insertAccount({
+          budget_id: 'default',
           name: 'Checking',
           offbudget: 0,
           closed: 0,
@@ -945,6 +949,7 @@ describe('schedule app', () => {
 
       try {
         const accountId = await db.insertAccount({
+          budget_id: 'default',
           name: 'Checking',
           offbudget: 0,
           closed: 0,
@@ -993,6 +998,7 @@ describe('schedule app', () => {
 
       try {
         const accountId = await db.insertAccount({
+          budget_id: 'default',
           name: 'Checking',
           offbudget: 0,
           closed: 0,
@@ -1085,6 +1091,7 @@ describe('schedule app', () => {
 
       try {
         const accountId = await db.insertAccount({
+          budget_id: 'default',
           name: 'Checking',
           offbudget: 0,
           closed: 0,

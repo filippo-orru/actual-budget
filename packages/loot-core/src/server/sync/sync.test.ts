@@ -250,7 +250,11 @@ describe('Sync projections', () => {
     let groupId, fooId, barId;
     await asSecondClient(async () => {
       await sheet.loadSpreadsheet(db);
-      groupId = await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+      groupId = await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
       fooId = await db.insertCategory({ name: 'foo', cat_group: 'group1' });
       barId = await db.insertCategory({ name: 'bar', cat_group: 'group1' });
     });
@@ -278,7 +282,11 @@ describe('Sync projections', () => {
     let fooId;
     await asSecondClient(async () => {
       await sheet.loadSpreadsheet(db);
-      await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+      await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
       fooId = await db.insertCategory({ name: 'foo', cat_group: 'group1' });
       await db.deleteCategory({ id: fooId });
     });
@@ -295,6 +303,7 @@ describe('Sync projections', () => {
     await asSecondClient(async () => {
       await sheet.loadSpreadsheet(db);
       await db.insertCategoryGroup({
+        budget_id: 'default',
         id: 'group1',
         name: 'group1',
       });
@@ -326,7 +335,11 @@ describe('Sync projections', () => {
     let groupId;
     await asSecondClient(async () => {
       await sheet.loadSpreadsheet(db);
-      groupId = await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+      groupId = await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
       await db.deleteCategoryGroup({ id: groupId });
     });
 
@@ -345,6 +358,7 @@ describe('Sync projections', () => {
     await asSecondClient(async () => {
       await sheet.loadSpreadsheet(db);
       groupId = await db.insertCategoryGroup({
+        budget_id: 'default',
         id: 'group1',
         name: 'group1',
       });
@@ -381,8 +395,16 @@ describe('Sync projections', () => {
     let groupId, fooId;
     await asSecondClient(async () => {
       await sheet.loadSpreadsheet(db);
-      groupId = await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
-      await db.insertCategoryGroup({ id: 'group2', name: 'group2' });
+      groupId = await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group1',
+        name: 'group1',
+      });
+      await db.insertCategoryGroup({
+        budget_id: 'default',
+        id: 'group2',
+        name: 'group2',
+      });
       fooId = await db.insertCategory({ name: 'foo', cat_group: 'group1' });
       await db.moveCategory(fooId, 'group2', null);
     });

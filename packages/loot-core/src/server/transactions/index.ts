@@ -1,6 +1,7 @@
 // @ts-strict-ignore
 
 import * as connection from '#platform/server/connection';
+import { getBudgetIdForEntity } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { incrFetch, whereIn } from '#server/db/util';
 import { batchMessages } from '#server/sync';
@@ -9,6 +10,7 @@ import type { PayeeEntity, TransactionEntity } from '#types/models';
 
 import * as rules from './transaction-rules';
 import * as transfer from './transfer';
+import { validateTransactionWrites } from './validate';
 
 async function idsWithChildren(ids: string[]) {
   const whereIds = whereIn(ids, 'parent_id');
@@ -44,11 +46,33 @@ export async function batchUpdateTransactions({
   learnCategories = false,
   detectOrphanPayees = true,
   runTransfers = true,
+  pendingPayees = [],
 }: Partial<Diff<TransactionEntity>> & {
   learnCategories?: boolean;
   detectOrphanPayees?: boolean;
   runTransfers?: boolean;
+  pendingPayees?: rules.PendingPayee[];
 }) {
+  // Validate the complete batch before transaction, transfer, learning, undo or
+  // sync side effects begin. This is independent of feature flags and runTransfers.
+  const pendingPayeesById = new Map(
+    pendingPayees.map(payee => [payee.id, payee]),
+  );
+  const validatedTransactions = await validateTransactionWrites({
+    added,
+    updated,
+    pendingPayeeIds: new Set(pendingPayeesById.keys()),
+  });
+  const preparedTransfers = runTransfers
+    ? await transfer.validateTransferInserts(
+        validatedTransactions,
+        pendingPayeesById,
+      )
+    : new Map<string, transfer.PreparedTransfer>();
+  const validatedById = new Map(
+    validatedTransactions.map(transaction => [transaction.id, transaction]),
+  );
+
   // Track the ids of each type of transaction change (see below for why)
   let addedIds = [];
   const updatedIds = updated ? updated.map(u => u.id) : [];
@@ -84,6 +108,10 @@ export async function batchUpdateTransactions({
   // Apply all the updates. We can batch this now! This is important
   // and makes bulk updates much faster
   await batchMessages(async () => {
+    for (const payee of pendingPayeesById.values()) {
+      await db.insertPayee(payee);
+    }
+
     if (added) {
       addedIds = await Promise.all(
         added.map(async t => {
@@ -112,6 +140,9 @@ export async function batchUpdateTransactions({
     if (updated) {
       await Promise.all(
         updated.map(async t => {
+          if (validatedById.get(t.id)?.category === null) {
+            t.category = null;
+          }
           if (t.account) {
             // Moving transactions off budget should always clear the
             // category. Parent transactions should not have categories.
@@ -160,11 +191,15 @@ export async function batchUpdateTransactions({
 
   if (runTransfers) {
     await batchMessages(async () => {
-      await Promise.all(allAdded.map(t => transfer.onInsert(t)));
+      await Promise.all(
+        allAdded.map(t => transfer.onInsert(t, preparedTransfers)),
+      );
 
       // Return any updates from here
       transfersUpdated = (
-        await Promise.all(allUpdated.map(t => transfer.onUpdate(t)))
+        await Promise.all(
+          allUpdated.map(t => transfer.onUpdate(t, preparedTransfers)),
+        )
       ).filter(Boolean);
 
       await Promise.all(allDeleted.map(t => transfer.onDelete(t)));
@@ -180,9 +215,22 @@ export async function batchUpdateTransactions({
         ? updated.filter(update => update.category).map(update => update.id)
         : []),
     ]);
-    await rules.updateCategoryRules(
-      allAdded.concat(allUpdated).filter(trans => ids.has(trans.id)),
-    );
+    const transactionsToLearn = allAdded
+      .concat(allUpdated)
+      .filter(trans => ids.has(trans.id));
+    const byBudget = new Map<string, TransactionEntity[]>();
+    for (const transaction of transactionsToLearn) {
+      const budgetId = await getBudgetIdForEntity({
+        table: 'accounts',
+        id: transaction.account,
+      });
+      const budgetTransactions = byBudget.get(budgetId) ?? [];
+      budgetTransactions.push(transaction);
+      byBudget.set(budgetId, budgetTransactions);
+    }
+    for (const [budgetId, budgetTransactions] of byBudget) {
+      await rules.updateCategoryRules(budgetTransactions, budgetId);
+    }
   }
 
   if (detectOrphanPayees) {

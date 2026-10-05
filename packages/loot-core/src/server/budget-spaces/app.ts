@@ -111,11 +111,19 @@ async function createBudgetSpace(
       is_income: true,
       sort_order: 0,
     });
-    await db.insertCategory({
+    const startingBalancesId = uuidv4();
+    await db.insertWithSchema('categories', {
+      id: startingBalancesId,
       budget_id: id,
       name: 'Starting Balances',
-      cat_group: incomeGroupId,
-      is_income: 1,
+      group: incomeGroupId,
+      is_income: true,
+      hidden: false,
+      sort_order: 0,
+    });
+    await db.insert('category_mapping', {
+      id: startingBalancesId,
+      transferId: startingBalancesId,
     });
 
     await db.insertWithSchema('category_groups', {

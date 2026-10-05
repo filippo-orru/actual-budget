@@ -44,6 +44,7 @@ import {
 import { createSpendingSpreadsheet } from '#components/reports/spreadsheets/spending-spreadsheet';
 import { useReport } from '#components/reports/useReport';
 import { fromDateRepr } from '#components/reports/util';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -148,9 +149,11 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
     void run();
   }, [locale]);
 
+  const budgetId = useBudgetSpaceId();
   const getGraphData = useMemo(
     () =>
       createSpendingSpreadsheet({
+        budgetId,
         conditions,
         conditionsOp,
         compare,
@@ -158,7 +161,15 @@ function SpendingInternal({ widget }: SpendingInternalProps) {
         averageRange,
         budgetType,
       }),
-    [conditions, conditionsOp, compare, compareTo, averageRange, budgetType],
+    [
+      budgetId,
+      conditions,
+      conditionsOp,
+      compare,
+      compareTo,
+      averageRange,
+      budgetType,
+    ],
   );
 
   const data = useReport('default', getGraphData);

@@ -18,6 +18,7 @@ import { ReportCardName } from '#components/reports/ReportCardName';
 import { calculateTimeRange } from '#components/reports/reportRanges';
 import { createBudgetAnalysisSpreadsheet } from '#components/reports/spreadsheets/budget-analysis-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
 
 type BudgetAnalysisCardProps = {
@@ -36,6 +37,7 @@ export function BudgetAnalysisCard({
   const { t } = useTranslation();
   const format = useFormat();
 
+  const budgetId = useBudgetSpaceId();
   const [isCardHovered, setIsCardHovered] = useState(false);
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
 
@@ -53,6 +55,7 @@ export function BudgetAnalysisCard({
 
   const getGraphData = useMemo(() => {
     return createBudgetAnalysisSpreadsheet({
+      budgetId,
       conditions: meta?.conditions,
       conditionsOp: meta?.conditionsOp,
       startDate,
@@ -60,6 +63,7 @@ export function BudgetAnalysisCard({
       showHiddenCategories: meta?.showHiddenCategories ?? false,
     });
   }, [
+    budgetId,
     meta?.conditions,
     meta?.conditionsOp,
     meta?.showHiddenCategories,

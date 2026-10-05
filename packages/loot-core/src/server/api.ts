@@ -40,7 +40,11 @@ import {
 } from './api-models';
 import type { AmountOPType, APIScheduleEntity } from './api-models';
 import { aqlQuery } from './aql';
-import { getBudgetIdForEntity, resolveBudgetId } from './budget-spaces/helpers';
+import {
+  getBudgetDecimalPlaces,
+  getBudgetIdForEntity,
+  resolveBudgetId,
+} from './budget-spaces/helpers';
 import { isTrackingBudget } from './budget/actions';
 import * as cloudStorage from './cloud-storage';
 import type { RemoteFile } from './cloud-storage';
@@ -295,7 +299,7 @@ handlers['api/bank-sync'] = async function (args) {
 
     allErrors.push(...errors);
   } else {
-    const accountsData = await handlers['accounts-get']();
+    const accountsData = await db.getAllAccounts();
     const accountIdsToSync = accountsData.map(a => a.id);
     const simpleFinAccounts = accountsData.filter(
       a => a.account_sync_source === 'simpleFin',
@@ -619,24 +623,37 @@ handlers['api/transactions-merge'] = withMutation(async function ({ ids }) {
   return handlers['transactions-merge'](ids.map(id => ({ id })));
 });
 
-handlers['api/accounts-get'] = async function () {
+handlers['api/accounts-get'] = async function ({ budgetId } = {}) {
   checkFileOpen();
-  const accounts: AccountEntity[] = await handlers['accounts-get']();
+  const owner = await resolveBudgetId(budgetId);
+  const accounts: AccountEntity[] = await handlers['accounts-get']({
+    budgetId: owner,
+  });
   return accounts.map(account => accountModel.toExternal(account));
 };
 
 handlers['api/account-create'] = withMutation(async function ({
   account,
   initialBalance = null,
+  budgetId,
 }) {
   checkFileOpen();
+  if ('budget_id' in account) {
+    throw APIError("Field 'budget_id' cannot be set when creating an account");
+  }
+  const owner = await resolveBudgetId(budgetId);
+  const decimalPlaces = await getBudgetDecimalPlaces(owner);
   return handlers['account-create']({
+    budgetId: owner,
     name: account.name,
     offBudget: account.offbudget,
     closed: account.closed,
     // Current the API expects an amount but it really should expect
     // an integer
-    balance: initialBalance != null ? integerToAmount(initialBalance) : null,
+    balance:
+      initialBalance != null
+        ? integerToAmount(initialBalance, decimalPlaces)
+        : null,
   });
 });
 
@@ -697,15 +714,28 @@ handlers['api/account-balance'] = withMutation(async function ({
   return handlers['account-balance']({ id, cutoff });
 });
 
-handlers['api/account-groups-get'] = async function () {
+handlers['api/account-groups-get'] = async function ({ budgetId } = {}) {
   checkFileOpen();
-  const groups = await handlers['account-groups-get']();
+  const owner = await resolveBudgetId(budgetId);
+  const groups = await handlers['account-groups-get']({ budgetId: owner });
   return groups.map(group => accountGroupModel.toExternal(group));
 };
 
-handlers['api/account-group-create'] = withMutation(async function ({ group }) {
+handlers['api/account-group-create'] = withMutation(async function ({
+  group,
+  budgetId,
+}) {
   checkFileOpen();
-  return handlers['account-group-create']({ name: group.name });
+  if ('budget_id' in group) {
+    throw APIError(
+      "Field 'budget_id' cannot be set when creating an account group",
+    );
+  }
+  const owner = await resolveBudgetId(budgetId);
+  return handlers['account-group-create']({
+    name: group.name,
+    budgetId: owner,
+  });
 });
 
 handlers['api/account-group-update'] = withMutation(async function ({
@@ -727,25 +757,40 @@ handlers['api/account-group-delete'] = withMutation(async function ({ id }) {
 
 handlers['api/categories-get'] = async function ({
   hidden,
-}: { hidden?: boolean } = {}) {
+  budgetId,
+}: { hidden?: boolean; budgetId?: string } = {}) {
   checkFileOpen();
-  const result = await handlers['get-categories']({ hidden });
+  const owner = await resolveBudgetId(budgetId);
+  const result = await handlers['get-categories']({ hidden, budgetId: owner });
   return result.list.map(category => categoryModel.toExternal(category));
 };
 
 handlers['api/category-groups-get'] = async function ({
   hidden,
-}: { hidden?: boolean } = {}) {
+  budgetId,
+}: { hidden?: boolean; budgetId?: string } = {}) {
   checkFileOpen();
-  const groups = await handlers['get-category-groups']({ hidden });
+  const owner = await resolveBudgetId(budgetId);
+  const groups = await handlers['get-category-groups']({
+    hidden,
+    budgetId: owner,
+  });
   return groups.map(group => categoryGroupModel.toExternal(group));
 };
 
 handlers['api/category-group-create'] = withMutation(async function ({
   group,
+  budgetId,
 }) {
   checkFileOpen();
+  if ('budget_id' in group) {
+    throw APIError(
+      "Field 'budget_id' cannot be set when creating a category group",
+    );
+  }
+  const owner = await resolveBudgetId(budgetId);
   return handlers['category-group-create']({
+    budgetId: owner,
     name: group.name,
     hidden: group.hidden,
   });
@@ -774,9 +819,17 @@ handlers['api/category-group-delete'] = withMutation(async function ({
   });
 });
 
-handlers['api/category-create'] = withMutation(async function ({ category }) {
+handlers['api/category-create'] = withMutation(async function ({
+  category,
+  budgetId,
+}) {
   checkFileOpen();
+  if ('budget_id' in category) {
+    throw APIError("Field 'budget_id' cannot be set when creating a category");
+  }
+  const owner = await resolveBudgetId(budgetId);
   return handlers['category-create']({
+    budgetId: owner,
     name: category.name,
     groupId: category.group_id,
     isIncome: category.is_income,
@@ -916,11 +969,14 @@ handlers['api/payee-rules-get'] = async function ({ id }) {
   return handlers['payees-get-rules']({ id });
 };
 
-handlers['api/rule-create'] = withMutation(async function ({ rule }) {
+handlers['api/rule-create'] = withMutation(async function ({ rule, budgetId }) {
   checkFileOpen();
-  const budgetId = await resolveBudgetId();
+  if ('budget_id' in rule) {
+    throw APIError("Field 'budget_id' cannot be set when creating a rule");
+  }
+  const owner = await resolveBudgetId(budgetId);
   const addedRule = await handlers['rule-add'](
-    ruleModel.fromExternal(rule, budgetId),
+    ruleModel.fromExternal(rule, owner),
   );
 
   if ('error' in addedRule) {
@@ -933,6 +989,9 @@ handlers['api/rule-create'] = withMutation(async function ({ rule }) {
 handlers['api/rule-update'] = withMutation(async function ({ rule }) {
   checkFileOpen();
   const budgetId = await getBudgetIdForEntity({ table: 'rules', id: rule.id });
+  if ('budget_id' in rule && rule.budget_id !== budgetId) {
+    throw APIError('Rule ownership cannot be changed');
+  }
   const updatedRule = await handlers['rule-update'](
     ruleModel.fromExternal(rule, budgetId),
   );

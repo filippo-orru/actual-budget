@@ -66,7 +66,12 @@ describe('Merging fails for invalid quantity', () => {
 });
 
 async function prepareDatabase() {
-  await db.insertCategoryGroup({ id: 'group1', name: 'group1', is_income: 0 });
+  await db.insertCategoryGroup({
+    budget_id: 'default',
+    id: 'group1',
+    name: 'group1',
+    is_income: 0,
+  });
   await db.insertCategory({
     id: '1',
     name: 'cat1',
@@ -79,9 +84,22 @@ async function prepareDatabase() {
     cat_group: 'group1',
     is_income: 0,
   });
-  await db.insertAccount({ id: 'one', name: 'one' });
-  await db.insertAccount({ id: 'two', name: 'two' });
-  await db.insertAccount({ id: 'three', name: 'three', offbudget: 1 });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'one',
+    name: 'one',
+  });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'two',
+    name: 'two',
+  });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'three',
+    name: 'three',
+    offbudget: 1,
+  });
   await db.insertPayee({ id: 'payee1', name: 'one' });
   await db.insertPayee({ id: 'payee2', name: 'two' });
   await db.insertPayee({ id: 'payee3', name: 'three' });

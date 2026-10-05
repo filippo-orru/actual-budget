@@ -8,11 +8,13 @@ vi.mock('#server/db');
 
 type CategoryRow = {
   id: string;
+  budget_id: string;
   note: string | null;
 };
 
 type GroupRow = {
   id: string;
+  budget_id: string;
   name: string;
   tombstone: 0 | 1;
 };
@@ -31,8 +33,11 @@ function setupDb(initial: { categories: CategoryRow[]; groups?: GroupRow[] }) {
   });
 
   vi.mocked(db.first).mockImplementation(async (sql: string, params) => {
+    if (sql.includes('FROM budgets')) {
+      return { id: 'default' } as never;
+    }
     if (sql.includes('FROM cleanup_groups')) {
-      const key = (params as string[])[0];
+      const key = (params as string[])[1];
       const match = Array.from(groups.values()).find(
         g => g.name.toLowerCase() === key,
       );
@@ -95,8 +100,8 @@ describe('storeNoteCleanups', () => {
   it('persists global source/sink lines as cleanup_def with null groupId', async () => {
     const state = setupDb({
       categories: [
-        { id: 'cat-1', note: '#cleanup source' },
-        { id: 'cat-2', note: '#cleanup sink 2' },
+        { id: 'cat-1', budget_id: 'default', note: '#cleanup source' },
+        { id: 'cat-2', budget_id: 'default', note: '#cleanup sink 2' },
       ],
     });
 
@@ -113,9 +118,13 @@ describe('storeNoteCleanups', () => {
   it('resolves shared group names to a single group id, case-insensitively', async () => {
     const state = setupDb({
       categories: [
-        { id: 'cat-1', note: '#cleanup Vacations source' },
-        { id: 'cat-2', note: '#cleanup vacations sink' },
-        { id: 'cat-3', note: '#cleanup VACATIONS' },
+        {
+          id: 'cat-1',
+          budget_id: 'default',
+          note: '#cleanup Vacations source',
+        },
+        { id: 'cat-2', budget_id: 'default', note: '#cleanup vacations sink' },
+        { id: 'cat-3', budget_id: 'default', note: '#cleanup VACATIONS' },
       ],
     });
 
@@ -138,7 +147,13 @@ describe('storeNoteCleanups', () => {
 
   it('clears cleanup_def for categories whose notes no longer carry cleanup', async () => {
     const state = setupDb({
-      categories: [{ id: 'cat-1', note: 'totally unrelated note text' }],
+      categories: [
+        {
+          id: 'cat-1',
+          budget_id: 'default',
+          note: 'totally unrelated note text',
+        },
+      ],
     });
 
     await storeNoteCleanups();
@@ -148,8 +163,17 @@ describe('storeNoteCleanups', () => {
 
   it('tombstones groups that no longer have any live members', async () => {
     const state = setupDb({
-      categories: [{ id: 'cat-1', note: 'no cleanup here' }],
-      groups: [{ id: 'g-orphan', name: 'OldGroup', tombstone: 0 }],
+      categories: [
+        { id: 'cat-1', budget_id: 'default', note: 'no cleanup here' },
+      ],
+      groups: [
+        {
+          id: 'g-orphan',
+          budget_id: 'default',
+          name: 'OldGroup',
+          tombstone: 0,
+        },
+      ],
     });
 
     await storeNoteCleanups();
@@ -159,8 +183,17 @@ describe('storeNoteCleanups', () => {
 
   it('resurrects a tombstoned group when a fresh note references its name', async () => {
     const state = setupDb({
-      categories: [{ id: 'cat-1', note: '#cleanup Reborn source' }],
-      groups: [{ id: 'g-existing', name: 'Reborn', tombstone: 1 }],
+      categories: [
+        { id: 'cat-1', budget_id: 'default', note: '#cleanup Reborn source' },
+      ],
+      groups: [
+        {
+          id: 'g-existing',
+          budget_id: 'default',
+          name: 'Reborn',
+          tombstone: 1,
+        },
+      ],
     });
 
     await storeNoteCleanups();

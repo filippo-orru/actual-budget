@@ -440,8 +440,14 @@ export function safeNumber(value: number) {
   return value;
 }
 
-export function toRelaxedNumber(currencyAmount: CurrencyAmount): Amount {
-  return integerToAmount(currencyToInteger(currencyAmount) || 0);
+export function toRelaxedNumber(
+  currencyAmount: CurrencyAmount,
+  decimalPlaces: number = 2,
+): Amount {
+  return integerToAmount(
+    currencyToInteger(currencyAmount, decimalPlaces) || 0,
+    decimalPlaces,
+  );
 }
 
 export function integerToCurrency(
@@ -523,9 +529,10 @@ export function currencyToAmount(currencyAmount: string): Amount | null {
 
 export function currencyToInteger(
   currencyAmount: CurrencyAmount,
+  decimalPlaces: number = 2,
 ): IntegerAmount | null {
   const amount = currencyToAmount(currencyAmount);
-  return amount == null ? null : amountToInteger(amount);
+  return amount == null ? null : amountToInteger(amount, decimalPlaces);
 }
 
 export function stringToInteger(str: string): number | null {

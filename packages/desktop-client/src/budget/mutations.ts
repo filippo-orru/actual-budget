@@ -11,6 +11,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { v4 as uuidv4 } from 'uuid';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { pushModal } from '#modals/modalsSlice';
 import { addNotification } from '#notifications/notificationsSlice';
 import type { Notification } from '#notifications/notificationsSlice';
@@ -145,6 +146,7 @@ type CreateCategoryPayload = {
 export function useCreateCategoryMutation() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
+  const budgetId = useBudgetSpaceId();
   const { t } = useTranslation();
 
   return useMutation({
@@ -155,6 +157,7 @@ export function useCreateCategoryMutation() {
       isHidden,
     }: CreateCategoryPayload) => {
       const id = await send('category-create', {
+        budgetId,
         name,
         groupId,
         isIncome,
@@ -204,6 +207,7 @@ type SaveCategoryPayload = {
 };
 
 export function useSaveCategoryMutation() {
+  const budgetId = useBudgetSpaceId();
   const createCategory = useCreateCategoryMutation();
   const updateCategory = useUpdateCategoryMutation();
   const { t } = useTranslation();
@@ -213,7 +217,7 @@ export function useSaveCategoryMutation() {
   return useMutation({
     mutationFn: async ({ category }: SaveCategoryPayload) => {
       const { grouped: categoryGroups = [] } =
-        await queryClient.ensureQueryData(categoryQueries.list());
+        await queryClient.ensureQueryData(categoryQueries.list(budgetId));
 
       const group = categoryGroups.find(g => g.id === category.group);
       const categoriesInGroup = group?.categories ?? [];
@@ -335,6 +339,7 @@ type ReoderCategoryPayload = {
 };
 
 export function useReorderCategoryMutation() {
+  const budgetId = useBudgetSpaceId();
   const moveCategory = useMoveCategoryMutation();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
@@ -343,7 +348,7 @@ export function useReorderCategoryMutation() {
   return useMutation({
     mutationFn: async ({ id, groupId, targetId }: ReoderCategoryPayload) => {
       const { grouped: categoryGroups = [], list: categories = [] } =
-        await queryClient.ensureQueryData(categoryQueries.list());
+        await queryClient.ensureQueryData(categoryQueries.list(budgetId));
 
       const moveCandidate = categories.filter(c => c.id === id)[0];
       const group = categoryGroups.find(g => g.id === groupId);
@@ -373,13 +378,14 @@ type CreateCategoryGroupPayload = {
 };
 
 export function useCreateCategoryGroupMutation() {
+  const budgetId = useBudgetSpaceId();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: async ({ name }: CreateCategoryGroupPayload) => {
-      const id = await send('category-group-create', { name });
+      const id = await send('category-group-create', { name, budgetId });
       return id;
     },
     onSuccess: () => invalidateQueries(queryClient),
@@ -399,13 +405,14 @@ type UpdateCategoryGroupPayload = {
 };
 
 export function useUpdateCategoryGroupMutation() {
+  const budgetId = useBudgetSpaceId();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
   return useMutation({
     mutationFn: async ({ group }: UpdateCategoryGroupPayload) => {
       const { grouped: categoryGroups } = await queryClient.ensureQueryData(
-        categoryQueries.list(),
+        categoryQueries.list(budgetId),
       );
 
       const exists = categoryGroups.some(
@@ -465,6 +472,7 @@ type DeleteCategoryGroupPayload = {
 };
 
 export function useDeleteCategoryGroupMutation() {
+  const budgetId = useBudgetSpaceId();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
@@ -472,7 +480,7 @@ export function useDeleteCategoryGroupMutation() {
   return useMutation({
     mutationFn: async ({ id }: DeleteCategoryGroupPayload) => {
       const { grouped: categoryGroups } = await queryClient.ensureQueryData(
-        categoryQueries.list(),
+        categoryQueries.list(budgetId),
       );
       const group = categoryGroups.find(g => g.id === id);
 

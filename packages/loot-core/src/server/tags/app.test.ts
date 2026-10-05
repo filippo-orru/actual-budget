@@ -27,7 +27,11 @@ async function getNotes(id: string) {
 describe('tags app', () => {
   describe('tags-rename', () => {
     beforeEach(async () => {
-      await db.insertAccount({ id: 'account-1', name: 'Account 1' });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'account-1',
+        name: 'Account 1',
+      });
     });
 
     it('renames the tag and rewrites it in transaction notes', async () => {

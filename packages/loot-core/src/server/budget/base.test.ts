@@ -13,8 +13,13 @@ describe('Base budget', () => {
   it('Recomputes budget cells when account fields change', async () => {
     await sheet.loadSpreadsheet(db);
 
-    await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
     await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'group1',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group2',
       name: 'income',
       is_income: 1,
@@ -49,6 +54,7 @@ describe('Base budget', () => {
 
     // Create the referenced account
     await db.insertAccount({
+      budget_id: 'default',
       id: '29eef937-9933-49ef-80d9-71627074cf31',
       name: 'foo',
     });
@@ -70,8 +76,13 @@ describe('Base budget', () => {
     sheet.get().meta().budgetType = 'tracking';
 
     // Create a group with multiple categories
-    await db.insertCategoryGroup({ id: 'group1', name: 'Test Group' });
     await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'Test Group',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group2',
       name: 'Income',
       is_income: 1,
@@ -92,7 +103,11 @@ describe('Base budget', () => {
     const month = '2017-01';
     const sheetName = monthUtils.sheetForMonth(month);
 
-    await db.insertAccount({ id: 'account1', name: 'Account 1' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'account1',
+      name: 'Account 1',
+    });
 
     await db.insertTransaction({
       date: '2017-01-15',
@@ -147,16 +162,19 @@ describe('Base budget', () => {
 
     // Create two expense groups - one visible, one hidden
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'visible-group',
       name: 'Visible Group',
     });
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'hidden-group',
       name: 'Hidden Group',
       hidden: 1,
     });
 
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'income-group',
       name: 'Income',
       is_income: 1,
@@ -176,7 +194,11 @@ describe('Base budget', () => {
     const month = '2017-01';
     const sheetName = monthUtils.sheetForMonth(month);
 
-    await db.insertAccount({ id: 'account1', name: 'Account 1' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'account1',
+      name: 'Account 1',
+    });
 
     await db.insertTransaction({
       date: '2017-01-15',
@@ -234,8 +256,13 @@ describe('Base budget', () => {
     sheet.get().meta().budgetType = 'envelope';
 
     // Create a group with multiple categories
-    await db.insertCategoryGroup({ id: 'group1', name: 'Test Group' });
     await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'Test Group',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group2',
       name: 'Income',
       is_income: 1,
@@ -256,7 +283,11 @@ describe('Base budget', () => {
     const month = '2017-01';
     const sheetName = monthUtils.sheetForMonth(month);
 
-    await db.insertAccount({ id: 'account1', name: 'Account 1' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'account1',
+      name: 'Account 1',
+    });
 
     await db.insertTransaction({
       date: '2017-01-15',
@@ -287,16 +318,19 @@ describe('Base budget', () => {
 
     // Create two expense groups - one visible, one hidden
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'visible-group',
       name: 'Visible Group',
     });
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'hidden-group',
       name: 'Hidden Group',
       hidden: 1,
     });
 
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'income-group',
       name: 'Income',
       is_income: 1,
@@ -316,7 +350,11 @@ describe('Base budget', () => {
     const month = '2017-01';
     const sheetName = monthUtils.sheetForMonth(month);
 
-    await db.insertAccount({ id: 'account1', name: 'Account 1' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'account1',
+      name: 'Account 1',
+    });
 
     await db.insertTransaction({
       date: '2017-01-15',
@@ -342,8 +380,13 @@ describe('Base budget', () => {
     await sheet.loadSpreadsheet(db);
     sheet.get().meta().budgetType = 'envelope';
 
-    await db.insertCategoryGroup({ id: 'group1', name: 'Expenses' });
     await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'Expenses',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group2',
       name: 'Income',
       is_income: 1,
@@ -357,7 +400,11 @@ describe('Base budget', () => {
       cat_group: 'group1',
     });
 
-    await db.insertAccount({ id: 'account1', name: 'Account 1' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'account1',
+      name: 'Account 1',
+    });
 
     // Insert transactions across multiple months *before* building the
     // budgets, so the cold build seeds the sum-amount cells from the
@@ -419,8 +466,13 @@ describe('Base budget', () => {
     await sheet.loadSpreadsheet(db);
     sheet.get().meta().budgetType = 'tracking';
 
-    await db.insertCategoryGroup({ id: 'group1', name: 'Expenses' });
     await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'Expenses',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group2',
       name: 'Income',
       is_income: 1,
@@ -434,7 +486,11 @@ describe('Base budget', () => {
       cat_group: 'group1',
     });
 
-    await db.insertAccount({ id: 'account1', name: 'Account 1' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'account1',
+      name: 'Account 1',
+    });
 
     await db.insertTransaction({
       date: '2017-01-10',
@@ -472,8 +528,13 @@ describe('Base budget', () => {
     await sheet.loadSpreadsheet(db);
     sheet.get().meta().budgetType = 'envelope';
 
-    await db.insertCategoryGroup({ id: 'group1', name: 'Expenses' });
     await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'Expenses',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group2',
       name: 'Income',
       is_income: 1,
@@ -483,8 +544,13 @@ describe('Base budget', () => {
       cat_group: 'group1',
     });
 
-    await db.insertAccount({ id: 'onbudget', name: 'On budget' });
     await db.insertAccount({
+      budget_id: 'default',
+      id: 'onbudget',
+      name: 'On budget',
+    });
+    await db.insertAccount({
+      budget_id: 'default',
       id: 'offbudget',
       name: 'Off budget',
       offbudget: 1,

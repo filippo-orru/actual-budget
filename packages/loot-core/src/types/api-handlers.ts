@@ -144,11 +144,14 @@ export type ApiHandlers = {
     accountId: APIAccountEntity['id'];
   }) => Promise<void>;
 
-  'api/accounts-get': () => Promise<APIAccountEntity[]>;
+  'api/accounts-get': (arg?: {
+    budgetId?: string;
+  }) => Promise<APIAccountEntity[]>;
 
   'api/account-create': (arg: {
     account: Omit<APIAccountEntity, 'id'>;
     initialBalance?: number;
+    budgetId?: string;
   }) => Promise<string>;
 
   'api/account-update': (arg: {
@@ -171,10 +174,13 @@ export type ApiHandlers = {
     cutoff?: Date;
   }) => Promise<number>;
 
-  'api/account-groups-get': () => Promise<APIAccountGroupEntity[]>;
+  'api/account-groups-get': (arg?: {
+    budgetId?: string;
+  }) => Promise<APIAccountGroupEntity[]>;
 
   'api/account-group-create': (arg: {
     group: Omit<APIAccountGroupEntity, 'id'>;
+    budgetId?: string;
   }) => Promise<APIAccountGroupEntity['id']>;
 
   'api/account-group-update': (arg: {
@@ -188,14 +194,17 @@ export type ApiHandlers = {
 
   'api/categories-get': (arg: {
     hidden?: boolean;
+    budgetId?: string;
   }) => Promise<APICategoryEntity[]>;
 
   'api/category-groups-get': (arg?: {
     hidden?: boolean;
+    budgetId?: string;
   }) => Promise<APICategoryGroupEntity[]>;
 
   'api/category-group-create': (arg: {
     group: Omit<APICategoryGroupEntity, 'id'>;
+    budgetId?: string;
   }) => Promise<APICategoryGroupEntity['id']>;
 
   'api/category-group-update': (arg: {
@@ -210,6 +219,7 @@ export type ApiHandlers = {
 
   'api/category-create': (arg: {
     category: Omit<APICategoryEntity, 'id'>;
+    budgetId?: string;
   }) => Promise<APICategoryEntity['id']>;
 
   'api/category-update': (arg: {
@@ -285,6 +295,7 @@ export type ApiHandlers = {
 
   'api/rule-create': (arg: {
     rule: Omit<APIRuleEntity, 'id'>;
+    budgetId?: string;
   }) => Promise<RuleEntity>;
 
   'api/rule-update': (arg: { rule: APIRuleEntity }) => Promise<RuleEntity>;

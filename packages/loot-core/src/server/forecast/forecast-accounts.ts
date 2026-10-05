@@ -73,7 +73,7 @@ export async function resolveAccountIdsFromConditions(
     return undefined;
   }
 
-  const accountData = await db.getAccounts();
+  const accountData = await db.getAllAccounts();
 
   const filteredAccounts = accountData.filter(account => {
     const matches = accountConditions.map(condition =>
@@ -114,7 +114,7 @@ export function getAccountRestrictionMode(
 export async function getAccounts(
   accountIds?: string[],
 ): Promise<AccountWithComputedBalance[]> {
-  const accounts = await db.getAccounts();
+  const accounts = await db.getAllAccounts();
   const selectedAccounts =
     accountIds === undefined
       ? accounts

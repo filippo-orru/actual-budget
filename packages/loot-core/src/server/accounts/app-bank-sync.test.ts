@@ -33,6 +33,7 @@ async function setupSimpleFinAccounts(
   insertBank({ id: 'bank1', bank_id: 'sfin-bank', name: 'SimpleFin' });
   for (const acct of accounts) {
     await db.insertAccount({
+      budget_id: 'default',
       id: acct.id,
       name: acct.name,
       bank: 'bank1',
@@ -147,6 +148,7 @@ describe('accountsBankSync', () => {
   it('persists ok status after a successful sync', async () => {
     insertBank({ id: 'bank1', bank_id: 'gc-bank', name: 'GoCardless' });
     await db.insertAccount({
+      budget_id: 'default',
       id: 'acct1',
       name: 'Checking',
       bank: 'bank1',
@@ -174,6 +176,7 @@ describe('accountsBankSync', () => {
   it('persists reauth-required status after a reauth error', async () => {
     insertBank({ id: 'bank1', bank_id: 'gc-bank', name: 'GoCardless' });
     await db.insertAccount({
+      budget_id: 'default',
       id: 'acct1',
       name: 'Checking',
       bank: 'bank1',
@@ -201,6 +204,7 @@ describe('accountsBankSync', () => {
   it('persists rate-limit-exceeded status after a rate limit error', async () => {
     insertBank({ id: 'bank1', bank_id: 'gc-bank', name: 'GoCardless' });
     await db.insertAccount({
+      budget_id: 'default',
       id: 'acct1',
       name: 'Checking',
       bank: 'bank1',
@@ -228,6 +232,7 @@ describe('accountsBankSync', () => {
   it('persists timed-out status after a timeout error', async () => {
     insertBank({ id: 'bank1', bank_id: 'sfin-bank', name: 'SimpleFin' });
     await db.insertAccount({
+      budget_id: 'default',
       id: 'acct1',
       name: 'Checking',
       bank: 'bank1',
@@ -255,6 +260,7 @@ describe('accountsBankSync', () => {
   it('persists failed status after an operational sync error', async () => {
     insertBank({ id: 'bank1', bank_id: 'gc-bank', name: 'GoCardless' });
     await db.insertAccount({
+      budget_id: 'default',
       id: 'acct1',
       name: 'Checking',
       bank: 'bank1',
@@ -285,6 +291,7 @@ describe('bank sync handlers must not nest mutators', () => {
   it('completes when run through runHandler even though the sync runs its own mutator', async () => {
     insertBank({ id: 'bank1', bank_id: 'gc-bank', name: 'GoCardless' });
     await db.insertAccount({
+      budget_id: 'default',
       id: 'acct1',
       name: 'Checking',
       bank: 'bank1',

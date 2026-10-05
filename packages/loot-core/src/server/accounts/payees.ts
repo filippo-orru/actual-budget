@@ -15,16 +15,20 @@ export async function createPayee(description: string) {
   }
 }
 
-export async function getStartingBalancePayee() {
-  let category = await db.first<db.DbCategory>(`
+export async function getStartingBalancePayee(budgetId: string) {
+  let category = await db.first<db.DbCategory>(
+    `
     SELECT * FROM categories
-      WHERE is_income = 1 AND
+      WHERE budget_id = ? AND is_income = 1 AND
       LOWER(name) = 'starting balances' AND
       tombstone = 0
-  `);
+  `,
+    [budgetId],
+  );
   if (category === null) {
     category = await db.first<db.DbCategory>(
-      'SELECT * FROM categories WHERE is_income = 1 AND tombstone = 0',
+      'SELECT * FROM categories WHERE budget_id = ? AND is_income = 1 AND tombstone = 0',
+      [budgetId],
     );
   }
 

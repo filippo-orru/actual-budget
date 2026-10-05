@@ -25,6 +25,7 @@ import {
   asMonthSlidingTimeFrame,
   calculateTimeRange,
 } from '#components/reports/reportRanges';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { bootstrapHyperFormula } from '#util/bootstrapHyperFormula';
 
 import { useGlobalPref } from './useGlobalPref';
@@ -143,6 +144,7 @@ export function useFormulaExecution(
   accounts?: SimpleAccount[],
 ) {
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const [language] = useGlobalPref('language');
   const [result, setResult] = useState<number | string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -209,7 +211,11 @@ export function useFormulaExecution(
           throwOnCellError: false,
         });
 
-        await prefetchFormulaQueries(formulaQueryContext, currentQueries);
+        await prefetchFormulaQueries(
+          formulaQueryContext,
+          currentQueries,
+          budgetId,
+        );
         await prefetchAccountBalances(
           formulaQueryContext,
           currentAccounts ?? [],
@@ -256,6 +262,7 @@ export function useFormulaExecution(
     };
   }, [
     formula,
+    budgetId,
     queriesVersion,
     locale,
     language,
@@ -270,6 +277,7 @@ export function useFormulaExecution(
 async function prefetchFormulaQueries(
   formulaQueryContext: Required<FormulaQueryContext>,
   queries: QueriesMap,
+  budgetId: string,
 ) {
   for (const queryName of formulaQueryContext.queryNames) {
     const queryConfig = queries[queryName];
@@ -305,7 +313,7 @@ async function prefetchFormulaQueries(
   for (const queryName of formulaQueryContext.queryExtractCategoryNames) {
     formulaQueryContext.queryExtractCategoriesPrefetch.set(
       queryName,
-      await extractQueryCategories(queryName, queries),
+      await extractQueryCategories(queryName, queries, budgetId),
     );
   }
 
@@ -464,6 +472,7 @@ async function getCategoriesFromConditions(
   allCategories: CategoryEntity[],
   conditions: RuleConditionEntity[],
   conditionsOp: 'and' | 'or',
+  budgetId: string,
 ): Promise<string[]> {
   if (conditions.length === 0) {
     // No category filter: include all non-income, non-hidden categories
@@ -473,7 +482,9 @@ async function getCategoriesFromConditions(
   }
 
   // Get category groups for resolving group IDs to names
-  const { grouped: categoryGroups } = await send('get-categories');
+  const { grouped: categoryGroups } = await send('get-categories', {
+    budgetId,
+  });
   const groupNameById = new Map(
     categoryGroups.map((g: { id: string; name: string }) => [g.id, g.name]),
   );
@@ -571,6 +582,7 @@ function getMonthDataValue(
 async function extractQueryCategories(
   queryName: string,
   queries: QueriesMap,
+  budgetId: string,
 ): Promise<string[]> {
   const queryConfig = queries[queryName];
   if (!queryConfig) {
@@ -581,11 +593,12 @@ async function extractQueryCategories(
   const categoryConditions = extractCategoryConditions(
     queryConfig.conditions || [],
   );
-  const { list: allCategories } = await send('get-categories');
+  const { list: allCategories } = await send('get-categories', { budgetId });
   return getCategoriesFromConditions(
     allCategories,
     categoryConditions,
     queryConfig.conditionsOp || 'and',
+    budgetId,
   );
 }
 

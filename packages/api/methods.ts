@@ -219,15 +219,16 @@ export function mergeTransactions(
   return send('api/transactions-merge', { ids });
 }
 
-export function getAccounts() {
-  return send('api/accounts-get');
+export function getAccounts(budgetId?: string) {
+  return send('api/accounts-get', { budgetId });
 }
 
 export function createAccount(
   account: Omit<APIAccountEntity, 'id'>,
   initialBalance?: number,
+  budgetId?: string,
 ) {
-  return send('api/account-create', { account, initialBalance });
+  return send('api/account-create', { account, initialBalance, budgetId });
 }
 
 export function updateAccount(
@@ -261,12 +262,15 @@ export function getAccountBalance(id: APIAccountEntity['id'], cutoff?: Date) {
   return send('api/account-balance', { id, cutoff });
 }
 
-export function getAccountGroups() {
-  return send('api/account-groups-get');
+export function getAccountGroups(budgetId?: string) {
+  return send('api/account-groups-get', { budgetId });
 }
 
-export function createAccountGroup(group: Omit<APIAccountGroupEntity, 'id'>) {
-  return send('api/account-group-create', { group });
+export function createAccountGroup(
+  group: Omit<APIAccountGroupEntity, 'id'>,
+  budgetId?: string,
+) {
+  return send('api/account-group-create', { group, budgetId });
 }
 
 export function updateAccountGroup(
@@ -280,12 +284,17 @@ export function deleteAccountGroup(id: APIAccountGroupEntity['id']) {
   return send('api/account-group-delete', { id });
 }
 
-export function getCategoryGroups(options: { hidden?: boolean } = {}) {
+export function getCategoryGroups(
+  options: { hidden?: boolean; budgetId?: string } = {},
+) {
   return send('api/category-groups-get', options);
 }
 
-export function createCategoryGroup(group: Omit<APICategoryGroupEntity, 'id'>) {
-  return send('api/category-group-create', { group });
+export function createCategoryGroup(
+  group: Omit<APICategoryGroupEntity, 'id'>,
+  budgetId?: string,
+) {
+  return send('api/category-group-create', { group, budgetId });
 }
 
 export function updateCategoryGroup(
@@ -302,12 +311,17 @@ export function deleteCategoryGroup(
   return send('api/category-group-delete', { id, transferCategoryId });
 }
 
-export function getCategories(options: { hidden?: boolean } = {}) {
+export function getCategories(
+  options: { hidden?: boolean; budgetId?: string } = {},
+) {
   return send('api/categories-get', options);
 }
 
-export function createCategory(category: Omit<APICategoryEntity, 'id'>) {
-  return send('api/category-create', { category });
+export function createCategory(
+  category: Omit<APICategoryEntity, 'id'>,
+  budgetId?: string,
+) {
+  return send('api/category-create', { category, budgetId });
 }
 
 export function updateCategory(
@@ -389,8 +403,8 @@ export function getPayeeRules(id: RuleEntity['id']) {
   return send('api/payee-rules-get', { id });
 }
 
-export function createRule(rule: Omit<APIRuleEntity, 'id'>) {
-  return send('api/rule-create', { rule });
+export function createRule(rule: Omit<APIRuleEntity, 'id'>, budgetId?: string) {
+  return send('api/rule-create', { rule, budgetId });
 }
 
 export function updateRule(rule: APIRuleEntity) {

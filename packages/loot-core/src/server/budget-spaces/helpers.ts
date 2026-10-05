@@ -1,6 +1,7 @@
 import * as db from '#server/db';
 import type { DbBudgetSpace } from '#server/db';
 import { ValidationError } from '#server/errors';
+import { getCurrency } from '#shared/currencies';
 
 export type BudgetOwnedTable =
   | 'accounts'
@@ -43,6 +44,24 @@ export async function validateBudgetExists(budgetId: string) {
     throw new ValidationError(`Budget not found: ${budgetId}`);
   }
   return budget.id;
+}
+
+export async function getBudgetDecimalPlaces(
+  budgetId: string,
+): Promise<number> {
+  await validateBudgetExists(budgetId);
+  const [budget, currencyFlag] = await Promise.all([
+    db.first<Pick<DbBudgetSpace, 'currency_code'>>(
+      'SELECT currency_code FROM budgets WHERE id = ?',
+      [budgetId],
+    ),
+    db.first<{ value: string }>(
+      "SELECT value FROM preferences WHERE id = 'flags.currency'",
+    ),
+  ]);
+  return currencyFlag?.value === 'true' && budget?.currency_code
+    ? getCurrency(budget.currency_code).decimalPlaces
+    : 2;
 }
 
 export async function resolveBudgetId(budgetId?: string): Promise<string> {

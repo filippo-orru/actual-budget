@@ -4,7 +4,11 @@ import * as db from './index';
 beforeEach(global.emptyDatabase());
 
 async function insertTransactions(transactions) {
-  await db.insertAccount({ id: 'foo', name: 'bar' });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'foo',
+    name: 'bar',
+  });
   return Promise.all(
     transactions.map(transaction => db.insertTransaction(transaction)),
   );
@@ -31,7 +35,11 @@ async function getTransactions(latestDate) {
 
 describe('Database', () => {
   test('all and first accept null params', async () => {
-    await db.insertAccount({ id: 'foo', name: 'bar' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'foo',
+      name: 'bar',
+    });
 
     const rows = await db.all<{ id: string }>(
       'SELECT id FROM accounts WHERE official_name IS ?',
@@ -47,7 +55,11 @@ describe('Database', () => {
   });
 
   test('inserting a category works', async () => {
-    await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'group1',
+    });
     await db.insertCategory({
       name: 'foo',
       cat_group: 'group1',
@@ -56,7 +68,11 @@ describe('Database', () => {
   });
 
   test('using a deleted category name works', async () => {
-    await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'group1',
+    });
     const id = await db.insertCategory({
       name: 'foo',
       cat_group: 'group1',
@@ -247,7 +263,11 @@ describe('Database', () => {
   });
 
   test('parent transactions never have a category', async () => {
-    await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group1',
+      name: 'group1',
+    });
     await db.insertCategory({
       id: 'cat1',
       name: 'cat1',

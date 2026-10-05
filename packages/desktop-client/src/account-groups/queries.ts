@@ -4,11 +4,14 @@ import { queryOptions } from '@tanstack/react-query';
 
 export const accountGroupQueries = {
   all: () => ['account-groups'],
-  lists: () => [...accountGroupQueries.all(), 'lists'],
-  list: () =>
+  lists: (budgetId?: string) =>
+    budgetId
+      ? [...accountGroupQueries.all(), budgetId, 'lists']
+      : accountGroupQueries.all(),
+  list: (budgetId: string) =>
     queryOptions<AccountGroupEntity[]>({
-      queryKey: [...accountGroupQueries.lists()],
-      queryFn: () => send('account-groups-get'),
+      queryKey: [...accountGroupQueries.lists(budgetId)],
+      queryFn: () => send('account-groups-get', { budgetId }),
       placeholderData: [],
       staleTime: Infinity,
     }),

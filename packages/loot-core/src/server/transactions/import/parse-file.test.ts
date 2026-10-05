@@ -75,7 +75,11 @@ async function importFileWithRealTime(
 describe('File import', () => {
   test('qif import works', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
     const { errors } = await importFileWithRealTime(
       'one',
       __dirname + '/../../../mocks/files/data.qif',
@@ -100,7 +104,11 @@ describe('File import', () => {
 
   test('ofx import works', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',
@@ -114,7 +122,11 @@ describe('File import', () => {
 
   test('ofx import works (credit card)', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',
@@ -128,7 +140,11 @@ describe('File import', () => {
 
   test('qfx import works', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',
@@ -142,7 +158,11 @@ describe('File import', () => {
 
   test('import notes are respected when importing', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     // Test with importNotes enabled
     const { errors: errorsWithNotes } = await importFileWithRealTime(
@@ -173,7 +193,11 @@ describe('File import', () => {
 
   test('matches extensions correctly (case-insensitive, etc)', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     let res = await importFileWithRealTime(
       'one',
@@ -195,7 +219,11 @@ describe('File import', () => {
 
   test('handles non-ASCII characters', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',
@@ -209,7 +237,11 @@ describe('File import', () => {
 
   test('handles windows-1252 charset', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',
@@ -223,7 +255,11 @@ describe('File import', () => {
 
   test('handles UTF-8 encoding', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',
@@ -237,7 +273,11 @@ describe('File import', () => {
 
   test('handles html escaped plaintext', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',
@@ -251,7 +291,11 @@ describe('File import', () => {
 
   test('CAMT.053 import works', async () => {
     await prefs.loadPrefs();
-    await db.insertAccount({ id: 'one', name: 'one' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'one',
+      name: 'one',
+    });
 
     const { errors } = await importFileWithRealTime(
       'one',

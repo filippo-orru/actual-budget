@@ -29,6 +29,7 @@ type BudgetAnalysisData = {
 };
 
 type createBudgetAnalysisSpreadsheetProps = {
+  budgetId: string;
   conditions?: RuleConditionEntity[];
   conditionsOp?: 'and' | 'or';
   startDate: string;
@@ -172,6 +173,7 @@ export function getNextRunningBalance({
 }
 
 export function createBudgetAnalysisSpreadsheet({
+  budgetId,
   conditions = [],
   conditionsOp = 'and',
   startDate,
@@ -183,8 +185,10 @@ export function createBudgetAnalysisSpreadsheet({
     setData: (data: BudgetAnalysisData) => void,
   ) => {
     // Get all categories
-    const { list: allCategories, grouped: allCategoryGroups } =
-      await send('get-categories');
+    const { list: allCategories, grouped: allCategoryGroups } = await send(
+      'get-categories',
+      { budgetId },
+    );
 
     // Build a UUID → name map for category groups so text-based operators
     // (contains, doesNotContain, matches) can match against the group name.

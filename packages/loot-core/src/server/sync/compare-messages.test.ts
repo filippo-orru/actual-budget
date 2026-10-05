@@ -167,6 +167,7 @@ describe('compareMessages', () => {
 
   it('switches the budget type when the preference arrives via sync', async () => {
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'income-group',
       name: 'Income',
       is_income: 1,
@@ -178,6 +179,7 @@ describe('compareMessages', () => {
       is_income: 1,
     });
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group1',
       name: 'group1',
       is_income: 0,

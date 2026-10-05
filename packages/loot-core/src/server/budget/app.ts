@@ -1,5 +1,10 @@
 import { createApp } from '#server/app';
 import { aqlQuery } from '#server/aql';
+import {
+  assertBudgetOwner,
+  getBudgetIdForEntity,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { APIError } from '#server/errors';
 import { categoryGroupModel, categoryModel } from '#server/models';
@@ -182,15 +187,22 @@ app.method(
 );
 
 // Server must return AQL entities not the raw DB data
-async function getCategories({ hidden }: { hidden?: boolean } = {}) {
-  const categoryGroups = await getCategoryGroups({ hidden });
+async function getCategories({
+  budgetId,
+  hidden,
+}: {
+  budgetId: string;
+  hidden?: boolean;
+}) {
+  await validateBudgetExists(budgetId);
+  const categoryGroups = await getCategoryGroups({ budgetId, hidden });
   let list: CategoryEntity[];
   if (hidden === true) {
     // A hidden category can live in a visible group, so when the caller
     // explicitly asks for hidden categories the flat list must look beyond
     // the (already hidden-filtered) groups returned above.
     const { data }: { data: CategoryEntity[] } = await aqlQuery(
-      q('categories').filter({ hidden: true }).select('*'),
+      q('categories').filter({ budget_id: budgetId, hidden: true }).select('*'),
     );
     list = data;
   } else {
@@ -307,11 +319,13 @@ async function trackingBudgetMonth({ month }: { month: string }) {
 }
 
 async function createCategory({
+  budgetId,
   name,
   groupId,
   isIncome,
   hidden,
 }: {
+  budgetId: string;
   name: string;
   groupId: CategoryGroupEntity['id'];
   isIncome?: boolean;
@@ -321,7 +335,11 @@ async function createCategory({
     throw APIError('Creating a category: groupId is required');
   }
 
+  await assertBudgetOwner(budgetId, [
+    { table: 'category_groups', id: groupId },
+  ]);
   return await db.insertCategory({
+    budget_id: budgetId,
     name: name.trim(),
     cat_group: groupId,
     is_income: isIncome ? 1 : 0,
@@ -330,6 +348,15 @@ async function createCategory({
 }
 
 async function updateCategory(category: CategoryEntity): Promise<void> {
+  const owner = await getBudgetIdForEntity({
+    table: 'categories',
+    id: category.id,
+  });
+  await assertBudgetOwner(owner, [
+    { table: 'categories', id: category.id },
+    { table: 'category_groups', id: category.group },
+  ]);
+  await assertCleanupGroupsOwner(owner, category.cleanup_def);
   try {
     await db.updateCategory(
       categoryModel.toDb({
@@ -351,6 +378,29 @@ async function updateCategory(category: CategoryEntity): Promise<void> {
   }
 }
 
+async function assertCleanupGroupsOwner(
+  budgetId: string,
+  cleanupDefinition: string | undefined,
+): Promise<void> {
+  if (!cleanupDefinition) return;
+  const templates = JSON.parse(cleanupDefinition) as Array<{
+    groupId?: string | null;
+  }>;
+  const groupIds = [
+    ...new Set(
+      templates
+        .map(template => template.groupId)
+        .filter((id): id is string => typeof id === 'string'),
+    ),
+  ];
+  if (groupIds.length > 0) {
+    await assertBudgetOwner(
+      budgetId,
+      groupIds.map(id => ({ table: 'cleanup_groups' as const, id })),
+    );
+  }
+}
+
 async function moveCategory({
   id,
   groupId,
@@ -360,6 +410,13 @@ async function moveCategory({
   groupId: CategoryGroupEntity['id'];
   targetId: CategoryEntity['id'] | null;
 }): Promise<void> {
+  const owner = await getBudgetIdForEntity({ table: 'categories', id });
+  const references = [
+    { table: 'categories' as const, id },
+    { table: 'category_groups' as const, id: groupId },
+    ...(targetId ? [{ table: 'categories' as const, id: targetId }] : []),
+  ];
+  await assertBudgetOwner(owner, references);
   await batchMessages(async () => {
     await db.moveCategory(id, groupId, targetId);
   });
@@ -372,6 +429,23 @@ async function deleteCategory({
   id: CategoryEntity['id'];
   transferId?: CategoryEntity['id'] | null;
 }): Promise<void> {
+  const owner = await getBudgetIdForEntity({ table: 'categories', id });
+  const references = [{ table: 'categories' as const, id }];
+  if (transferId != null) {
+    references.push({ table: 'categories', id: transferId });
+  }
+  await assertBudgetOwner(owner, references);
+  const remapped = await db.all<{ id: string }>(
+    'SELECT id FROM category_mapping WHERE transferId = ?',
+    [id],
+  );
+  await assertBudgetOwner(
+    owner,
+    remapped.map(mapping => ({
+      table: 'categories' as const,
+      id: mapping.id,
+    })),
+  );
   await batchMessages(async () => {
     const row = await db.first<Pick<db.DbCategory, 'is_income'>>(
       'SELECT is_income FROM categories WHERE id = ?',
@@ -412,30 +486,44 @@ async function deleteCategory({
 }
 
 // Server must return AQL entities not the raw DB data
-async function getCategoryGroups({ hidden }: { hidden?: boolean } = {}) {
-  const baseQuery = q('category_groups').select('*');
+async function getCategoryGroups({
+  budgetId,
+  hidden,
+}: {
+  budgetId: string;
+  hidden?: boolean;
+}) {
+  await validateBudgetExists(budgetId);
+  const baseQuery = q('category_groups')
+    .filter({ budget_id: budgetId })
+    .select('*');
   const query = hidden === undefined ? baseQuery : baseQuery.filter({ hidden });
   const { data: categoryGroups }: { data: CategoryGroupEntity[] } =
     await aqlQuery(query);
-  if (hidden === undefined) {
-    return categoryGroups;
-  }
-  return categoryGroups.map(g => ({
-    ...g,
-    categories: g.categories?.filter(c => Boolean(c.hidden) === hidden),
+  return categoryGroups.map(group => ({
+    ...group,
+    categories: group.categories?.filter(
+      category =>
+        category.budget_id === budgetId &&
+        (hidden === undefined || Boolean(category.hidden) === hidden),
+    ),
   }));
 }
 
 async function createCategoryGroup({
+  budgetId,
   name,
   isIncome,
   hidden,
 }: {
+  budgetId: string;
   name: CategoryGroupEntity['name'];
   isIncome?: CategoryGroupEntity['is_income'];
   hidden?: CategoryGroupEntity['hidden'];
 }): Promise<CategoryGroupEntity['id']> {
+  await validateBudgetExists(budgetId);
   return await db.insertCategoryGroup({
+    budget_id: budgetId,
     name,
     is_income: isIncome ? 1 : 0,
     hidden: hidden ? 1 : 0,
@@ -443,7 +531,16 @@ async function createCategoryGroup({
 }
 
 async function updateCategoryGroup(group: CategoryGroupEntity) {
-  await db.updateCategoryGroup(categoryGroupModel.toDb(group));
+  const budgetId = await getBudgetIdForEntity({
+    table: 'category_groups',
+    id: group.id,
+  });
+  if (group.budget_id !== undefined && group.budget_id !== budgetId) {
+    throw new Error('Category group ownership cannot be changed');
+  }
+  await db.updateCategoryGroup(
+    categoryGroupModel.toDb({ ...group, budget_id: budgetId }),
+  );
 }
 
 async function moveCategoryGroup({
@@ -453,6 +550,12 @@ async function moveCategoryGroup({
   id: CategoryGroupEntity['id'];
   targetId: CategoryGroupEntity['id'] | null;
 }): Promise<void> {
+  const owner = await getBudgetIdForEntity({ table: 'category_groups', id });
+  const references = [{ table: 'category_groups' as const, id }];
+  if (targetId != null) {
+    references.push({ table: 'category_groups', id: targetId });
+  }
+  await assertBudgetOwner(owner, references);
   await batchMessages(async () => {
     await db.moveCategoryGroup(id, targetId);
   });
@@ -465,10 +568,21 @@ async function deleteCategoryGroup({
   id: CategoryGroupEntity['id'];
   transferId?: CategoryGroupEntity['id'] | null;
 }): Promise<void> {
+  const owner = await getBudgetIdForEntity({ table: 'category_groups', id });
   const groupCategories = await db.all<Pick<CategoryEntity, 'id'>>(
-    'SELECT id FROM categories WHERE cat_group = ? AND tombstone = 0',
-    [id],
+    'SELECT id FROM categories WHERE cat_group = ? AND budget_id = ? AND tombstone = 0',
+    [id, owner],
   );
+  if (transferId != null) {
+    await assertBudgetOwner(owner, [
+      { table: 'category_groups', id },
+      { table: 'categories', id: transferId },
+      ...groupCategories.map(category => ({
+        table: 'categories' as const,
+        id: category.id,
+      })),
+    ]);
+  }
 
   await batchMessages(async () => {
     if (transferId) {

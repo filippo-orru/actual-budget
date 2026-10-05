@@ -40,11 +40,17 @@ beforeEach(async () => {
 describe('Formula Card - Integration Tests with Queries', () => {
   // Helper functions using db helper methods
   async function createTestAccount(name: string) {
-    return await db.insertAccount({ name });
+    return await db.insertAccount({
+      budget_id: 'default',
+      name,
+    });
   }
 
   async function createCategoryGroup(name: string) {
-    return await db.insertCategoryGroup({ name });
+    return await db.insertCategoryGroup({
+      budget_id: 'default',
+      name,
+    });
   }
 
   async function createTestCategory(

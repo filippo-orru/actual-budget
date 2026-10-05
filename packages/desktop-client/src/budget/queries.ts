@@ -13,12 +13,15 @@ type CategoryViews = {
 
 export const categoryQueries = {
   all: () => ['categories'],
-  lists: () => [...categoryQueries.all(), 'lists'],
-  list: () =>
+  lists: (budgetId?: string) =>
+    budgetId
+      ? [...categoryQueries.all(), budgetId, 'lists']
+      : categoryQueries.all(),
+  list: (budgetId: string) =>
     queryOptions<CategoryViews>({
-      queryKey: [...categoryQueries.lists()],
+      queryKey: [...categoryQueries.lists(budgetId)],
       queryFn: async () => {
-        const categories = await send('get-categories');
+        const categories = await send('get-categories', { budgetId });
         return translateStartingBalances(categories);
       },
       placeholderData: {

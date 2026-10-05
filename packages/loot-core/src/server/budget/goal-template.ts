@@ -1,4 +1,8 @@
 import { aqlQuery } from '#server/aql';
+import {
+  assertBudgetOwner,
+  getBudgetIdForEntity,
+} from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { batchMessages } from '#server/sync';
 // @ts-strict-ignore
@@ -46,6 +50,30 @@ export async function storeTemplates({
   }[];
   source: 'notes' | 'ui';
 }): Promise<void> {
+  const owners = await Promise.all(
+    categoriesWithTemplates.map(({ id }) =>
+      getBudgetIdForEntity({ table: 'categories', id }),
+    ),
+  );
+  const uniqueOwners = new Set(owners);
+  if (uniqueOwners.size > 1) {
+    throw new Error('Template categories must belong to the same budget');
+  }
+  const budgetId = owners[0];
+  if (budgetId) {
+    for (const { cleanup } of categoriesWithTemplates) {
+      if (!cleanup) continue;
+      const cleanupGroupIds = cleanup
+        .map(template => template.groupId)
+        .filter((id): id is string => typeof id === 'string');
+      if (cleanupGroupIds.length > 0) {
+        await assertBudgetOwner(
+          budgetId,
+          cleanupGroupIds.map(id => ({ table: 'cleanup_groups' as const, id })),
+        );
+      }
+    }
+  }
   let touchedCleanup = false;
   await batchMessages(async () => {
     for (const { id, templates, cleanup } of categoriesWithTemplates) {
@@ -63,8 +91,8 @@ export async function storeTemplates({
       await db.updateWithSchema('categories', update);
     }
   });
-  if (touchedCleanup) {
-    await tombstoneOrphanCleanupGroups();
+  if (touchedCleanup && budgetId) {
+    await tombstoneOrphanCleanupGroups(budgetId);
   }
 }
 

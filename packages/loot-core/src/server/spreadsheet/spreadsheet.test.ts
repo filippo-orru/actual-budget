@@ -11,9 +11,23 @@ function wait(n) {
 }
 
 async function insertTransactions() {
-  await db.insertAccount({ id: '1', name: 'checking', offbudget: 0 });
-  await db.insertAccount({ id: '2', name: 'checking', offbudget: 1 });
-  await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: '1',
+    name: 'checking',
+    offbudget: 0,
+  });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: '2',
+    name: 'checking',
+    offbudget: 1,
+  });
+  await db.insertCategoryGroup({
+    budget_id: 'default',
+    id: 'group1',
+    name: 'group1',
+  });
   await db.insertCategory({ id: 'cat1', name: 'cat1', cat_group: 'group1' });
   await db.insertCategory({ id: 'cat2', name: 'cat2', cat_group: 'group1' });
 

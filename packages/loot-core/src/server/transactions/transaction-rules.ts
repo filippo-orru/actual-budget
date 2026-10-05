@@ -1,17 +1,16 @@
 // @ts-strict-ignore
+import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '#platform/server/log';
 import { aqlQuery, schemaConfig } from '#server/aql';
-import * as db from '#server/db';
 import {
-  getAccount,
-  getCategory,
-  getPayee,
-  getPayeeByName,
-  insertPayee,
-} from '#server/db';
+  getBudgetIdForEntity,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
+import * as db from '#server/db';
+import { getAccount, getCategory, getPayee, getPayeeByName } from '#server/db';
 import { getMappings } from '#server/db/mappings';
-import { RuleError } from '#server/errors';
+import { RuleError, ValidationError } from '#server/errors';
 import { ensureFormulaPreferencesLoaded } from '#server/formulas/bootstrap';
 import { requiredFields, toDateRepr } from '#server/models';
 import {
@@ -225,12 +224,20 @@ export function getRules() {
 export async function insertRule(
   rule: Omit<RuleEntity, 'id'> & { id?: string },
 ) {
+  if (!rule.budget_id) {
+    throw new ValidationError('Budget ID is required to create a rule');
+  }
+  await validateBudgetExists(rule.budget_id);
   rule = ruleModel.validate(rule);
   return db.insertWithUUID('rules', ruleModel.fromJS(rule));
 }
 
 export async function updateRule(rule) {
-  rule = ruleModel.validate(rule, { update: true });
+  const owner = await getBudgetIdForEntity({ table: 'rules', id: rule.id });
+  if (rule.budget_id != null && rule.budget_id !== owner) {
+    throw new ValidationError('Rule ownership cannot be changed');
+  }
+  rule = ruleModel.validate({ ...rule, budget_id: owner }, { update: true });
   return db.update('rules', ruleModel.fromJS(rule));
 }
 
@@ -319,16 +326,19 @@ export async function getAllRuleIdsFromSchedules(
 }
 
 // Runner
+export type PendingPayee = Pick<db.DbPayee, 'id' | 'name'>;
+
 export async function runRules(
   trans,
   accounts: Map<string, db.DbAccount> | null = null,
+  pendingPayees: Map<string, PendingPayee> = new Map(),
 ) {
   await ensureFormulaPreferencesLoaded();
 
   let accountsMap: Map<string, db.DbAccount> = null;
   if (accounts === null) {
     accountsMap = new Map(
-      (await db.getAccounts()).map(account => [account.id, account]),
+      (await db.getAllAccounts()).map(account => [account.id, account]),
     );
   } else {
     accountsMap = accounts;
@@ -390,7 +400,7 @@ export async function runRules(
         await ensureBalanceFor(rules[i]);
         const changes = rules[i].execActions(finalTrans);
         finalTrans = Object.assign({}, finalTrans, changes);
-        await resolvePayeeNameForRules(finalTrans);
+        await resolvePayeeNameForRules(finalTrans, pendingPayees);
         lastCategoryIdForGroup = await refreshCategoryGroupIfChanged(
           finalTrans,
           lastCategoryIdForGroup,
@@ -408,7 +418,7 @@ export async function runRules(
             rules[i].execActions(finalTrans),
           );
         }
-        await resolvePayeeNameForRules(finalTrans);
+        await resolvePayeeNameForRules(finalTrans, pendingPayees);
         lastCategoryIdForGroup = await refreshCategoryGroupIfChanged(
           finalTrans,
           lastCategoryIdForGroup,
@@ -424,7 +434,7 @@ export async function runRules(
           rules[i].execActions(finalTrans),
         );
       }
-      await resolvePayeeNameForRules(finalTrans);
+      await resolvePayeeNameForRules(finalTrans, pendingPayees);
       lastCategoryIdForGroup = await refreshCategoryGroupIfChanged(
         finalTrans,
         lastCategoryIdForGroup,
@@ -432,7 +442,7 @@ export async function runRules(
     }
   }
 
-  return await finalizeTransactionForRules(finalTrans);
+  return await finalizeTransactionForRules(finalTrans, pendingPayees);
 }
 
 function conditionSpecialCases(cond: Condition | null): Condition | null {
@@ -786,7 +796,7 @@ export async function applyActions(
     return null;
   }
 
-  const accounts: db.DbAccount[] = await db.getAccounts();
+  const accounts: db.DbAccount[] = await db.getAllAccounts();
   const accountsMap = new Map(accounts.map(account => [account.id, account]));
   const includeBalance = actionsReferenceBalance(parsedActions);
   const transactionsForRules = await Promise.all(
@@ -809,12 +819,16 @@ export async function applyActions(
     return ungroupTransaction(execActions(parsedActions, trans));
   });
 
+  const pendingPayees = new Map<string, PendingPayee>();
   const finalized: TransactionEntity[] = [];
   for (const trans of updated) {
-    finalized.push(await finalizeTransactionForRules(trans));
+    finalized.push(await finalizeTransactionForRules(trans, pendingPayees));
   }
 
-  return batchUpdateTransactions({ updated: finalized });
+  return batchUpdateTransactions({
+    updated: finalized,
+    pendingPayees: [...pendingPayees.values()],
+  });
 }
 
 export function getRulesForPayee(payeeId) {
@@ -940,7 +954,7 @@ export function getProbableCategory(transactions) {
   return winner.score >= 3 ? winner.category : null;
 }
 
-export async function updateCategoryRules(transactions) {
+export async function updateCategoryRules(transactions, budgetId: string) {
   if (transactions.length === 0) {
     return;
   }
@@ -969,9 +983,10 @@ export async function updateCategoryRules(transactions) {
     `SELECT t.* FROM v_transactions t
      LEFT JOIN accounts a ON a.id = t.account
      LEFT JOIN payees p ON p.id = t.payee
-     WHERE date >= ? AND date <= ? AND is_parent = 0 AND a.closed = 0 AND p.learn_categories = 1
+     WHERE date >= ? AND date <= ? AND is_parent = 0 AND a.closed = 0
+       AND a.budget_id = ? AND p.learn_categories = 1
      ORDER BY date DESC`,
-    [toDateRepr(oldestDate), toDateRepr(addDays(currentDay(), 180))],
+    [toDateRepr(oldestDate), toDateRepr(addDays(currentDay(), 180)), budgetId],
   );
 
   const allTransactions = partitionByField(register, 'payee');
@@ -999,7 +1014,7 @@ export async function updateCategoryRules(transactions) {
         ...getIsSetterRules(null, 'payee', 'category', {
           condValue: payeeId,
         }),
-      ];
+      ].filter(rule => rule.budget_id === budgetId);
 
       if (ruleSetters.length > 0) {
         // If there are existing rules, change all of them to the new
@@ -1020,7 +1035,7 @@ export async function updateCategoryRules(transactions) {
       } else {
         // No existing rules, so create one
         const newRule = new Rule({
-          budget_id: DEFAULT_BUDGET_ID,
+          budget_id: budgetId,
           stage: null,
           conditionsOp: 'and',
           conditions: [{ op: 'is', field: 'payee', value: payeeId }],
@@ -1192,18 +1207,25 @@ export async function prepareTransactionForRules(
 
 async function resolvePayeeNameForRules(
   trans: TransactionEntity | TransactionForRules,
+  pendingPayees: Map<string, PendingPayee>,
 ): Promise<void> {
   if (!('payee_name' in trans) || trans.payee !== 'new') {
     return;
   }
 
   if (trans.payee_name) {
-    let payee_id = (await getPayeeByName(trans.payee_name))?.id;
-    payee_id ??= await insertPayee({
-      name: trans.payee_name,
-    });
-
-    trans.payee = payee_id;
+    let payee: PendingPayee | null = await getPayeeByName(trans.payee_name);
+    if (!payee) {
+      payee = [...pendingPayees.values()].find(
+        pendingPayee =>
+          pendingPayee.name.toLowerCase() === trans.payee_name.toLowerCase(),
+      );
+    }
+    if (!payee) {
+      payee = { id: uuidv4(), name: trans.payee_name };
+      pendingPayees.set(payee.id, payee);
+    }
+    trans.payee = payee.id;
   } else {
     trans.payee = null;
   }
@@ -1240,9 +1262,10 @@ async function refreshCategoryGroupIfChanged(
 
 export async function finalizeTransactionForRules(
   trans: TransactionEntity | TransactionForRules,
+  pendingPayees: Map<string, PendingPayee> = new Map(),
 ): Promise<TransactionEntity> {
   if ('payee_name' in trans) {
-    await resolvePayeeNameForRules(trans);
+    await resolvePayeeNameForRules(trans, pendingPayees);
     delete trans.payee_name;
   }
 

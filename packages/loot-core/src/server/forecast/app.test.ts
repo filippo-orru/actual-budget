@@ -29,7 +29,11 @@ async function createForecastWithPostedMonthlySchedule({
   txId: string;
   txDate: string;
 }) {
-  const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+  const accountId = await db.insertAccount({
+    budget_id: 'default',
+    id: 'acct',
+    name: 'Checking',
+  });
   const salaryAmount = 500_000;
 
   const scheduleId = await createSchedule({
@@ -79,7 +83,11 @@ async function createForecastWithPostedDailySchedule({
   txId: string;
   txDate: string;
 }) {
-  const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+  const accountId = await db.insertAccount({
+    budget_id: 'default',
+    id: 'acct',
+    name: 'Checking',
+  });
   const amount = -5_000;
 
   const scheduleId = await createSchedule({
@@ -135,7 +143,11 @@ afterEach(() => {
 
 describe('forecast app', () => {
   it('shows the real running balance for historical months', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
 
     await db.insertTransaction({
       id: 'starting-deposit',
@@ -175,7 +187,11 @@ describe('forecast app', () => {
   });
 
   it('treats an explicit empty account selection as no accounts', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
 
     await db.insertTransaction({
       id: 'starting-deposit',
@@ -213,14 +229,23 @@ describe('forecast app', () => {
     await sheet.loadSpreadsheet(db);
     sheet.get().meta().budgetType = 'tracking';
     await db.update('preferences', { id: 'budgetType', value: 'tracking' });
-    await db.insertCategoryGroup({ id: 'expenses', name: 'Expenses' });
     await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'expenses',
+      name: 'Expenses',
+    });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'income',
       name: 'Income',
       is_income: 1,
     });
     await createAllBudgets();
-    await db.insertAccount({ id: 'acct', name: 'Checking' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
     await db.insertTransaction({
       id: 'starting-deposit',
       account: 'acct',
@@ -246,7 +271,11 @@ describe('forecast app', () => {
   });
 
   it('ignores reconstructed schedule occurrences before today', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
     const scheduleConditions = [
       { op: 'is', field: 'account', value: accountId },
       { op: 'is', field: 'amount', value: -100 },
@@ -292,10 +321,12 @@ describe('forecast app', () => {
 
   it('forecasts transfer schedules for both source and destination accounts', async () => {
     const checkingId = await db.insertAccount({
+      budget_id: 'default',
       id: 'checking',
       name: 'Checking',
     });
     const savingsId = await db.insertAccount({
+      budget_id: 'default',
       id: 'savings',
       name: 'Savings',
     });
@@ -376,10 +407,12 @@ describe('forecast app', () => {
 
   it('matches payee filters for destination-only transfer forecasts', async () => {
     const checkingId = await db.insertAccount({
+      budget_id: 'default',
       id: 'checking',
       name: 'Checking',
     });
     const savingsId = await db.insertAccount({
+      budget_id: 'default',
       id: 'savings',
       name: 'Savings',
     });
@@ -448,7 +481,11 @@ describe('forecast app', () => {
   });
 
   it('applies standard historical report filters to posted transactions', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
     const groceryPayeeId = await db.insertPayee({
       id: 'payee-grocery',
       name: 'Grocery Store',
@@ -490,7 +527,11 @@ describe('forecast app', () => {
   });
 
   it('does not double-count split parents in posted transaction balances', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
 
     const parentId = await db.insertTransaction({
       id: 'split-parent',
@@ -567,8 +608,15 @@ describe('forecast app', () => {
   });
 
   it('filters future schedule occurrences using rule-derived fields like category', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
-    const groupId = await db.insertCategoryGroup({ name: 'Bills' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
+    const groupId = await db.insertCategoryGroup({
+      budget_id: 'default',
+      name: 'Bills',
+    });
     const categoryId = await db.insertCategory({
       name: 'Utilities',
       cat_group: groupId,
@@ -621,10 +669,12 @@ describe('forecast app', () => {
 
   it('does not over-restrict accounts when filters use mixed OR conditions', async () => {
     const checkingId = await db.insertAccount({
+      budget_id: 'default',
       id: 'checking',
       name: 'Checking',
     });
     const savingsId = await db.insertAccount({
+      budget_id: 'default',
       id: 'savings',
       name: 'Savings',
     });
@@ -694,7 +744,11 @@ describe('forecast app', () => {
   });
 
   it('includes account-less schedules when includeAccountlessSchedules is true', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
 
     await createSchedule({
       conditions: [
@@ -735,7 +789,11 @@ describe('forecast app', () => {
   });
 
   it('excludes account-less schedules when includeAccountlessSchedules is false', async () => {
-    const accountId = await db.insertAccount({ id: 'acct', name: 'Checking' });
+    const accountId = await db.insertAccount({
+      budget_id: 'default',
+      id: 'acct',
+      name: 'Checking',
+    });
 
     await createSchedule({
       conditions: [

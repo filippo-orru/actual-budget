@@ -1,4 +1,5 @@
 import { createApp } from '#server/app';
+import { validateBudgetExists } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { mutator } from '#server/mutators';
 import { undoable } from '#server/undo';
@@ -19,8 +20,12 @@ app.method('account-group-update', mutator(undoable(updateAccountGroup)));
 app.method('account-group-delete', mutator(undoable(deleteAccountGroup)));
 app.method('account-group-move', mutator(undoable(moveAccountGroup)));
 
-async function getAccountGroups(): Promise<AccountGroupEntity[]> {
-  const groups = await db.getAccountGroups();
+async function getAccountGroups({
+  budgetId,
+}: {
+  budgetId: string;
+}): Promise<AccountGroupEntity[]> {
+  const groups = await db.getAccountGroups(budgetId);
   return groups.map(group => ({
     id: group.id,
     budget_id: group.budget_id,
@@ -31,8 +36,12 @@ async function getAccountGroups(): Promise<AccountGroupEntity[]> {
 
 async function createAccountGroup({
   name,
-}: Pick<AccountGroupEntity, 'name'>): Promise<AccountGroupEntity['id']> {
-  return db.insertAccountGroup({ name });
+  budgetId,
+}: Pick<AccountGroupEntity, 'name'> & { budgetId: string }): Promise<
+  AccountGroupEntity['id']
+> {
+  await validateBudgetExists(budgetId);
+  return db.insertAccountGroup({ name, budget_id: budgetId });
 }
 
 async function updateAccountGroup(

@@ -22,6 +22,7 @@ import {
 } from '#components/reports/spendingAverageRange';
 import { createSpendingSpreadsheet } from '#components/reports/spreadsheets/spending-spreadsheet';
 import { useReport } from '#components/reports/useReport';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useFormat } from '#hooks/useFormat';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 
@@ -47,6 +48,7 @@ export function SpendingCard({
   const [isCardHovered, setIsCardHovered] = useState(false);
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
 
+  const budgetId = useBudgetSpaceId();
   const spendingReportMode = meta?.mode ?? 'single-month';
   const averageRange = normalizeSpendingAverageRange(meta?.averageRange);
   const averageRangeLabel = getSpendingAverageRangeLabel(averageRange, t);
@@ -57,6 +59,7 @@ export function SpendingCard({
     spendingReportMode === 'single-month' ? 'compareTo' : spendingReportMode;
   const getGraphData = useMemo(() => {
     return createSpendingSpreadsheet({
+      budgetId,
       conditions: meta?.conditions,
       conditionsOp: meta?.conditionsOp,
       compare,
@@ -65,6 +68,7 @@ export function SpendingCard({
       budgetType,
     });
   }, [
+    budgetId,
     meta?.conditions,
     meta?.conditionsOp,
     compare,

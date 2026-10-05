@@ -697,14 +697,15 @@ export const openAccountCloseModal = createAppAsyncThunk(
     const {
       balance,
       numTransactions,
-    }: { balance: number; numTransactions: number } = await send(
-      'account-properties',
-      {
+      budgetId,
+    }: { balance: number; numTransactions: number; budgetId: string } =
+      await send('account-properties', {
         id: accountId,
-      },
-    );
+      });
     const queryClient = extra.queryClient;
-    const accounts = await queryClient.ensureQueryData(accountQueries.list());
+    const accounts = await queryClient.ensureQueryData(
+      accountQueries.list(budgetId),
+    );
     const account = accounts.find(acct => acct.id === accountId);
 
     if (!account) {

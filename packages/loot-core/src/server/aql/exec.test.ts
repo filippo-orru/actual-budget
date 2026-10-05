@@ -24,7 +24,10 @@ function compileAndRunAqlQuery(query, options?: unknown) {
 
 async function insertTransactions(repeatTimes = 1) {
   let transactions = [];
-  const group = await db.insertCategoryGroup({ name: 'group' });
+  const group = await db.insertCategoryGroup({
+    budget_id: 'default',
+    name: 'group',
+  });
 
   for (let i = 0; i < repeatTimes; i++) {
     const cat1 = await db.insertCategory({
@@ -167,7 +170,11 @@ describe('compileAndRunQuery', () => {
   });
 
   it('allows null as a parameter', async () => {
-    await db.insertCategoryGroup({ id: 'group', name: 'group' });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'group',
+      name: 'group',
+    });
     await db.insertCategory({ id: 'cat', name: 'cat', cat_group: 'group' });
     await db.insertCategory({ id: 'cat2', name: 'cat2', cat_group: 'group' });
     const transNoCat = await db.insertTransaction({

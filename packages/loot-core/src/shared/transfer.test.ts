@@ -6,8 +6,16 @@ import * as transfer from './transfer';
 beforeEach(global.emptyDatabase());
 
 async function prepareDatabase() {
-  await db.insertAccount({ id: 'one', name: 'one' });
-  await db.insertAccount({ id: 'two', name: 'two' });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'one',
+    name: 'one',
+  });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'two',
+    name: 'two',
+  });
   await db.insertPayee({ name: '', transfer_acct: 'one' });
   await db.insertPayee({ name: '', transfer_acct: 'two' });
 }

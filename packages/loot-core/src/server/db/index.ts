@@ -360,14 +360,14 @@ export async function getCategoriesGrouped(
 }
 
 export async function insertCategoryGroup(
-  group: WithRequired<Partial<DbCategoryGroup>, 'name'>,
+  group: WithRequired<Partial<DbCategoryGroup>, 'name' | 'budget_id'>,
 ): Promise<DbCategoryGroup['id']> {
   // Don't allow duplicate group
   const existingGroup = await first<
     Pick<DbCategoryGroup, 'id' | 'name' | 'hidden'>
   >(
-    `SELECT id, name, hidden FROM category_groups WHERE UPPER(name) = ? and tombstone = 0 LIMIT 1`,
-    [group.name.toUpperCase()],
+    `SELECT id, name, hidden FROM category_groups WHERE budget_id = ? AND UPPER(name) = ? and tombstone = 0 LIMIT 1`,
+    [group.budget_id, group.name.toUpperCase()],
   );
   if (existingGroup) {
     throw new Error(
@@ -377,9 +377,10 @@ export async function insertCategoryGroup(
     );
   }
 
-  const lastGroup = await first<Pick<DbCategoryGroup, 'sort_order'>>(`
-    SELECT sort_order FROM category_groups WHERE tombstone = 0 ORDER BY sort_order DESC, id DESC LIMIT 1
-  `);
+  const lastGroup = await first<Pick<DbCategoryGroup, 'sort_order'>>(
+    'SELECT sort_order FROM category_groups WHERE budget_id = ? AND tombstone = 0 ORDER BY sort_order DESC, id DESC LIMIT 1',
+    [group.budget_id],
+  );
   const sort_order = (lastGroup ? lastGroup.sort_order : 0) + SORT_INCREMENT;
 
   group = {
@@ -396,11 +397,21 @@ export async function insertCategoryGroup(
 export async function updateCategoryGroup(
   group: WithRequired<Partial<DbCategoryGroup>, 'id' | 'name' | 'is_income'>,
 ) {
+  const storedGroup = await first<Pick<DbCategoryGroup, 'budget_id'>>(
+    'SELECT budget_id FROM category_groups WHERE id = ?',
+    [group.id],
+  );
+  if (
+    !storedGroup ||
+    (group.budget_id !== undefined && group.budget_id !== storedGroup.budget_id)
+  ) {
+    throw new Error('Category group ownership cannot be changed');
+  }
   const existingGroup = await first<
     Pick<DbCategoryGroup, 'id' | 'name' | 'hidden'>
   >(
-    `SELECT id, name, hidden FROM category_groups WHERE UPPER(name) = ? AND id != ? AND tombstone = 0 LIMIT 1`,
-    [group.name.toUpperCase(), group.id],
+    `SELECT id, name, hidden FROM category_groups WHERE budget_id = ? AND UPPER(name) = ? AND id != ? AND tombstone = 0 LIMIT 1`,
+    [storedGroup.budget_id, group.name.toUpperCase(), group.id],
   );
   if (existingGroup) {
     throw new Error(
@@ -409,6 +420,7 @@ export async function updateCategoryGroup(
       }'${existingGroup.name}' category group already exists.`,
     );
   }
+  group.budget_id = storedGroup.budget_id;
   group = categoryGroupModel.validate(group, { update: true });
   return update('category_groups', group);
 }
@@ -417,8 +429,23 @@ export async function moveCategoryGroup(
   id: DbCategoryGroup['id'],
   targetId?: DbCategoryGroup['id'] | null,
 ) {
+  const owner = await first<Pick<DbCategoryGroup, 'budget_id'>>(
+    'SELECT budget_id FROM category_groups WHERE id = ?',
+    [id],
+  );
+  if (!owner) throw new Error(`Category group with id ${id} not found`);
+  if (targetId != null) {
+    const target = await first<Pick<DbCategoryGroup, 'budget_id'>>(
+      'SELECT budget_id FROM category_groups WHERE id = ?',
+      [targetId],
+    );
+    if (!target || target.budget_id !== owner.budget_id) {
+      throw new Error('Category groups must belong to the same budget');
+    }
+  }
   const groups = await all<Pick<DbCategoryGroup, 'id' | 'sort_order'>>(
-    `SELECT id, sort_order FROM category_groups WHERE tombstone = 0 ORDER BY sort_order, id`,
+    `SELECT id, sort_order FROM category_groups WHERE budget_id = ? AND tombstone = 0 ORDER BY sort_order, id`,
+    [owner.budget_id],
   );
 
   const { updates, sort_order } = shoveSortOrders(groups, targetId);
@@ -432,10 +459,27 @@ export async function deleteCategoryGroup(
   group: Pick<DbCategoryGroup, 'id'>,
   transferId?: DbCategory['id'] | null,
 ) {
+  const owner = await first<Pick<DbCategoryGroup, 'budget_id'>>(
+    'SELECT budget_id FROM category_groups WHERE id = ?',
+    [group.id],
+  );
+  if (!owner) throw new Error(`Category group with id ${group.id} not found`);
   const categories = await all<DbCategory>(
     'SELECT * FROM categories WHERE cat_group = ?',
     [group.id],
   );
+  if (categories.some(category => category.budget_id !== owner.budget_id)) {
+    throw new Error('Category group contains categories from another budget');
+  }
+  if (transferId != null) {
+    const transfer = await first<Pick<DbCategory, 'budget_id'>>(
+      'SELECT budget_id FROM categories WHERE id = ?',
+      [transferId],
+    );
+    if (!transfer || transfer.budget_id !== owner.budget_id) {
+      throw new Error('Category transfer target belongs to another budget');
+    }
+  }
 
   // Delete all the categories within a group
   await Promise.all(categories.map(cat => deleteCategory(cat, transferId)));
@@ -450,6 +494,19 @@ export async function insertCategory(
 
   let id_: DbCategory['id'];
   await batchMessages(async () => {
+    const group = await first<Pick<DbCategoryGroup, 'budget_id'>>(
+      'SELECT budget_id FROM category_groups WHERE id = ? AND tombstone = 0',
+      [category.cat_group],
+    );
+    if (
+      !group ||
+      (category.budget_id !== undefined &&
+        category.budget_id !== group.budget_id)
+    ) {
+      throw new Error('Category and group must belong to the same budget');
+    }
+    category.budget_id = group.budget_id;
+
     // Dont allow duplicated names in groups
     const existingCatInGroup = await first<Pick<DbCategory, 'id'>>(
       `SELECT id FROM categories WHERE cat_group = ? and UPPER(name) = ? and tombstone = 0 LIMIT 1`,
@@ -462,9 +519,10 @@ export async function insertCategory(
     }
 
     if (atEnd) {
-      const lastCat = await first<Pick<DbCategory, 'sort_order'>>(`
-        SELECT sort_order FROM categories WHERE tombstone = 0 ORDER BY sort_order DESC, id DESC LIMIT 1
-      `);
+      const lastCat = await first<Pick<DbCategory, 'sort_order'>>(
+        'SELECT sort_order FROM categories WHERE budget_id = ? AND tombstone = 0 ORDER BY sort_order DESC, id DESC LIMIT 1',
+        [category.budget_id],
+      );
       sort_order = (lastCat ? lastCat.sort_order : 0) + SORT_INCREMENT;
     } else {
       // Unfortunately since we insert at the beginning, we need to shove
@@ -497,12 +555,30 @@ export async function insertCategory(
   return id_;
 }
 
-export function updateCategory(
+export async function updateCategory(
   category: WithRequired<
     Partial<DbCategory>,
     'name' | 'is_income' | 'cat_group'
   >,
 ) {
+  const stored = await first<Pick<DbCategory, 'budget_id'>>(
+    'SELECT budget_id FROM categories WHERE id = ?',
+    [category.id],
+  );
+  const group = await first<Pick<DbCategoryGroup, 'budget_id'>>(
+    'SELECT budget_id FROM category_groups WHERE id = ?',
+    [category.cat_group],
+  );
+  if (
+    !stored ||
+    !group ||
+    stored.budget_id !== group.budget_id ||
+    (category.budget_id !== undefined &&
+      category.budget_id !== stored.budget_id)
+  ) {
+    throw new Error('Category ownership cannot be changed');
+  }
+  category.budget_id = stored.budget_id;
   category = categoryModel.validate(category, { update: true });
   // Change from cat_group to group because category AQL schema named it group.
   // const { cat_group: group, ...rest } = category;
@@ -518,6 +594,26 @@ export async function moveCategory(
     throw new Error('moveCategory: groupId is required');
   }
 
+  const category = await first<Pick<DbCategory, 'budget_id'>>(
+    'SELECT budget_id FROM categories WHERE id = ?',
+    [id],
+  );
+  const group = await first<Pick<DbCategoryGroup, 'budget_id'>>(
+    'SELECT budget_id FROM category_groups WHERE id = ?',
+    [groupId],
+  );
+  if (!category || !group || category.budget_id !== group.budget_id) {
+    throw new Error('Category and group must belong to the same budget');
+  }
+  if (targetId != null) {
+    const target = await first<Pick<DbCategory, 'budget_id'>>(
+      'SELECT budget_id FROM categories WHERE id = ?',
+      [targetId],
+    );
+    if (!target || target.budget_id !== category.budget_id) {
+      throw new Error('Categories must belong to the same budget');
+    }
+  }
   const categories = await all<Pick<DbCategory, 'id' | 'sort_order'>>(
     `SELECT id, sort_order FROM categories WHERE cat_group = ? AND tombstone = 0 ORDER BY sort_order, id`,
     [groupId],
@@ -534,6 +630,20 @@ export async function deleteCategory(
   category: Pick<DbCategory, 'id'>,
   transferId?: DbCategory['id'] | null,
 ) {
+  const owner = await first<Pick<DbCategory, 'budget_id'>>(
+    'SELECT budget_id FROM categories WHERE id = ?',
+    [category.id],
+  );
+  if (!owner) throw new Error(`Category with id ${category.id} not found`);
+  if (transferId != null) {
+    const transfer = await first<Pick<DbCategory, 'budget_id'>>(
+      'SELECT budget_id FROM categories WHERE id = ?',
+      [transferId],
+    );
+    if (!transfer || transfer.budget_id !== owner.budget_id) {
+      throw new Error('Category transfer target belongs to another budget');
+    }
+  }
   if (transferId) {
     // We need to update all the deleted categories that currently
     // point to the one we're about to delete so they all are
@@ -722,7 +832,22 @@ export async function getPayeeByName(name: DbPayee['name']) {
   );
 }
 
-export function getAccounts() {
+export function getAccounts(budgetId: string) {
+  return all<
+    DbAccount & {
+      bankName: DbBank['name'];
+      bankId: DbBank['id'];
+    }
+  >(
+    `SELECT a.*, b.name as bankName, b.id as bankId FROM accounts a
+       LEFT JOIN banks b ON a.bank = b.id
+       WHERE a.tombstone = 0 AND a.budget_id = ?
+       ORDER BY sort_order, name`,
+    [budgetId],
+  );
+}
+
+export function getAllAccounts() {
   return all<
     DbAccount & {
       bankName: DbBank['name'];
@@ -736,10 +861,22 @@ export function getAccounts() {
   );
 }
 
-export async function insertAccount(account) {
+export async function insertAccount(
+  account: WithRequired<Partial<DbAccount>, 'name' | 'budget_id'>,
+) {
+  const budgetId = account.budget_id;
+  if (account.account_group_id != null) {
+    const group = await first<Pick<DbAccountGroup, 'budget_id'>>(
+      'SELECT budget_id FROM account_groups WHERE id = ?',
+      [account.account_group_id],
+    );
+    if (!group || group.budget_id !== budgetId) {
+      throw new Error('Account group belongs to another budget');
+    }
+  }
   const accounts = await all<DbAccount>(
-    'SELECT * FROM accounts WHERE offbudget = ? ORDER BY sort_order, name',
-    [account.offbudget ? 1 : 0],
+    'SELECT * FROM accounts WHERE budget_id = ? AND offbudget = ? ORDER BY sort_order, name',
+    [budgetId, account.offbudget ? 1 : 0],
   );
 
   // Don't pass a target in, it will default to appending at the end
@@ -749,7 +886,29 @@ export async function insertAccount(account) {
   return insertWithUUID('accounts', account);
 }
 
-export function updateAccount(account) {
+export async function updateAccount(
+  account: Partial<DbAccount> & Pick<DbAccount, 'id'>,
+) {
+  const stored = await first<Pick<DbAccount, 'budget_id'>>(
+    'SELECT budget_id FROM accounts WHERE id = ?',
+    [account.id],
+  );
+  if (
+    !stored ||
+    (account.budget_id !== undefined && account.budget_id !== stored.budget_id)
+  ) {
+    throw new Error('Account ownership cannot be changed');
+  }
+  account.budget_id = stored.budget_id;
+  if (account.account_group_id != null) {
+    const group = await first<Pick<DbAccountGroup, 'budget_id'>>(
+      'SELECT budget_id FROM account_groups WHERE id = ?',
+      [account.account_group_id],
+    );
+    if (!group || group.budget_id !== stored.budget_id) {
+      throw new Error('Account group belongs to another budget');
+    }
+  }
   account = accountModel.validate(account, { update: true });
   return update('accounts', account);
 }
@@ -767,15 +926,35 @@ export async function moveAccount(
     'SELECT * FROM accounts WHERE id = ?',
     [id],
   );
+  if (!account) throw new Error(`Account with id ${id} not found`);
+  if (targetId != null) {
+    const target = await first<Pick<DbAccount, 'budget_id'>>(
+      'SELECT budget_id FROM accounts WHERE id = ?',
+      [targetId],
+    );
+    if (!target || target.budget_id !== account.budget_id) {
+      throw new Error('Accounts must belong to the same budget');
+    }
+  }
+  if (accountGroupId != null) {
+    const group = await first<Pick<DbAccountGroup, 'budget_id'>>(
+      'SELECT budget_id FROM account_groups WHERE id = ?',
+      [accountGroupId],
+    );
+    if (!group || group.budget_id !== account.budget_id) {
+      throw new Error('Account group belongs to another budget');
+    }
+  }
   let accounts;
   if (account.closed) {
     accounts = await all<Pick<DbAccount, 'id' | 'sort_order'>>(
-      `SELECT id, sort_order FROM accounts WHERE closed = 1 ORDER BY sort_order, name`,
+      `SELECT id, sort_order FROM accounts WHERE budget_id = ? AND closed = 1 ORDER BY sort_order, name`,
+      [account.budget_id],
     );
   } else {
     accounts = await all<Pick<DbAccount, 'id' | 'sort_order'>>(
-      `SELECT id, sort_order FROM accounts WHERE tombstone = 0 AND offbudget = ? ORDER BY sort_order, name`,
-      [account.offbudget ? 1 : 0],
+      `SELECT id, sort_order FROM accounts WHERE budget_id = ? AND tombstone = 0 AND offbudget = ? ORDER BY sort_order, name`,
+      [account.budget_id, account.offbudget ? 1 : 0],
     );
   }
 
@@ -794,27 +973,29 @@ export async function moveAccount(
   });
 }
 
-export function getAccountGroups() {
+export function getAccountGroups(budgetId: string) {
   return all<DbAccountGroup>(
-    `SELECT * FROM account_groups WHERE tombstone = 0 ORDER BY sort_order, id`,
+    `SELECT * FROM account_groups WHERE budget_id = ? AND tombstone = 0 ORDER BY sort_order, id`,
+    [budgetId],
   );
 }
 
 export async function insertAccountGroup(
-  group: WithRequired<Partial<DbAccountGroup>, 'name'>,
+  group: WithRequired<Partial<DbAccountGroup>, 'name' | 'budget_id'>,
 ): Promise<DbAccountGroup['id']> {
   // Don't allow duplicate group
   const existingGroup = await first<Pick<DbAccountGroup, 'id' | 'name'>>(
-    `SELECT id, name FROM account_groups WHERE UPPER(name) = ? AND tombstone = 0 LIMIT 1`,
-    [group.name.toUpperCase()],
+    `SELECT id, name FROM account_groups WHERE budget_id = ? AND UPPER(name) = ? AND tombstone = 0 LIMIT 1`,
+    [group.budget_id, group.name.toUpperCase()],
   );
   if (existingGroup) {
     throw new Error(`An '${existingGroup.name}' account group already exists.`);
   }
 
-  const lastGroup = await first<Pick<DbAccountGroup, 'sort_order'>>(`
-    SELECT sort_order FROM account_groups WHERE tombstone = 0 ORDER BY sort_order DESC, id DESC LIMIT 1
-  `);
+  const lastGroup = await first<Pick<DbAccountGroup, 'sort_order'>>(
+    'SELECT sort_order FROM account_groups WHERE budget_id = ? AND tombstone = 0 ORDER BY sort_order DESC, id DESC LIMIT 1',
+    [group.budget_id],
+  );
   const sort_order = (lastGroup ? lastGroup.sort_order : 0) + SORT_INCREMENT;
 
   group = {
@@ -831,13 +1012,24 @@ export async function insertAccountGroup(
 export async function updateAccountGroup(
   group: WithRequired<Partial<DbAccountGroup>, 'id' | 'name'>,
 ) {
+  const storedGroup = await first<Pick<DbAccountGroup, 'budget_id'>>(
+    'SELECT budget_id FROM account_groups WHERE id = ?',
+    [group.id],
+  );
+  if (
+    !storedGroup ||
+    (group.budget_id !== undefined && group.budget_id !== storedGroup.budget_id)
+  ) {
+    throw new Error('Account group ownership cannot be changed');
+  }
   const existingGroup = await first<Pick<DbAccountGroup, 'id' | 'name'>>(
-    `SELECT id, name FROM account_groups WHERE UPPER(name) = ? AND id != ? AND tombstone = 0 LIMIT 1`,
-    [group.name.toUpperCase(), group.id],
+    `SELECT id, name FROM account_groups WHERE budget_id = ? AND UPPER(name) = ? AND id != ? AND tombstone = 0 LIMIT 1`,
+    [storedGroup.budget_id, group.name.toUpperCase(), group.id],
   );
   if (existingGroup) {
     throw new Error(`An '${existingGroup.name}' account group already exists.`);
   }
+  group.budget_id = storedGroup.budget_id;
   group = accountGroupModel.validate(group, { update: true });
   return update('account_groups', group);
 }
@@ -846,8 +1038,23 @@ export async function moveAccountGroup(
   id: DbAccountGroup['id'],
   targetId?: DbAccountGroup['id'] | null,
 ) {
+  const owner = await first<Pick<DbAccountGroup, 'budget_id'>>(
+    'SELECT budget_id FROM account_groups WHERE id = ?',
+    [id],
+  );
+  if (!owner) throw new Error(`Account group with id ${id} not found`);
+  if (targetId != null) {
+    const target = await first<Pick<DbAccountGroup, 'budget_id'>>(
+      'SELECT budget_id FROM account_groups WHERE id = ?',
+      [targetId],
+    );
+    if (!target || target.budget_id !== owner.budget_id) {
+      throw new Error('Account groups must belong to the same budget');
+    }
+  }
   const groups = await all<Pick<DbAccountGroup, 'id' | 'sort_order'>>(
-    `SELECT id, sort_order FROM account_groups WHERE tombstone = 0 ORDER BY sort_order, id`,
+    `SELECT id, sort_order FROM account_groups WHERE budget_id = ? AND tombstone = 0 ORDER BY sort_order, id`,
+    [owner.budget_id],
   );
 
   const { updates, sort_order } = shoveSortOrders(groups, targetId);
@@ -860,9 +1067,14 @@ export async function moveAccountGroup(
 }
 
 export async function deleteAccountGroup(group: Pick<DbAccountGroup, 'id'>) {
-  const accounts = await all<Pick<DbAccount, 'id'>>(
-    `SELECT id FROM accounts WHERE account_group_id = ? AND tombstone = 0`,
+  const owner = await first<Pick<DbAccountGroup, 'budget_id'>>(
+    'SELECT budget_id FROM account_groups WHERE id = ?',
     [group.id],
+  );
+  if (!owner) throw new Error(`Account group with id ${group.id} not found`);
+  const accounts = await all<Pick<DbAccount, 'id'>>(
+    `SELECT id FROM accounts WHERE account_group_id = ? AND budget_id = ? AND tombstone = 0`,
+    [group.id, owner.budget_id],
   );
 
   // Clearing member refs is best-effort under CRDT sync: a concurrent

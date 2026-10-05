@@ -24,6 +24,7 @@ import {
 import { makeQuery } from './makeQuery';
 
 type createSpendingSpreadsheetProps = {
+  budgetId: string;
   conditions?: RuleConditionEntity[];
   conditionsOp?: 'and' | 'or';
   compare?: string;
@@ -68,6 +69,7 @@ export function getSpendingBudgetFilters({
 }
 
 export function createSpendingSpreadsheet({
+  budgetId,
   conditions = [],
   conditionsOp,
   compare,
@@ -200,7 +202,7 @@ export function createSpendingSpreadsheet({
         (cond.field === 'category' || cond.field === 'category_group'),
     );
     const budgetFilters = hasBudgetConditions
-      ? await send('get-categories').then(({ list, grouped }) =>
+      ? await send('get-categories', { budgetId }).then(({ list, grouped }) =>
           getSpendingBudgetFilters({
             categories: list,
             categoryGroups: grouped,

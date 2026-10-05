@@ -76,8 +76,19 @@ describe('API handlers', () => {
       handlers['account-create'] = accountsApp.handlers['account-create'];
     });
 
+    it('rejects an account owner supplied inside arbitrary API fields', async () => {
+      await expect(
+        handlers['api/account-create']({
+          account: { name: 'Wrong owner', budget_id: 'default' } as never,
+        }),
+      ).rejects.toThrow(
+        "Field 'budget_id' cannot be set when creating an account",
+      );
+    });
+
     it('creates accounts without storing a currency field', async () => {
       const id = await handlers['account-create']({
+        budgetId: 'default',
         name: 'Off-budget account',
         offBudget: true,
       });
@@ -91,7 +102,11 @@ describe('API handlers', () => {
       const groupId = await handlers['api/account-group-create']({
         group: { name: 'Savings' },
       });
-      await db.insertAccount({ id: 'acct1', name: 'Checking' });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'acct1',
+        name: 'Checking',
+      });
 
       await handlers['api/account-update']({
         id: 'acct1',
@@ -104,14 +119,94 @@ describe('API handlers', () => {
           fields: unsupportedFields,
         }),
       ).rejects.toThrow("Field 'currency' cannot be updated");
+      await expect(
+        handlers['api/account-update']({
+          id: 'acct1',
+          fields: { budget_id: 'another-budget' } as never,
+        }),
+      ).rejects.toThrow("Field 'budget_id' cannot be updated");
 
-      const account = (await handlers['accounts-get']())[0];
+      const account = (
+        await handlers['accounts-get']({ budgetId: 'default' })
+      )[0];
       expect(account).toMatchObject({
         id: 'acct1',
         name: 'Emergency fund',
         account_group_id: groupId,
       });
       expect(account).not.toHaveProperty('currency');
+    });
+
+    it('requires owner context in multi-budget files and scopes public account lists', async () => {
+      await db.insertWithSchema('budgets', {
+        id: 'second-budget',
+        name: 'Second',
+        currency_code: 'USD',
+        budget_type: 'envelope',
+        sort_order: 1000,
+        tombstone: false,
+      });
+      await db.insertAccount({
+        id: 'first-account',
+        budget_id: 'default',
+        name: 'Checking',
+      });
+      await db.insertAccount({
+        id: 'second-account',
+        budget_id: 'second-budget',
+        name: 'Checking',
+      });
+
+      await expect(handlers['api/accounts-get']()).rejects.toThrow(
+        'budgetId is required when a file contains multiple budgets',
+      );
+      await expect(
+        handlers['api/accounts-get']({ budgetId: 'second-budget' }),
+      ).resolves.toMatchObject([{ id: 'second-account', name: 'Checking' }]);
+    });
+
+    it('creates an API account and opening balance in the explicit budget', async () => {
+      await db.insertWithSchema('budgets', {
+        id: 'euro-budget',
+        name: 'Euro',
+        currency_code: 'EUR',
+        budget_type: 'envelope',
+        sort_order: 1000,
+        tombstone: false,
+      });
+      db.runQuery(
+        "INSERT OR REPLACE INTO preferences (id, value) VALUES ('flags.currency', 'true')",
+      );
+      const incomeGroup = await db.insertCategoryGroup({
+        budget_id: 'euro-budget',
+        name: 'Income',
+        is_income: 1,
+      });
+      await db.insertCategory({
+        budget_id: 'euro-budget',
+        name: 'Starting Balances',
+        cat_group: incomeGroup,
+        is_income: 1,
+      });
+
+      const accountId = await handlers['api/account-create']({
+        budgetId: 'euro-budget',
+        account: { name: 'Checking' },
+        initialBalance: 1234,
+      });
+      const opening = await db.first<{
+        amount: number;
+        category_budget_id: string;
+      }>(
+        `SELECT t.amount, c.budget_id AS category_budget_id
+         FROM transactions t JOIN categories c ON c.id = t.category
+         WHERE t.acct = ?`,
+        [accountId],
+      );
+      expect(opening).toEqual({
+        amount: 1234,
+        category_budget_id: 'euro-budget',
+      });
     });
 
     it('round-trips account groups and exposes account_group_id on accounts', async () => {
@@ -130,7 +225,11 @@ describe('API handlers', () => {
         { id, name: 'ISAs' },
       ]);
 
-      await db.insertAccount({ id: 'acct1', name: 'Marcus' });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'acct1',
+        name: 'Marcus',
+      });
       await handlers['api/account-update']({
         id: 'acct1',
         fields: { account_group_id: id },
@@ -155,6 +254,7 @@ describe('API handlers', () => {
       await prefs.loadPrefs();
 
       await db.insertCategoryGroup({
+        budget_id: 'default',
         id: 'income-group',
         name: 'Income',
         is_income: 1,
@@ -166,7 +266,11 @@ describe('API handlers', () => {
         is_income: 1,
       });
 
-      await db.insertAccount({ id: 'acct1', name: 'Checking' });
+      await db.insertAccount({
+        budget_id: 'default',
+        id: 'acct1',
+        name: 'Checking',
+      });
 
       handlers['get-budget-bounds'] = vi
         .fn()

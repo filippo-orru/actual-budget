@@ -768,7 +768,10 @@ export async function createTestBudget(handlers: Handlers) {
 
   await runMutator(async () => {
     for (const account of accounts) {
-      account.id = await handlers['account-create'](account);
+      account.id = await handlers['account-create']({
+        ...account,
+        budgetId: DEFAULT_BUDGET_ID,
+      });
     }
   });
 
@@ -841,6 +844,7 @@ export async function createTestBudget(handlers: Handlers) {
   await runMutator(async () => {
     for (const group of newCategoryGroups) {
       const groupId = await handlers['category-group-create']({
+        budgetId: DEFAULT_BUDGET_ID,
         name: group.name,
         isIncome: group.is_income,
       });
@@ -854,6 +858,7 @@ export async function createTestBudget(handlers: Handlers) {
 
       for (const category of group.categories) {
         const categoryId = await handlers['category-create']({
+          budgetId: DEFAULT_BUDGET_ID,
           ...category,
           isIncome: category.is_income,
           groupId,
@@ -869,7 +874,11 @@ export async function createTestBudget(handlers: Handlers) {
     }
   });
 
-  const allGroups = (await runHandler(handlers['get-categories'])).grouped;
+  const allGroups = (
+    await runHandler(handlers['get-categories'], {
+      budgetId: DEFAULT_BUDGET_ID,
+    })
+  ).grouped;
 
   setSyncingMode('import');
 

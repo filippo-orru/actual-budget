@@ -9,7 +9,11 @@ describe('sortCategories', () => {
   afterEach(global.emptyDatabase());
 
   async function setupGroup(groupId: string, categoryNames: string[]) {
-    await db.insertCategoryGroup({ id: groupId, name: groupId });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: groupId,
+      name: groupId,
+    });
     for (const name of categoryNames) {
       await db.insertCategory({ name, cat_group: groupId });
     }
@@ -47,7 +51,11 @@ describe('sortCategories', () => {
   });
 
   it('does nothing when the group has no categories', async () => {
-    await db.insertCategoryGroup({ id: 'emptyGroup', name: 'emptyGroup' });
+    await db.insertCategoryGroup({
+      budget_id: 'default',
+      id: 'emptyGroup',
+      name: 'emptyGroup',
+    });
     await sortCategories({ groupId: 'emptyGroup', direction: 'asc' });
     expect(await getCategoryNamesInGroup('emptyGroup')).toEqual([]);
   });

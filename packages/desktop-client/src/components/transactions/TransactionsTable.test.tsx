@@ -271,7 +271,7 @@ function initBasicServer() {
       value: 129_87,
     }),
     'get-categories': async () => ({
-      grouped: categoryGroups,
+      grouped: categoryGroups.map(group => ({ ...group, categories: [] })),
       list: categories,
     }),
     'tags-get': async () => tags,

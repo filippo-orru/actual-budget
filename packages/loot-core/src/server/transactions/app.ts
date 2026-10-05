@@ -33,13 +33,18 @@ export type TransactionHandlers = {
   'get-latest-transaction': typeof getLatestTransaction;
 };
 
+type TransactionBatchUpdateOptions = Omit<
+  Parameters<typeof batchUpdateTransactions>[0],
+  'pendingPayees'
+>;
+
 async function handleBatchUpdateTransactions({
   added,
   deleted,
   updated,
   learnCategories,
   runTransfers = true,
-}: Parameters<typeof batchUpdateTransactions>[0]) {
+}: TransactionBatchUpdateOptions) {
   const result = await batchUpdateTransactions({
     added,
     updated,

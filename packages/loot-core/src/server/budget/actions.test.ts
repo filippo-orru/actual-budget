@@ -21,6 +21,7 @@ describe('copyUntilYearEnd', () => {
 
   async function setupDatabase() {
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'income-group',
       name: 'Income',
       is_income: 1,
@@ -32,6 +33,7 @@ describe('copyUntilYearEnd', () => {
       is_income: 1,
     });
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group1',
       name: 'group1',
       is_income: 0,
@@ -235,6 +237,7 @@ describe('coverOverbudgeted', () => {
 // with balances of cat1 = 100, cat2 = -20, cat3 = 10
 async function prepareDatabase() {
   await db.insertCategoryGroup({
+    budget_id: 'default',
     id: 'income-group',
     name: 'Income',
     is_income: 1,
@@ -246,7 +249,12 @@ async function prepareDatabase() {
     is_income: 1,
   });
 
-  await db.insertCategoryGroup({ id: 'group1', name: 'group1', is_income: 0 });
+  await db.insertCategoryGroup({
+    budget_id: 'default',
+    id: 'group1',
+    name: 'group1',
+    is_income: 0,
+  });
   await db.insertCategory({
     id: 'cat1',
     name: 'cat1',
@@ -282,14 +290,24 @@ async function prepareDatabase() {
 }
 
 async function setupAverageDatabase() {
-  await db.insertAccount({ id: 'account1', name: 'Account 1' });
+  await db.insertAccount({
+    budget_id: 'default',
+    id: 'account1',
+    name: 'Account 1',
+  });
 
   await db.insertCategoryGroup({
+    budget_id: 'default',
     id: 'income-group',
     name: 'Income',
     is_income: 1,
   });
-  await db.insertCategoryGroup({ id: 'group1', name: 'group1', is_income: 0 });
+  await db.insertCategoryGroup({
+    budget_id: 'default',
+    id: 'group1',
+    name: 'group1',
+    is_income: 0,
+  });
   await db.insertCategory({
     id: 'cat1',
     name: 'cat1',

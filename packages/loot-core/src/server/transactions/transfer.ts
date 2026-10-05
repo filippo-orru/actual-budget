@@ -1,7 +1,10 @@
 // @ts-strict-ignore
+import { v4 as uuidv4 } from 'uuid';
+
 import * as db from '#server/db';
 
 import { runRules } from './transaction-rules';
+import { validateTransactionWrites } from './validate';
 
 async function getPayee(acct) {
   return db.first<db.DbPayee>('SELECT * FROM payees WHERE transfer_acct = ?', [
@@ -44,7 +47,90 @@ async function clearCategory(transaction, transferAcct) {
   return false;
 }
 
-export async function addTransfer(transaction, transferredAccount) {
+export type PreparedTransfer = {
+  notes: string | null;
+  cleared: boolean;
+  schedule: string | null;
+};
+
+export async function validateTransferInserts(
+  transactions,
+  pendingPayees: Map<string, { id: string; name: string }>,
+): Promise<Map<string, PreparedTransfer>> {
+  const preparedTransfers = new Map<string, PreparedTransfer>();
+  for (const transaction of transactions) {
+    if (transaction.is_parent) continue;
+    const transferredAccount = await getTransferredAccount(transaction);
+    if (!transferredAccount) continue;
+
+    const fromPayee = await db.first<Pick<db.DbPayee, 'id'>>(
+      'SELECT id FROM payees WHERE transfer_acct = ?',
+      [transaction.account],
+    );
+    if (!fromPayee) throw new Error('Transfer source payee not found');
+
+    if (transaction.transfer_id) {
+      const counterpart = await db.getTransaction(transaction.transfer_id);
+      if (!counterpart) {
+        throw new Error(
+          `Transfer transaction not found: ${transaction.transfer_id}`,
+        );
+      }
+      await validateTransactionWrites({
+        updated: [
+          {
+            id: counterpart.id,
+            account: transferredAccount,
+            amount: -transaction.amount,
+            payee: fromPayee.id,
+            notes: transaction.notes || null,
+            schedule: transaction.schedule,
+          },
+        ],
+      });
+      continue;
+    }
+    const transferTransaction = {
+      id: uuidv4(),
+      account: transferredAccount,
+      amount: -transaction.amount,
+      payee: fromPayee.id,
+      date: transaction.date,
+      notes: transaction.notes || null,
+      schedule: transaction.schedule,
+      cleared: false,
+    };
+    const { notes, cleared, schedule } = await runRules(
+      transferTransaction,
+      null,
+      pendingPayees,
+    );
+    const matchedSchedule = schedule ?? transaction.schedule;
+    await validateTransactionWrites({
+      added: [
+        {
+          ...transferTransaction,
+          notes,
+          cleared,
+          schedule: matchedSchedule,
+        },
+      ],
+      pendingPayeeIds: new Set(pendingPayees.keys()),
+    });
+    preparedTransfers.set(transaction.id, {
+      notes,
+      cleared,
+      schedule: matchedSchedule,
+    });
+  }
+  return preparedTransfers;
+}
+
+export async function addTransfer(
+  transaction,
+  transferredAccount,
+  prepared?: PreparedTransfer,
+) {
   if (transaction.is_parent) {
     // For split transactions, we should create transfers using child transactions.
     // This is to ensure that the amounts received by the transferred account
@@ -59,6 +145,7 @@ export async function addTransfer(transaction, transferredAccount) {
   );
 
   const transferTransaction = {
+    id: uuidv4(),
     account: transferredAccount,
     amount: -transaction.amount,
     payee: fromPayee,
@@ -68,11 +155,27 @@ export async function addTransfer(transaction, transferredAccount) {
     schedule: transaction.schedule,
     cleared: false,
   };
-  const { notes, cleared, schedule } = await runRules(transferTransaction);
-  const matchedSchedule = schedule ?? transaction.schedule;
+  const pendingPayees = new Map<string, { id: string; name: string }>();
+  const { notes, cleared, schedule } =
+    prepared ?? (await runRules(transferTransaction, null, pendingPayees));
+  const matchedSchedule =
+    prepared?.schedule ?? schedule ?? transaction.schedule;
+  const validatedTransfer = {
+    ...transferTransaction,
+    notes,
+    cleared,
+    schedule: matchedSchedule,
+  };
+  await validateTransactionWrites({
+    added: [validatedTransfer],
+    pendingPayeeIds: new Set(pendingPayees.keys()),
+  });
+  for (const payee of pendingPayees.values()) {
+    await db.insertPayee(payee);
+  }
 
   const id = await db.insertTransaction({
-    ...transferTransaction,
+    ...validatedTransfer,
     notes,
     cleared,
     schedule: matchedSchedule,
@@ -120,6 +223,18 @@ export async function removeTransfer(transaction) {
 export async function updateTransfer(transaction, transferredAccount) {
   const payee = await getPayee(transaction.account);
 
+  await validateTransactionWrites({
+    updated: [
+      {
+        id: transaction.transfer_id,
+        account: transferredAccount,
+        payee: payee.id,
+        notes: transaction.notes,
+        amount: -transaction.amount,
+        schedule: transaction.schedule,
+      },
+    ],
+  });
   await db.updateTransaction({
     id: transaction.transfer_id,
     account: transferredAccount,
@@ -137,11 +252,15 @@ export async function updateTransfer(transaction, transferredAccount) {
   }
 }
 
-export async function onInsert(transaction) {
+export async function onInsert(transaction, preparedTransfers?) {
   const transferredAccount = await getTransferredAccount(transaction);
 
   if (transferredAccount) {
-    return addTransfer(transaction, transferredAccount);
+    return addTransfer(
+      transaction,
+      transferredAccount,
+      preparedTransfers?.get(transaction.id),
+    );
   }
 }
 
@@ -151,7 +270,7 @@ export async function onDelete(transaction) {
   }
 }
 
-export async function onUpdate(transaction) {
+export async function onUpdate(transaction, preparedTransfers?) {
   const transferredAccount = await getTransferredAccount(transaction);
 
   if (transaction.is_parent) {
@@ -159,7 +278,11 @@ export async function onUpdate(transaction) {
   }
 
   if (transferredAccount && !transaction.transfer_id) {
-    return addTransfer(transaction, transferredAccount);
+    return addTransfer(
+      transaction,
+      transferredAccount,
+      preparedTransfers?.get(transaction.id),
+    );
   }
 
   if (!transferredAccount && transaction.transfer_id) {

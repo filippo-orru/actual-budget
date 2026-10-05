@@ -1,4 +1,5 @@
 import { aqlQuery } from '#server/aql';
+import { assertSameBudgetOwner } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { validForMergeExplanation } from '#shared/merge';
 import { q } from '#shared/query';
@@ -24,6 +25,11 @@ export async function mergeTransactions(
   const [a, b] = await mapAndValidateTransactions(txIds[0], txIds[1]);
   const aTransferId = a.transfer_id;
   const bTransferId = b.transfer_id;
+  await assertSameBudgetOwner(
+    [a.id, b.id, aTransferId, bTransferId]
+      .filter((id): id is string => id != null)
+      .map(id => ({ table: 'transactions' as const, id })),
+  );
 
   // we don't need all the transfer logic if there are no transfers.
   if (!aTransferId && !bTransferId) return mergeTransactionsNoTransfer(a, b);
@@ -100,6 +106,10 @@ async function mapAndValidateTransactions(
   const a: TransactionEntity = await db.getTransaction(aId);
   const b: TransactionEntity = await db.getTransaction(bId);
 
+  await assertSameBudgetOwner([
+    { table: 'transactions', id: a.id },
+    { table: 'transactions', id: b.id },
+  ]);
   const validForMergeError = validForMergeExplanation(a, b);
   if (validForMergeError) {
     throw new Error(validForMergeError);
@@ -132,6 +142,14 @@ export async function mergeTransactionsNoTransfer(
       parents,
     );
   } // else: both are non-parents → rows stays []
+
+  if (rows.length > 0) {
+    await assertSameBudgetOwner([
+      { table: 'transactions', id: keep.id },
+      { table: 'transactions', id: drop.id },
+      ...rows.map(row => ({ table: 'transactions' as const, id: row.id })),
+    ]);
+  }
 
   for (const row of rows) {
     if (row.parent_id === keep.id) keepSubtransactions.push(row);

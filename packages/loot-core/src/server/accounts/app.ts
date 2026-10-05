@@ -5,6 +5,13 @@ import * as asyncStorage from '#platform/server/asyncStorage';
 import * as connection from '#platform/server/connection';
 import { logger } from '#platform/server/log';
 import { createApp } from '#server/app';
+import {
+  assertBudgetOwner,
+  getBudgetDecimalPlaces,
+  getBudgetIdForEntity,
+  validateBudgetExists,
+} from '#server/budget-spaces/helpers';
+import type { BudgetEntityReference } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import {
   APIError,
@@ -46,6 +53,7 @@ import * as bankSync from './sync';
 
 // Shared base type for link account parameters
 type LinkAccountBaseParams = {
+  budgetId: string;
   upgradingId?: AccountEntity['id'];
   offBudget?: boolean;
   startingDate?: string;
@@ -92,15 +100,30 @@ export type AccountHandlers = {
   'account-unlink': typeof unlinkAccount;
 };
 
-async function updateAccount({
-  id,
-  name,
-  last_reconciled,
-  account_group_id,
-}: Pick<AccountEntity, 'id'> &
-  Partial<
-    Pick<AccountEntity, 'name' | 'last_reconciled' | 'account_group_id'>
-  >) {
+async function updateAccount(
+  args: Pick<AccountEntity, 'id'> &
+    Partial<
+      Pick<AccountEntity, 'name' | 'last_reconciled' | 'account_group_id'>
+    >,
+) {
+  if (Object.hasOwn(args, 'budget_id')) {
+    throw new Error('Account ownership cannot be changed');
+  }
+  const { id, name, last_reconciled, account_group_id } = args;
+  const account = await db.first<db.DbAccount>(
+    'SELECT * FROM accounts WHERE id = ?',
+    [id],
+  );
+  if (!account) throw new Error(`Account with id ${id} not found`);
+  if (account_group_id != null) {
+    const group = await db.first<Pick<db.DbAccountGroup, 'budget_id'>>(
+      'SELECT budget_id FROM account_groups WHERE id = ?',
+      [account_group_id],
+    );
+    if (!group || group.budget_id !== account.budget_id) {
+      throw new Error('Account group belongs to another budget');
+    }
+  }
   await db.update('accounts', {
     id,
     ...(name !== undefined && { name }),
@@ -110,8 +133,13 @@ async function updateAccount({
   return {};
 }
 
-async function getAccounts(): Promise<AccountEntity[]> {
-  const dbAccounts = await db.getAccounts();
+async function getAccounts({
+  budgetId,
+}: {
+  budgetId: string;
+}): Promise<AccountEntity[]> {
+  await validateBudgetExists(budgetId);
+  const dbAccounts = await db.getAccounts(budgetId);
   return dbAccounts.map(
     dbAccount =>
       ({
@@ -147,6 +175,7 @@ async function getAccountBalance({
   id: string;
   cutoff: string | Date;
 }) {
+  await getBudgetIdForEntity({ table: 'accounts', id });
   const result = await db.first<{ balance: number }>(
     'SELECT sum(amount) as balance FROM transactions WHERE acct = ? AND isParent = 0 AND tombstone = 0 AND date <= ?',
     [id, db.toDateRepr(dayFromDate(cutoff))],
@@ -155,6 +184,7 @@ async function getAccountBalance({
 }
 
 async function getAccountProperties({ id }: { id: AccountEntity['id'] }) {
+  const budgetId = await getBudgetIdForEntity({ table: 'accounts', id });
   const balanceResult = await db.first<{ balance: number }>(
     'SELECT sum(amount) as balance FROM transactions WHERE acct = ? AND isParent = 0 AND tombstone = 0',
     [id],
@@ -167,10 +197,12 @@ async function getAccountProperties({ id }: { id: AccountEntity['id'] }) {
   return {
     balance: balanceResult?.balance || 0,
     numTransactions: countResult?.count || 0,
+    budgetId,
   };
 }
 
 async function linkGoCardlessAccount({
+  budgetId,
   requisitionId,
   account,
   upgradingId,
@@ -181,6 +213,7 @@ async function linkGoCardlessAccount({
   requisitionId: string;
   account: SyncServerGoCardlessAccount;
 }) {
+  await validateBudgetExists(budgetId);
   let id;
   const bank = await link.findOrCreateBank(account.institution, requisitionId);
 
@@ -192,6 +225,9 @@ async function linkGoCardlessAccount({
 
     if (!accRow) {
       throw new Error(`Account with ID ${upgradingId} not found.`);
+    }
+    if (accRow.budget_id !== budgetId) {
+      throw new Error('A linked account cannot change budget ownership.');
     }
 
     id = accRow.id;
@@ -205,6 +241,7 @@ async function linkGoCardlessAccount({
     id = uuidv4();
     await db.insertWithUUID('accounts', {
       id,
+      budget_id: budgetId,
       account_id: account.account_id,
       mask: account.mask,
       name: account.name,
@@ -240,6 +277,7 @@ async function linkGoCardlessAccount({
 }
 
 async function linkSimpleFinAccount({
+  budgetId,
   externalAccount,
   upgradingId,
   offBudget = false,
@@ -248,6 +286,7 @@ async function linkSimpleFinAccount({
 }: LinkAccountBaseParams & {
   externalAccount: SyncServerSimpleFinAccount;
 }) {
+  await validateBudgetExists(budgetId);
   let id;
 
   const institution = {
@@ -271,6 +310,9 @@ async function linkSimpleFinAccount({
     if (!accRow) {
       throw new Error(`Account with ID ${upgradingId} not found.`);
     }
+    if (accRow.budget_id !== budgetId) {
+      throw new Error('A linked account cannot change budget ownership.');
+    }
 
     id = accRow.id;
     await db.update('accounts', {
@@ -283,6 +325,7 @@ async function linkSimpleFinAccount({
     id = uuidv4();
     await db.insertWithUUID('accounts', {
       id,
+      budget_id: budgetId,
       account_id: externalAccount.account_id,
       name: externalAccount.name,
       official_name: externalAccount.name,
@@ -317,6 +360,7 @@ async function linkSimpleFinAccount({
 }
 
 async function linkPluggyAiAccount({
+  budgetId,
   externalAccount,
   upgradingId,
   offBudget = false,
@@ -325,6 +369,7 @@ async function linkPluggyAiAccount({
 }: LinkAccountBaseParams & {
   externalAccount: SyncServerPluggyAiAccount;
 }) {
+  await validateBudgetExists(budgetId);
   let id;
   const fileId = getPrefs()?.cloudFileId;
 
@@ -349,6 +394,9 @@ async function linkPluggyAiAccount({
     if (!accRow) {
       throw new Error(`Account with ID ${upgradingId} not found.`);
     }
+    if (accRow.budget_id !== budgetId) {
+      throw new Error('A linked account cannot change budget ownership.');
+    }
 
     id = accRow.id;
     await db.update('accounts', {
@@ -361,6 +409,7 @@ async function linkPluggyAiAccount({
     id = uuidv4();
     await db.insertWithUUID('accounts', {
       id,
+      budget_id: budgetId,
       account_id: externalAccount.account_id,
       name: externalAccount.name,
       official_name: externalAccount.name,
@@ -396,6 +445,7 @@ async function linkPluggyAiAccount({
 }
 
 async function linkAkahuAccount({
+  budgetId,
   externalAccount,
   upgradingId,
   offBudget = false,
@@ -404,6 +454,7 @@ async function linkAkahuAccount({
 }: LinkAccountBaseParams & {
   externalAccount: SyncServerAkahuAccount;
 }) {
+  await validateBudgetExists(budgetId);
   let id;
 
   const institution = {
@@ -424,6 +475,9 @@ async function linkAkahuAccount({
     if (!accRow) {
       throw new Error(`Account with ID ${upgradingId} not found.`);
     }
+    if (accRow.budget_id !== budgetId) {
+      throw new Error('A linked account cannot change budget ownership.');
+    }
 
     id = accRow.id;
     await db.update('accounts', {
@@ -436,6 +490,7 @@ async function linkAkahuAccount({
     id = uuidv4();
     await db.insertWithUUID('accounts', {
       id,
+      budget_id: budgetId,
       account_id: externalAccount.account_id,
       name: externalAccount.name,
       official_name: externalAccount.name,
@@ -470,6 +525,7 @@ async function linkAkahuAccount({
 }
 
 async function linkEnableBankingAccount({
+  budgetId,
   externalAccount,
   upgradingId,
   offBudget = false,
@@ -478,6 +534,7 @@ async function linkEnableBankingAccount({
 }: LinkAccountBaseParams & {
   externalAccount: SyncServerEnableBankingAccount;
 }) {
+  await validateBudgetExists(budgetId);
   let id: string | undefined;
 
   const institution = {
@@ -505,6 +562,9 @@ async function linkEnableBankingAccount({
     if (!accRow) {
       throw new Error(`Account with ID ${upgradingId} not found.`);
     }
+    if (accRow.budget_id !== budgetId) {
+      throw new Error('A linked account cannot change budget ownership.');
+    }
 
     id = accRow.id;
     await db.update('accounts', {
@@ -517,6 +577,7 @@ async function linkEnableBankingAccount({
     id = uuidv4();
     await db.insertWithUUID('accounts', {
       id,
+      budget_id: budgetId,
       account_id: externalAccount.account_id,
       name: externalAccount.name,
       official_name: externalAccount.name,
@@ -555,17 +616,22 @@ async function linkEnableBankingAccount({
 }
 
 async function createAccount({
+  budgetId,
   name,
   balance = 0,
   offBudget = false,
   closed = false,
 }: {
+  budgetId: string;
   name: string;
   balance?: number | undefined;
   offBudget?: boolean | undefined;
   closed?: boolean | undefined;
 }) {
+  await validateBudgetExists(budgetId);
+  const decimalPlaces = await getBudgetDecimalPlaces(budgetId);
   const id: AccountEntity['id'] = await db.insertAccount({
+    budget_id: budgetId,
     name,
     offbudget: offBudget ? 1 : 0,
     closed: closed ? 1 : 0,
@@ -577,11 +643,11 @@ async function createAccount({
   });
 
   if (balance != null && balance !== 0) {
-    const payee = await getStartingBalancePayee();
+    const payee = await getStartingBalancePayee(budgetId);
 
     await db.insertTransaction({
       account: id,
-      amount: amountToInteger(balance),
+      amount: amountToInteger(balance, decimalPlaces),
       category: offBudget ? null : payee.category,
       payee: payee.id,
       date: monthUtils.currentDay(),
@@ -604,6 +670,35 @@ async function closeAccount({
   categoryId?: CategoryEntity['id'] | undefined;
   forced?: boolean | undefined;
 }) {
+  const owner = await getBudgetIdForEntity({ table: 'accounts', id });
+  const references: BudgetEntityReference[] = [{ table: 'accounts', id }];
+  if (transferAccountId != null) {
+    references.push({ table: 'accounts', id: transferAccountId });
+  }
+  if (categoryId != null) {
+    references.push({ table: 'categories', id: categoryId });
+  }
+  await assertBudgetOwner(owner, references);
+  if (forced) {
+    const transferRows = db.runQuery<Pick<db.DbViewTransaction, 'transfer_id'>>(
+      'SELECT transfer_id FROM v_transactions WHERE account = ?',
+      [id],
+      true,
+    );
+    const transferIds = transferRows
+      .map(row => row.transfer_id)
+      .filter((transferId): transferId is string => transferId != null);
+    if (transferIds.length > 0) {
+      await assertBudgetOwner(owner, [
+        { table: 'accounts', id },
+        ...transferIds.map(transferId => ({
+          table: 'transactions' as const,
+          id: transferId,
+        })),
+      ]);
+    }
+  }
+
   // Unlink the account if it's linked. This makes sure to remove it from
   // bank-sync providers. (This should not be undo-able, as it mutates the
   // remote server and the user will have to link the account again)
@@ -706,6 +801,7 @@ async function closeAccount({
 }
 
 async function reopenAccount({ id }: { id: AccountEntity['id'] }) {
+  await getBudgetIdForEntity({ table: 'accounts', id });
   await db.update('accounts', { id, closed: 0 });
 }
 

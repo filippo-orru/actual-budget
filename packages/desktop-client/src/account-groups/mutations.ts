@@ -7,6 +7,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 
 import { accountQueries } from '#accounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import type { AppDispatch } from '#redux/store';
@@ -41,13 +42,14 @@ type CreateAccountGroupPayload = {
 };
 
 export function useCreateAccountGroupMutation() {
+  const budgetId = useBudgetSpaceId();
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: async ({ name }: CreateAccountGroupPayload) => {
-      return await send('account-group-create', { name });
+      return await send('account-group-create', { name, budgetId });
     },
     onSuccess: () => invalidateQueries(queryClient),
     onError: error => {

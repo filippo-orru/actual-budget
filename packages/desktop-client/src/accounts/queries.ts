@@ -8,37 +8,42 @@ function selectActive(accounts: AccountEntity[]) {
 
 export const accountQueries = {
   all: () => ['accounts'],
-  lists: () => [...accountQueries.all(), 'lists'],
-  list: () =>
+  lists: (budgetId?: string) =>
+    budgetId
+      ? [...accountQueries.all(), budgetId, 'lists']
+      : accountQueries.all(),
+  list: (budgetId: string) =>
     queryOptions<AccountEntity[]>({
-      queryKey: [...accountQueries.lists()],
+      queryKey: [...accountQueries.lists(budgetId)],
       queryFn: async () => {
-        const accounts: AccountEntity[] = await send('accounts-get');
+        const accounts: AccountEntity[] = await send('accounts-get', {
+          budgetId,
+        });
         return accounts;
       },
       placeholderData: [],
       // Manually invalidated when accounts change
       staleTime: Infinity,
     }),
-  listActive: () =>
+  listActive: (budgetId: string) =>
     queryOptions<AccountEntity[]>({
-      ...accountQueries.list(),
+      ...accountQueries.list(budgetId),
       select: selectActive,
     }),
-  listClosed: () =>
+  listClosed: (budgetId: string) =>
     queryOptions<AccountEntity[]>({
-      ...accountQueries.list(),
+      ...accountQueries.list(budgetId),
       select: accounts => accounts.filter(account => !!account.closed),
     }),
-  listOnBudget: () =>
+  listOnBudget: (budgetId: string) =>
     queryOptions<AccountEntity[]>({
-      ...accountQueries.list(),
+      ...accountQueries.list(budgetId),
       select: accounts =>
         selectActive(accounts).filter(account => !account.offbudget),
     }),
-  listOffBudget: () =>
+  listOffBudget: (budgetId: string) =>
     queryOptions<AccountEntity[]>({
-      ...accountQueries.list(),
+      ...accountQueries.list(budgetId),
       select: accounts =>
         selectActive(accounts).filter(account => !!account.offbudget),
     }),

@@ -1,3 +1,4 @@
+import { getBudgetIdForEntity } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import type { CleanupTemplate } from '#types/models/cleanup-templates';
 
@@ -18,42 +19,58 @@ type ParsedCleanupRow =
 
 type CategoryWithCleanupNote = {
   id: string;
+  budget_id: string;
   note: string | null;
 };
 
 export async function storeNoteCleanups(categoryIds?: string[]): Promise<void> {
   const candidates = await getCategoriesWithCleanupNotes(categoryIds);
-
-  const parsedByCategory = new Map<string, ParsedCleanupRow[]>();
-  const allGroupNames = new Set<string>();
-  for (const { id, note } of candidates) {
-    if (!note) continue;
-    const rows = parseCleanupNote(note);
-    if (rows.length === 0) continue;
-    parsedByCategory.set(id, rows);
-    for (const r of rows) {
-      if (r.group != null) allGroupNames.add(r.group);
-    }
-  }
-
-  const nameToId = await resolveCleanupGroups(allGroupNames);
-
-  for (const { id } of candidates) {
-    const parsed = parsedByCategory.get(id);
-    if (!parsed) {
-      await db.updateWithSchema('categories', { id, cleanup_def: null });
-      continue;
-    }
-    const cleanupDef: CleanupTemplate[] = parsed.map(row =>
-      toCleanupTemplate(row, nameToId),
+  if (categoryIds) {
+    const requestedOwners = await Promise.all(
+      categoryIds.map(id => getBudgetIdForEntity({ table: 'categories', id })),
     );
-    await db.updateWithSchema('categories', {
-      id,
-      cleanup_def: JSON.stringify(cleanupDef),
-    });
+    if (new Set(requestedOwners).size > 1) {
+      throw new Error('Cleanup categories must belong to the same budget');
+    }
+  }
+  const owners = new Set(candidates.map(candidate => candidate.budget_id));
+  if (categoryIds && owners.size > 1) {
+    throw new Error('Cleanup categories must belong to the same budget');
   }
 
-  await tombstoneOrphanCleanupGroups();
+  for (const budgetId of owners) {
+    const budgetCandidates = candidates.filter(
+      candidate => candidate.budget_id === budgetId,
+    );
+    const parsedByCategory = new Map<string, ParsedCleanupRow[]>();
+    const allGroupNames = new Set<string>();
+    for (const { id, note } of budgetCandidates) {
+      if (!note) continue;
+      const rows = parseCleanupNote(note);
+      if (rows.length === 0) continue;
+      parsedByCategory.set(id, rows);
+      for (const row of rows) {
+        if (row.group != null) allGroupNames.add(row.group);
+      }
+    }
+
+    const nameToId = await resolveCleanupGroups(allGroupNames, budgetId);
+    for (const { id } of budgetCandidates) {
+      const parsed = parsedByCategory.get(id);
+      if (!parsed) {
+        await db.updateWithSchema('categories', { id, cleanup_def: null });
+        continue;
+      }
+      const cleanupDef: CleanupTemplate[] = parsed.map(row =>
+        toCleanupTemplate(row, nameToId),
+      );
+      await db.updateWithSchema('categories', {
+        id,
+        cleanup_def: JSON.stringify(cleanupDef),
+      });
+    }
+    await tombstoneOrphanCleanupGroups(budgetId);
+  }
 }
 
 function parseCleanupNote(note: string): ParsedCleanupRow[] {
@@ -120,10 +137,11 @@ function resolveGroup(
 
 async function resolveCleanupGroups(
   names: ReadonlySet<string>,
+  budgetId: string,
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for (const name of names) {
-    const id = await resolveCleanupGroup(name);
+    const id = await resolveCleanupGroup(name, budgetId);
     map.set(name.toLowerCase(), id);
   }
   return map;
@@ -135,7 +153,7 @@ async function getCategoriesWithCleanupNotes(
   categoryIds?: string[],
 ): Promise<CategoryWithCleanupNote[]> {
   const baseQuery = `
-    SELECT c.id AS id, n.note AS note
+    SELECT c.id AS id, c.budget_id AS budget_id, n.note AS note
     FROM categories c
     LEFT JOIN notes n ON n.id = c.id
     WHERE c.tombstone = 0

@@ -46,7 +46,12 @@ function getAllTransactions() {
 }
 
 async function prepareDatabase() {
-  await db.insertCategoryGroup({ id: 'group1', name: 'group1', is_income: 1 });
+  await db.insertCategoryGroup({
+    budget_id: 'default',
+    id: 'group1',
+    name: 'group1',
+    is_income: 1,
+  });
   await db.insertCategory({
     name: 'income',
     cat_group: 'group1',
@@ -61,6 +66,7 @@ async function prepareDatabase() {
   const acct = accounts[0];
 
   const id = await db.insertAccount({
+    budget_id: 'default',
     id: 'one',
     account_id: acct.account_id,
     name: acct.official_name,
@@ -363,6 +369,7 @@ describe('Account sync', () => {
   test('reconcile run rules with inferred payee', async () => {
     const { id: acctId } = await prepareDatabase();
     await db.insertCategoryGroup({
+      budget_id: 'default',
       id: 'group2',
       name: 'group2',
     });
@@ -869,6 +876,7 @@ describe('SimpleFin batch sync', () => {
   test('does not emit transaction CRDT messages when provider category appears later', async () => {
     const providerAccountId = 'sf-account-1';
     const acctId = await db.insertAccount({
+      budget_id: 'default',
       id: 'acct-1',
       account_id: providerAccountId,
       name: 'Account 1',
@@ -967,6 +975,7 @@ describe('SimpleFin batch sync', () => {
 
     // Insert two accounts linked to SimpleFin
     const acct1Id = await db.insertAccount({
+      budget_id: 'default',
       id: 'acct-1',
       account_id: presentAccountId,
       name: 'Account 1',
@@ -979,6 +988,7 @@ describe('SimpleFin batch sync', () => {
     });
 
     const acct2Id = await db.insertAccount({
+      budget_id: 'default',
       id: 'acct-2',
       account_id: missingAccountId,
       name: 'Account 2',
@@ -1030,6 +1040,7 @@ describe('SimpleFin batch sync', () => {
     });
 
     const acct1Id = await db.insertAccount({
+      budget_id: 'default',
       id: 'acct-1',
       account_id: presentAccountId,
       name: 'Account 1',
@@ -1042,6 +1053,7 @@ describe('SimpleFin batch sync', () => {
     });
 
     const acct2Id = await db.insertAccount({
+      budget_id: 'default',
       id: 'acct-2',
       account_id: missingAccountId,
       name: 'Account 2',

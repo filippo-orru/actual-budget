@@ -7,9 +7,15 @@ import {
   setNumberFormat,
   stringToInteger,
   titleFirst,
+  toRelaxedNumber,
 } from './util';
 
 describe('utility functions', () => {
+  test('toRelaxedNumber can use budget-specific decimal places', () => {
+    expect(toRelaxedNumber('12.34', 2)).toBe(12.34);
+    expect(toRelaxedNumber('12.34', 0)).toBe(12);
+  });
+
   test('looseParseAmount works with basic numbers', () => {
     // Parsing is currently limited to 1,2 decimal places or 5-9.
     // Ignoring 3 places removes the possibility of improper parse

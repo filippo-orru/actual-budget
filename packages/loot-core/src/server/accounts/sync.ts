@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as asyncStorage from '#platform/server/asyncStorage';
 import { logger } from '#platform/server/log';
 import { aqlQuery } from '#server/aql';
+import { getBudgetDecimalPlaces } from '#server/budget-spaces/helpers';
 import * as db from '#server/db';
 import { TRANSACTION_SORT_INCREMENT } from '#server/db/sort';
 import { TransactionError } from '#server/errors';
@@ -508,6 +509,9 @@ async function normalizeTransactions(
 }
 
 async function normalizeBankSyncTransactions(transactions, acctId) {
+  const account = await db.getAccount(acctId);
+  if (!account) throw new Error(`Account with id ${acctId} not found`);
+  const decimalPlaces = await getBudgetDecimalPlaces(account.budget_id);
   const payeesToCreate = new Map();
 
   const [customMappingsRaw, importPending, importNotes] = await Promise.all([
@@ -532,7 +536,14 @@ async function normalizeBankSyncTransactions(transactions, acctId) {
     ? mappingsFromString(customMappingsRaw)
     : defaultMappings;
 
-  const categoryIds = new Set((await db.getCategories()).map(c => c.id));
+  const categoryIds = new Set(
+    (
+      await db.all<Pick<db.DbCategory, 'id'>>(
+        'SELECT id FROM categories WHERE budget_id = ? AND tombstone = 0',
+        [account.budget_id],
+      )
+    ).map(category => category.id),
+  );
   const normalized = [];
   for (const trans of transactions) {
     trans.cleared = Boolean(trans.booked);
@@ -578,7 +589,7 @@ async function normalizeBankSyncTransactions(transactions, acctId) {
     normalized.push({
       payee_name: payeeName,
       trans: {
-        amount: amountToInteger(trans.amount),
+        amount: amountToInteger(trans.amount, decimalPlaces),
         payee: trans.payee,
         account: trans.account,
         date,
@@ -593,19 +604,6 @@ async function normalizeBankSyncTransactions(transactions, acctId) {
   }
 
   return { normalized, payeesToCreate };
-}
-
-async function createNewPayees(payeesToCreate, addsAndUpdates) {
-  const usedPayeeIds = new Set(addsAndUpdates.map(t => t.payee));
-
-  await batchMessages(async () => {
-    for (const payee of payeesToCreate.values()) {
-      // Only create the payee if it ended up being used
-      if (usedPayeeIds.has(payee.id)) {
-        await db.insertPayee(payee);
-      }
-    }
-  });
 }
 
 export type MatchTransactionsOptions = {
@@ -653,6 +651,7 @@ export async function reconcileTransactions(
   const existingPayeeMap = new Map<string, string>();
 
   const {
+    pendingPayees,
     payeesToCreate,
     transactionsStep1,
     transactionsStep2,
@@ -774,8 +773,22 @@ export async function reconcileTransactions(
   });
 
   if (!isPreview) {
-    await createNewPayees(payeesToCreate, [...added, ...updated]);
-    await batchUpdateTransactions({ added, updated });
+    const importedPayeeIds = new Set(
+      [...payeesToCreate.values()].map(payee => payee.id),
+    );
+    const usedPayeeIds = new Set(
+      [...added, ...updated]
+        .map(transaction => transaction.payee)
+        .filter((payeeId): payeeId is string => payeeId != null),
+    );
+    const payeesToCommit = [...pendingPayees.values()].filter(
+      payee => !importedPayeeIds.has(payee.id) || usedPayeeIds.has(payee.id),
+    );
+    await batchUpdateTransactions({
+      added,
+      updated,
+      pendingPayees: payeesToCommit,
+    });
   }
 
   logger.log('Debug data for the operations:', {
@@ -823,9 +836,12 @@ export async function matchTransactions(
     : await normalizeTransactions(transactions, acctId, {
         payeeNameNormalization,
       });
+  const pendingPayees = new Map(
+    [...payeesToCreate.values()].map(payee => [payee.id, payee]),
+  );
 
   // The first pass runs the rules, and preps data for fuzzy matching
-  const accounts: db.DbAccount[] = await db.getAccounts();
+  const accounts: db.DbAccount[] = await db.getAllAccounts();
   const accountsMap = new Map(accounts.map(account => [account.id, account]));
 
   const transactionsStep1 = [];
@@ -835,7 +851,7 @@ export async function matchTransactions(
     subtransactions,
   } of normalized) {
     // Run the rules
-    const trans = await runRules(originalTrans, accountsMap);
+    const trans = await runRules(originalTrans, accountsMap, pendingPayees);
 
     let match = null;
     let fuzzyDataset = null;
@@ -1001,6 +1017,7 @@ export async function matchTransactions(
   });
 
   return {
+    pendingPayees,
     payeesToCreate,
     transactionsStep1,
     transactionsStep2,
@@ -1023,12 +1040,15 @@ export async function addTransactions(
     { payeeNameNormalization: 'original' },
   );
 
-  const accounts: db.DbAccount[] = await db.getAccounts();
+  const accounts: db.DbAccount[] = await db.getAllAccounts();
   const accountsMap = new Map(accounts.map(account => [account.id, account]));
+  const pendingPayees = new Map(
+    [...payeesToCreate.values()].map(payee => [payee.id, payee]),
+  );
 
   for (const { trans: originalTrans, subtransactions } of normalized) {
     // Run the rules
-    const trans = await runRules(originalTrans, accountsMap);
+    const trans = await runRules(originalTrans, accountsMap, pendingPayees);
 
     const finalTransaction = {
       id: uuidv4(),
@@ -1049,8 +1069,6 @@ export async function addTransactions(
     }
   }
 
-  await createNewPayees(payeesToCreate, added);
-
   // Assign decreasing sort_order values to preserve import file order.
   // Transactions are displayed in sort_order DESC order, so first transaction
   // in the file should have the highest sort_order.
@@ -1059,22 +1077,24 @@ export async function addTransactions(
     t.sort_order ??= now - index * TRANSACTION_SORT_INCREMENT;
   });
 
-  let newTransactions;
-  if (runTransfers || learnCategories) {
-    const res = await batchUpdateTransactions({
-      added,
-      learnCategories,
-      runTransfers,
-    });
-    newTransactions = res.added.map(t => t.id);
-  } else {
-    await batchMessages(async () => {
-      newTransactions = await Promise.all(
-        added.map(async trans => db.insertTransaction(trans)),
-      );
-    });
-  }
-  return newTransactions;
+  const importedPayeeIds = new Set(
+    [...payeesToCreate.values()].map(payee => payee.id),
+  );
+  const usedPayeeIds = new Set(
+    added
+      .map(transaction => transaction.payee)
+      .filter((payeeId): payeeId is string => payeeId != null),
+  );
+  const payeesToCommit = [...pendingPayees.values()].filter(
+    payee => !importedPayeeIds.has(payee.id) || usedPayeeIds.has(payee.id),
+  );
+  const result = await batchUpdateTransactions({
+    added,
+    learnCategories,
+    runTransfers,
+    pendingPayees: payeesToCommit,
+  });
+  return result.added.map(transaction => transaction.id);
 }
 
 async function processBankSyncDownload(
@@ -1088,6 +1108,7 @@ async function processBankSyncDownload(
   // If syncing an account from sync source it must not use strictIdChecking. This allows
   // the fuzzy search to match transactions where the import IDs are different. It is a known quirk
   // that account sync sources can give two different transaction IDs even though it's the same transaction.
+  const decimalPlaces = await getBudgetDecimalPlaces(acctRow.budget_id);
   const useStrictIdChecking = !acctRow.account_sync_source;
 
   const importTransactions = await aqlQuery(
@@ -1118,14 +1139,16 @@ async function processBankSyncDownload(
     } else if (acctRow.account_sync_source === 'simpleFin') {
       const previousBalance = transactions.reduce((total, trans) => {
         return (
-          total - parseInt(trans.transactionAmount.amount.replace('.', ''))
+          total - amountToInteger(trans.transactionAmount.amount, decimalPlaces)
         );
       }, currentBalance);
       balanceToUse = previousBalance;
     } else if (acctRow.account_sync_source === 'pluggyai') {
       const currentBalance = download.startingBalance;
       const previousBalance = transactions.reduce(
-        (total, trans) => total - trans.transactionAmount.amount * 100,
+        (total, trans) =>
+          total -
+          amountToInteger(trans.transactionAmount.amount, decimalPlaces),
         currentBalance,
       );
       balanceToUse = Math.round(previousBalance);
@@ -1139,14 +1162,17 @@ async function processBankSyncDownload(
         ? transactions
         : transactions.filter(trans => Boolean(trans.booked));
       const previousBalance = importable.reduce((total, trans) => {
-        return total - amountToInteger(trans.transactionAmount.amount);
+        return (
+          total - amountToInteger(trans.transactionAmount.amount, decimalPlaces)
+        );
       }, currentBalance);
       balanceToUse = previousBalance;
     } else if (acctRow.account_sync_source === 'akahu') {
       const currentBalance = download.startingBalance;
       const previousBalance = transactions.reduce(
         (total, trans) =>
-          total - amountToInteger(trans.transactionAmount.amount),
+          total -
+          amountToInteger(trans.transactionAmount.amount, decimalPlaces),
         currentBalance,
       );
       balanceToUse = Math.round(previousBalance);
@@ -1164,9 +1190,13 @@ async function processBankSyncDownload(
       startingBalanceDate = monthUtils.currentDay();
     }
 
-    const payee = await getStartingBalancePayee();
-
     return runMutator(async () => {
+      const result = await reconcileTransactions(id, transactions, {
+        isBankSyncAccount: true,
+        strictIdChecking: useStrictIdChecking,
+        updateDates,
+      });
+      const payee = await getStartingBalancePayee(acctRow.budget_id);
       const initialId = await db.insertTransaction({
         account: id,
         amount: balanceToUse,
@@ -1175,12 +1205,6 @@ async function processBankSyncDownload(
         date: startingBalanceDate,
         cleared: true,
         starting_balance_flag: true,
-      });
-
-      const result = await reconcileTransactions(id, transactions, {
-        isBankSyncAccount: true,
-        strictIdChecking: useStrictIdChecking,
-        updateDates,
       });
       return {
         ...result,

@@ -39,6 +39,7 @@ import {
 } from '#components/reports/spreadsheets/budget-analysis-spreadsheet';
 import { useReport } from '#components/reports/useReport';
 import { fromDateRepr } from '#components/reports/util';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
@@ -271,16 +272,25 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
   const startDate = `${monthUtils.getMonth(start)}-01`;
   const endDate = monthUtils.getMonthEnd(`${monthUtils.getMonth(end)}-01`);
 
+  const budgetId = useBudgetSpaceId();
   const getGraphData = useMemo(
     () =>
       createBudgetAnalysisSpreadsheet({
+        budgetId,
         conditions,
         conditionsOp,
         startDate,
         endDate,
         showHiddenCategories,
       }),
-    [conditions, conditionsOp, startDate, endDate, showHiddenCategories],
+    [
+      budgetId,
+      conditions,
+      conditionsOp,
+      startDate,
+      endDate,
+      showHiddenCategories,
+    ],
   );
 
   const data = useReport('default', getGraphData);

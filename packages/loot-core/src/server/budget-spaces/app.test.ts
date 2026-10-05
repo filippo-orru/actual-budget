@@ -237,7 +237,11 @@ describe('budget spaces', () => {
 
   it('updates only the target budget row and preserves stored financial amounts', async () => {
     const created = await createBudget();
-    await db.insertAccount({ id: 'cash', name: 'Cash' });
+    await db.insertAccount({
+      budget_id: 'default',
+      id: 'cash',
+      name: 'Cash',
+    });
     await db.insertTransaction({
       id: 'cash-opening',
       account: 'cash',

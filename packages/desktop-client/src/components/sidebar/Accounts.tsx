@@ -8,6 +8,7 @@ import type { AccountEntity } from '@actual-app/core/types/models';
 import { useMoveAccountMutation } from '#accounts';
 import { isAccountFailedSync } from '#accounts/syncStatus';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useClosedAccounts } from '#hooks/useClosedAccounts';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useOffBudgetAccounts } from '#hooks/useOffBudgetAccounts';
@@ -15,6 +16,7 @@ import { useOnBudgetAccounts } from '#hooks/useOnBudgetAccounts';
 import { useUpdatedAccounts } from '#hooks/useUpdatedAccounts';
 import { useSelector } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { Account } from './Account';
 import { SecondaryItem } from './SecondaryItem';
@@ -23,6 +25,7 @@ const fontWeight = 600;
 
 export function Accounts() {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const [isDragging, setIsDragging] = useState(false);
   const { data: accounts = [] } = useAccounts();
   const updatedAccounts = useUpdatedAccounts();
@@ -31,7 +34,8 @@ export function Accounts() {
   const { data: closedAccounts = [] } = useClosedAccounts();
   const syncingAccountIds = useSelector(state => state.account.accountsSyncing);
 
-  const getAccountPath = (account: AccountEntity) => `/accounts/${account.id}`;
+  const getAccountPath = (account: AccountEntity) =>
+    budgetRoutes.account(budgetId, account.id);
 
   const [showClosedAccounts, setShowClosedAccountsPref] = useLocalPref(
     'ui.showClosedAccounts',
@@ -92,8 +96,8 @@ export function Accounts() {
       <View style={{ overflow: 'auto' }}>
         <Account
           name={t('All accounts')}
-          to="/accounts"
-          query={bindings.allAccountBalance()}
+          to={budgetRoutes.accounts(budgetId)}
+          query={bindings.allAccountBalance(budgetId)}
           style={{ fontWeight, marginTop: 15 }}
           isExactPathMatch
           balanceTestId="sidebar-all-accounts-balance"
@@ -102,8 +106,8 @@ export function Accounts() {
         {onBudgetAccounts.length > 0 && (
           <Account
             name={t('On budget')}
-            to="/accounts/onbudget"
-            query={bindings.onBudgetAccountBalance()}
+            to={budgetRoutes.account(budgetId, 'onbudget')}
+            query={bindings.onBudgetAccountBalance(budgetId)}
             style={{
               fontWeight,
               marginTop: 13,
@@ -134,8 +138,8 @@ export function Accounts() {
         {offbudgetAccounts.length > 0 && (
           <Account
             name={t('Off budget')}
-            to="/accounts/offbudget"
-            query={bindings.offBudgetAccountBalance()}
+            to={budgetRoutes.account(budgetId, 'offbudget')}
+            query={bindings.offBudgetAccountBalance(budgetId)}
             style={{
               fontWeight,
               marginTop: 13,

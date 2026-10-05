@@ -24,6 +24,7 @@ import { css } from '@emotion/css';
 import { Command } from 'cmdk';
 
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardPages } from '#hooks/useDashboardPages';
 import { useMetadataPref } from '#hooks/useMetadataPref';
 import { useModalState } from '#hooks/useModalState';
@@ -36,6 +37,7 @@ import {
   offBudgetAccountBalance,
   onBudgetAccountBalance,
 } from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { CellValue, CellValueText } from './spreadsheet/CellValue';
 import { useTour } from './tour/TourProvider';
@@ -98,42 +100,63 @@ export function CommandBar() {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   const [budgetName] = useMetadataPref('budgetName');
+  const budgetId = useBudgetSpaceId();
   const { modalStack } = useModalState();
   const { startTour } = useTour();
 
   const navigationItems = useMemo(
     () => [
-      { id: 'budget', name: t('Budget'), path: '/budget', Icon: SvgWallet },
+      {
+        id: 'budget',
+        name: t('Budget'),
+        path: budgetRoutes.budget(budgetId),
+        Icon: SvgWallet,
+      },
       {
         id: 'reports-nav',
         name: t('Reports'),
-        path: '/reports',
+        path: budgetRoutes.reports(budgetId),
         Icon: SvgReports,
       },
       {
         id: 'schedules',
         name: t('Schedules'),
-        path: '/schedules',
+        path: budgetRoutes.schedules(budgetId),
         Icon: SvgCalendar3,
       },
-      { id: 'payees', name: t('Payees'), path: '/payees', Icon: SvgStoreFront },
-      { id: 'rules', name: t('Rules'), path: '/rules', Icon: SvgTuning },
-      { id: 'tags', name: t('Tags'), path: '/tags', Icon: SvgTag },
+      {
+        id: 'payees',
+        name: t('Payees'),
+        path: budgetRoutes.payees(budgetId),
+        Icon: SvgStoreFront,
+      },
+      {
+        id: 'rules',
+        name: t('Rules'),
+        path: budgetRoutes.rules(budgetId),
+        Icon: SvgTuning,
+      },
+      {
+        id: 'tags',
+        name: t('Tags'),
+        path: budgetRoutes.tags(budgetId),
+        Icon: SvgTag,
+      },
       { id: 'settings', name: t('Settings'), path: '/settings', Icon: SvgCog },
       {
         id: 'accounts',
         name: t('All Accounts'),
-        path: '/accounts',
+        path: budgetRoutes.accounts(budgetId),
         content: (
-          <BalanceRow<'account', 'accounts-balance'>
+          <BalanceRow<'account', `accounts-balance-${string}`>
             label={t('All Accounts')}
-            binding={allAccountBalance()}
+            binding={allAccountBalance(budgetId)}
           />
         ),
         Icon: SvgLibrary,
       },
     ],
-    [t],
+    [budgetId, t],
   );
 
   useEffect(() => {
@@ -190,9 +213,9 @@ export function CommandBar() {
           id: 'onbudget',
           name: t('On Budget'),
           content: (
-            <BalanceRow<'account', 'onbudget-accounts-balance'>
+            <BalanceRow<'account', `onbudget-accounts-balance-${string}`>
               label={t('On Budget')}
-              binding={onBudgetAccountBalance()}
+              binding={onBudgetAccountBalance(budgetId)}
             />
           ),
           Icon: SvgLibrary,
@@ -201,9 +224,9 @@ export function CommandBar() {
           id: 'offbudget',
           name: t('Off Budget'),
           content: (
-            <BalanceRow<'account', 'offbudget-accounts-balance'>
+            <BalanceRow<'account', `offbudget-accounts-balance-${string}`>
               label={t('Off Budget')}
-              binding={offBudgetAccountBalance()}
+              binding={offBudgetAccountBalance(budgetId)}
             />
           ),
           Icon: SvgLibrary,
@@ -219,7 +242,7 @@ export function CommandBar() {
           Icon: SvgPiggyBank,
         })),
       ],
-      onSelect: ({ id }) => handleNavigate(`/accounts/${id}`),
+      onSelect: ({ id }) => handleNavigate(budgetRoutes.account(budgetId, id)),
     },
     {
       key: 'reports',
@@ -228,7 +251,7 @@ export function CommandBar() {
         ...dashboardPage,
         Icon: SvgReports,
       })),
-      onSelect: ({ id }) => handleNavigate(`/reports/${id}`),
+      onSelect: ({ id }) => handleNavigate(budgetRoutes.reports(budgetId, id)),
     },
     {
       key: 'reports-custom',
@@ -237,7 +260,8 @@ export function CommandBar() {
         ...report,
         Icon: SvgNotesPaperText,
       })),
-      onSelect: ({ id }) => handleNavigate(`/reports/custom/${id}`),
+      onSelect: ({ id }) =>
+        handleNavigate(budgetRoutes.reports(budgetId, `custom/${id}`)),
     },
     {
       key: 'help',

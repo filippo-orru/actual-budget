@@ -20,6 +20,7 @@ import { useUndo } from '#hooks/useUndo';
 import { useUrlParam } from '#hooks/useUrlParam';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { PayeesList } from './PayeesList';
 
@@ -63,10 +64,10 @@ export function MobilePayeesPage() {
   const handlePayeePress = useCallback(
     (payee: PayeeEntity) => {
       void navigate(
-        `/payees/${payee.id}${withFilterParam(location.search, filter)}`,
+        `${budgetRoutes.payees(budgetId, payee.id)}${withFilterParam(location.search, filter)}`,
       );
     },
-    [navigate, location.search, filter],
+    [budgetId, navigate, location.search, filter],
   );
 
   const handlePayeeRuleAction = useCallback(
@@ -79,18 +80,20 @@ export function MobilePayeesPage() {
             budgetId,
           });
           const ruleIds = associatedRules.map(rule => rule.id).join(',');
-          void navigate(`/rules?visible-rules=${ruleIds}`);
+          void navigate(
+            `${budgetRoutes.rules(budgetId)}?visible-rules=${ruleIds}`,
+          );
           return;
         } catch (error) {
           console.error('Failed to fetch payee rules:', error);
           // Fallback to general rules page
-          void navigate('/rules');
+          void navigate(budgetRoutes.rules(budgetId));
           return;
         }
       }
 
       // Create a new rule for the payee
-      void navigate('/rules/new', {
+      void navigate(budgetRoutes.rules(budgetId, 'new'), {
         state: {
           rule: {
             conditions: [

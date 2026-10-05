@@ -15,6 +15,7 @@ import { Area, AreaChart, Tooltip as RechartsTooltip, YAxis } from 'recharts';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { useRechartsAnimation } from '#components/reports/chart-theme';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useLocale } from '#hooks/useLocale';
 import * as query from '#queries';
 import { liveQuery } from '#queries/liveQuery';
@@ -33,6 +34,7 @@ export function BalanceHistoryGraph({
   ref,
 }: BalanceHistoryGraphProps) {
   const locale = useLocale();
+  const budgetId = useBudgetSpaceId();
   const animationProps = useRechartsAnimation({ isAnimationActive: false });
   const [balanceData, setBalanceData] = useState<
     Array<{ date: string; balance: number }>
@@ -70,13 +72,13 @@ export function BalanceHistoryGraph({
     const startDate = subMonths(endDate, 12);
 
     const startingBalanceQuery = query
-      .transactions(accountId)
+      .transactions(budgetId, accountId)
       .filter({
         date: { $lt: monthUtils.firstDayOfMonth(startDate) },
       })
       .calculate({ $sum: '$amount' });
     const monthlyTotalsQuery = query
-      .transactions(accountId)
+      .transactions(budgetId, accountId)
       .filter({
         $and: [
           { date: { $gte: monthUtils.firstDayOfMonth(startDate) } },
@@ -120,7 +122,7 @@ export function BalanceHistoryGraph({
       startingBalanceLive?.unsubscribe();
       monthlyTotalsLive?.unsubscribe();
     };
-  }, [accountId, locale]);
+  }, [accountId, budgetId, locale]);
 
   // Process data when both startingBalance and monthlyTotals are available
   useEffect(() => {

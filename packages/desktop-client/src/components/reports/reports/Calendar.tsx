@@ -69,6 +69,7 @@ import { useTransactions } from '#hooks/useTransactions';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 
 const CHEVRON_HEIGHT = 42;
 const SUMMARY_HEIGHT = 140;
@@ -439,9 +440,9 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
 
   const onOpenTransaction = useCallback(
     (transaction: TransactionEntity) => {
-      void navigate(`/transactions/${transaction.id}`);
+      void navigate(budgetRoutes.transaction(budgetId, transaction.id));
     },
-    [navigate],
+    [budgetId, navigate],
   );
 
   const refContainer = useRef<HTMLDivElement>(null);
@@ -540,7 +541,9 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
           <MobilePageHeader
             title={title}
             leftContent={
-              <MobileBackButton onPress={() => navigate('/reports')} />
+              <MobileBackButton
+                onPress={() => navigate(budgetRoutes.reports(budgetId))}
+              />
             }
           />
         ) : (

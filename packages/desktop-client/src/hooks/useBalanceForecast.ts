@@ -4,7 +4,7 @@ import type {
   ForecastResult,
   ForecastSource,
 } from '@actual-app/core/types/models/forecast';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 
@@ -83,7 +83,6 @@ export function useBalanceForecast({
         }),
       );
     },
-    placeholderData: keepPreviousData,
     enabled,
   });
 }

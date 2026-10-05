@@ -41,6 +41,7 @@ import { useSyncedPref } from '#hooks/useSyncedPref';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 
 // Month-shaped so the range means the whole current month (the query clamps
 // to today); day-shaped values here would slide by days instead.
@@ -265,7 +266,9 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
           <MobilePageHeader
             title={title}
             leftContent={
-              <MobileBackButton onPress={() => navigate('/reports')} />
+              <MobileBackButton
+                onPress={() => navigate(budgetRoutes.reports(budgetId))}
+              />
             }
           />
         ) : (

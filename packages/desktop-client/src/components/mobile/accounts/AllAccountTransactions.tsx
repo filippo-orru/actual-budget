@@ -11,6 +11,7 @@ import type {
 } from '@actual-app/core/types/models';
 
 import { TransactionListWithBalances } from '#components/mobile/transactions/TransactionListWithBalances';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -22,9 +23,11 @@ import { collapseModals, pushModal } from '#modals/modalsSlice';
 import * as queries from '#queries';
 import { useDispatch } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 export function AllAccountTransactions() {
-  const schedulesQuery = useMemo(() => getSchedulesQuery(), []);
+  const budgetId = useBudgetSpaceId();
+  const schedulesQuery = useMemo(() => getSchedulesQuery(budgetId), [budgetId]);
 
   return (
     <SchedulesProvider query={schedulesQuery}>
@@ -35,14 +38,15 @@ export function AllAccountTransactions() {
 
 function TransactionListWithPreviews() {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const location = useLocation();
   // Filter conditions passed by drill-downs (e.g. report activity)
   const filterConditions = location?.state?.filterConditions || [];
   const isFiltered = filterConditions.length > 0;
 
   const makeRootTransactionsQuery = useCallback(
-    () => queries.transactions().options({ splits: 'all' }).select('*'),
-    [],
+    () => queries.transactions(budgetId).options({ splits: 'all' }).select('*'),
+    [budgetId],
   );
 
   const [currentQuery, setCurrentQuery] = useState<Query | undefined>(() =>
@@ -103,7 +107,7 @@ function TransactionListWithPreviews() {
   const onOpenTransaction = useCallback(
     (transaction: TransactionEntity) => {
       if (!isPreviewId(transaction.id)) {
-        void navigate(`/transactions/${transaction.id}`);
+        void navigate(budgetRoutes.transaction(budgetId, transaction.id));
       } else {
         dispatch(
           pushModal({
@@ -149,14 +153,14 @@ function TransactionListWithPreviews() {
         );
       }
     },
-    [dispatch, navigate],
+    [budgetId, dispatch, navigate],
   );
 
   const balanceBindings = useMemo(
     () => ({
-      balance: bindings.allAccountBalance(),
+      balance: bindings.allAccountBalance(budgetId),
     }),
-    [],
+    [budgetId],
   );
 
   const transactionsToDisplay =

@@ -57,6 +57,7 @@ import { TransactionList } from '#components/transactions/TransactionList';
 import { validateAccountName } from '#components/util/accountValidation';
 import { useAccountPreviewTransactions } from '#hooks/useAccountPreviewTransactions';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
 import { useCategories } from '#hooks/useCategories';
 import { useDateFormat } from '#hooks/useDateFormat';
@@ -92,6 +93,7 @@ import type { PagedQuery } from '#queries/pagedQuery';
 import { useDispatch, useSelector } from '#redux';
 import type { AppDispatch } from '#redux/store';
 import { updateNewTransactions } from '#transactions/transactionsSlice';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { AccountEmptyMessage } from './AccountEmptyMessage';
 import { AccountHeader } from './Header';
@@ -212,6 +214,7 @@ function getField(field?: string) {
 }
 
 type AccountInternalProps = {
+  budgetId: string;
   accountId?:
     | AccountEntity['id']
     | 'onbudget'
@@ -470,7 +473,7 @@ class AccountInternal extends PureComponent<
   makeRootTransactionsQuery = () => {
     const accountId = this.props.accountId;
 
-    return queries.transactions(accountId);
+    return queries.transactions(this.props.budgetId, accountId);
   };
 
   updateQuery(query: Query, isFiltered: boolean = false) {
@@ -1810,7 +1813,9 @@ class AccountInternal extends PureComponent<
     if (!accountName && !loading) {
       // This is probably an account that was deleted, so redirect to
       // all accounts
-      return <Navigate to="/accounts" replace />;
+      return (
+        <Navigate to={budgetRoutes.accounts(this.props.budgetId)} replace />
+      );
     }
 
     const category = categoryGroups
@@ -2046,6 +2051,7 @@ function AccountHack(props: AccountHackProps) {
 }
 
 export function Account() {
+  const budgetId = useBudgetSpaceId();
   const params = useParams();
   const location = useLocation();
 
@@ -2087,8 +2093,8 @@ export function Account() {
   const savedFiters = useTransactionFilters();
 
   const schedulesQuery = useMemo(
-    () => getSchedulesQuery(params.id),
-    [params.id],
+    () => getSchedulesQuery(budgetId, params.id),
+    [budgetId, params.id],
   );
 
   const { mutate: reopenAccount } = useReopenAccountMutation();
@@ -2116,6 +2122,7 @@ export function Account() {
           initialMode={expandSplits ? 'collapse' : 'expand'}
         >
           <AccountHack
+            budgetId={budgetId}
             newTransactions={newTransactions}
             matchedTransactions={matchedTransactions}
             accounts={accounts}

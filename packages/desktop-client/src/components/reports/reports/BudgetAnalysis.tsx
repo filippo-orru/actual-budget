@@ -49,6 +49,7 @@ import { useSyncedPref } from '#hooks/useSyncedPref';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 
 type OptionsButtonProps = {
   graphType: 'Line' | 'Bar';
@@ -399,7 +400,9 @@ function BudgetAnalysisInternal({ widget }: BudgetAnalysisInternalProps) {
           <MobilePageHeader
             title={title}
             leftContent={
-              <MobileBackButton onPress={() => navigate('/reports')} />
+              <MobileBackButton
+                onPress={() => navigate(budgetRoutes.reports(budgetId))}
+              />
             }
           />
         ) : (

@@ -38,7 +38,7 @@ import { PrivacyFilter } from '#components/PrivacyFilter';
 import { Cell, Field, Row, Table, TableHeader } from '#components/table';
 import { AmountInput } from '#components/util/AmountInput';
 import { useAccounts } from '#hooks/useAccounts';
-import { useBudgetSpace } from '#hooks/useBudgetSpace';
+import { useBudgetSpace, useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
 import { closeModal } from '#modals/modalsSlice';
@@ -744,6 +744,7 @@ type TableRowProps = SharedAccountRowProps & {
 };
 
 function useStartingBalanceInfo(accountId: string | undefined) {
+  const budgetId = useBudgetSpaceId();
   const [info, setInfo] = useState<StartingBalanceInfo | null>(null);
 
   useEffect(() => {
@@ -752,7 +753,7 @@ function useStartingBalanceInfo(accountId: string | undefined) {
       return;
     }
 
-    const query = transactions(accountId)
+    const query = transactions(budgetId, accountId)
       .filter({ starting_balance_flag: true })
       .select(['date', 'amount'])
       .limit(1);
@@ -769,7 +770,7 @@ function useStartingBalanceInfo(accountId: string | undefined) {
     return () => {
       live?.unsubscribe();
     };
-  }, [accountId]);
+  }, [accountId, budgetId]);
 
   return info;
 }

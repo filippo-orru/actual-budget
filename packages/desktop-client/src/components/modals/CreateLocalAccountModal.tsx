@@ -33,10 +33,12 @@ import { useSyncedPref } from '#hooks/useSyncedPref';
 import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
 import { closeModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 export function CreateLocalAccountModal() {
   const { t } = useTranslation();
-  const { currency_code: currencyCode } = useBudgetSpace();
+  const budgetSpace = useBudgetSpace();
+  const { currency_code: currencyCode } = budgetSpace;
   const [currencyEnabled] = useSyncedPref('flags.currency');
   const decimalPlaces =
     currencyEnabled === 'true' && currencyCode
@@ -85,7 +87,7 @@ export function CreateLocalAccountModal() {
         {
           onSuccess: id => {
             dispatch(closeModal());
-            void navigate('/accounts/' + id);
+            void navigate(budgetRoutes.account(budgetSpace.id, id));
           },
         },
       );

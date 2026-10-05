@@ -174,7 +174,18 @@ async function updateBudgetSpace(args: UpdateBudgetSpaceArgs) {
     updates.name = validateName(args.name);
   }
   if (args.currencyCode !== undefined) {
-    updates.currency_code = validateCurrencyCode(args.currencyCode);
+    const currencyCode = validateCurrencyCode(args.currencyCode);
+    if (currencyCode === '') {
+      const budgetCount = await db.first<{ count: number }>(
+        'SELECT COUNT(*) AS count FROM budgets WHERE tombstone = 0',
+      );
+      if ((budgetCount?.count ?? 0) > 1) {
+        throw new ValidationError(
+          'Budget currency cannot be cleared while multiple budgets exist',
+        );
+      }
+    }
+    updates.currency_code = currencyCode;
   }
   if (args.budgetType !== undefined) {
     if (args.budgetType !== 'envelope' && args.budgetType !== 'tracking') {

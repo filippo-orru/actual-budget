@@ -47,7 +47,7 @@ import { prewarmMonth } from '#components/budget/util';
 import { FinancialText } from '#components/FinancialText';
 import { MobilePageHeader, Page } from '#components/Page';
 import { SyncRefresh } from '#components/SyncRefresh';
-import { useBudgetSpace } from '#hooks/useBudgetSpace';
+import { useBudgetSpace, useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useFormat } from '#hooks/useFormat';
@@ -65,6 +65,7 @@ import { collapseModals, pushModal } from '#modals/modalsSlice';
 import { uncategorizedTransactions } from '#queries';
 import { useDispatch } from '#redux';
 import { envelopeBudget } from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { BudgetTable, PILL_STYLE } from './BudgetTable';
 
@@ -673,12 +674,13 @@ function Banner({ type = 'info', children }) {
 }
 
 function UncategorizedTransactionsBanner(props) {
+  const budgetId = useBudgetSpaceId();
   const navigate = useNavigate();
   const format = useFormat();
 
   const transactionsQuery = useMemo(
-    () => uncategorizedTransactions().select('*'),
-    [],
+    () => uncategorizedTransactions(budgetId).select('*'),
+    [budgetId],
   );
 
   const { transactions, isPending: isTransactionsLoading } = useTransactions({
@@ -723,7 +725,9 @@ function UncategorizedTransactionsBanner(props) {
             </Trans>
           </Text>
           <Button
-            onPress={() => navigate('/categories/uncategorized')}
+            onPress={() =>
+              navigate(budgetRoutes.category(budgetId, 'uncategorized'))
+            }
             style={PILL_STYLE}
           >
             <Text>

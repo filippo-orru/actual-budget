@@ -33,6 +33,7 @@ import { PullToRefresh } from '#components/mobile/PullToRefresh';
 import { MobilePageHeader, Page } from '#components/Page';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useNavigate } from '#hooks/useNavigate';
 import { useSyncedPref } from '#hooks/useSyncedPref';
@@ -40,6 +41,7 @@ import { replaceModal } from '#modals/modalsSlice';
 import { useDispatch, useSelector } from '#redux';
 import type { Binding, SheetFields } from '#spreadsheet';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 const ROW_HEIGHT = 60;
 
@@ -65,6 +67,7 @@ function AccountHeader<SheetFieldName extends SheetFields<'account'>>({
 }: AccountHeaderProps<SheetFieldName>) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
 
   const Cheveron = showCheveronDown ? SvgCheveronDown : SvgCheveronRight;
 
@@ -72,7 +75,9 @@ function AccountHeader<SheetFieldName extends SheetFields<'account'>>({
     <Button
       variant="bare"
       aria-label={t('View {{name}} transactions', { name })}
-      onPress={onPress ? onPress : () => navigate(`/accounts/${id}`)}
+      onPress={
+        onPress ? onPress : () => navigate(budgetRoutes.account(budgetId, id))
+      }
       style={{
         height: ROW_HEIGHT,
         width: '100%',
@@ -291,10 +296,19 @@ type AllAccountListProps = {
   getAccountBalance: (
     accountId: AccountEntity['id'],
   ) => Binding<'account', 'balance'>;
-  getAllAccountsBalance: () => Binding<'account', 'accounts-balance'>;
-  getOnBudgetBalance: () => Binding<'account', 'onbudget-accounts-balance'>;
-  getOffBudgetBalance: () => Binding<'account', 'offbudget-accounts-balance'>;
-  getClosedAccountsBalance: () => Binding<'account', 'closed-accounts-balance'>;
+  getAllAccountsBalance: () => Binding<'account', `accounts-balance-${string}`>;
+  getOnBudgetBalance: () => Binding<
+    'account',
+    `onbudget-accounts-balance-${string}`
+  >;
+  getOffBudgetBalance: () => Binding<
+    'account',
+    `offbudget-accounts-balance-${string}`
+  >;
+  getClosedAccountsBalance: () => Binding<
+    'account',
+    `closed-accounts-balance-${string}`
+  >;
   onAddAccount: () => void;
   onOpenAccount: (account: AccountEntity) => void;
   onSync: () => Promise<void>;
@@ -545,6 +559,7 @@ const AccountList = forwardRef<HTMLDivElement, AccountListProps>(
 AccountList.displayName = 'AccountList';
 
 export function AccountsPage() {
+  const budgetId = useBudgetSpaceId();
   const location = useLocation();
   const dispatch = useDispatch();
   const { data: accounts = [] } = useAccounts();
@@ -556,9 +571,9 @@ export function AccountsPage() {
 
   const onOpenAccount = useCallback(
     (account: AccountEntity) => {
-      void navigate(`/accounts/${account.id}`);
+      void navigate(budgetRoutes.account(budgetId, account.id));
     },
-    [navigate],
+    [budgetId, navigate],
   );
 
   const onAddAccount = useCallback(() => {
@@ -576,7 +591,7 @@ export function AccountsPage() {
   if (filterConditions.length > 0) {
     return (
       <Navigate
-        to={`/accounts/${ALL_ACCOUNTS_ID}`}
+        to={budgetRoutes.account(budgetId, ALL_ACCOUNTS_ID)}
         state={location.state}
         replace
       />
@@ -591,10 +606,10 @@ export function AccountsPage() {
         key={numberFormat + hideFraction}
         accounts={accounts}
         getAccountBalance={bindings.accountBalance}
-        getAllAccountsBalance={bindings.allAccountBalance}
-        getOnBudgetBalance={bindings.onBudgetAccountBalance}
-        getOffBudgetBalance={bindings.offBudgetAccountBalance}
-        getClosedAccountsBalance={bindings.closedAccountBalance}
+        getAllAccountsBalance={() => bindings.allAccountBalance(budgetId)}
+        getOnBudgetBalance={() => bindings.onBudgetAccountBalance(budgetId)}
+        getOffBudgetBalance={() => bindings.offBudgetAccountBalance(budgetId)}
+        getClosedAccountsBalance={() => bindings.closedAccountBalance(budgetId)}
         onAddAccount={onAddAccount}
         onOpenAccount={onOpenAccount}
         onSync={onSync}

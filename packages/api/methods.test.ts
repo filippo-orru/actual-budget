@@ -1277,13 +1277,11 @@ describe('API preferences: setPreference', () => {
   test('can set multiple preferences', async () => {
     await api.setPreference('numberFormat', '1,234.5');
     await api.setPreference('hideFraction', 'true');
-    await api.setPreference('defaultCurrencyCode', 'USD');
 
     const preferences = await api.getPreferences();
     expect(preferences).toMatchObject({
       numberFormat: '1,234.5',
       hideFraction: 'true',
-      defaultCurrencyCode: 'USD',
     });
   });
 

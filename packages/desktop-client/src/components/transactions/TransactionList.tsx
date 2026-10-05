@@ -28,6 +28,7 @@ import type {
 
 import { FeatureErrorFallback } from '#components/FeatureErrorFallback';
 import type { TableHandleRef } from '#components/table';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { isValidBoundaryDrop } from '#hooks/useDragDrop';
 import type { DropPosition } from '#hooks/useDragDrop';
 import { useNavigate } from '#hooks/useNavigate';
@@ -35,6 +36,7 @@ import { useSyncedPref } from '#hooks/useSyncedPref';
 import { pushModal } from '#modals/modalsSlice';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { shouldApplyRuleChange } from './table/utils';
 import { TransactionTable } from './TransactionsTable';
@@ -178,6 +180,7 @@ export function TransactionList({
 }: TransactionListProps) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const [learnCategories = 'true'] = useSyncedPref('learn-categories');
   const isLearnCategoriesEnabled = String(learnCategories) === 'true';
 
@@ -317,18 +320,18 @@ export function TransactionList({
   const onManagePayees = useCallback(
     (id: PayeeEntity['id']) => {
       void navigate(
-        '/payees',
+        budgetRoutes.payees(budgetId),
         id ? { state: { selectedPayee: id } } : undefined,
       );
     },
-    [navigate],
+    [budgetId, navigate],
   );
 
   const onNavigateToTransferAccount = useCallback(
     (accountId: AccountEntity['id']) => {
-      void navigate(`/accounts/${accountId}`);
+      void navigate(budgetRoutes.account(budgetId, accountId));
     },
-    [navigate],
+    [budgetId, navigate],
   );
 
   const onNavigateToSchedule = useCallback(

@@ -10,7 +10,6 @@ import {
 } from '#mocks';
 import { mergeSyncedPrefs } from '#prefs/prefsSlice';
 
-import { CurrencySettings } from './Currency';
 import { MultiCurrencyToggle } from './Experimental';
 
 vi.mock(
@@ -54,24 +53,6 @@ describe('MultiCurrencyToggle', () => {
       ).toBeEnabled();
       expect(statusHandler).not.toHaveBeenCalled();
       expect(assignmentHandler).not.toHaveBeenCalled();
-    },
-  );
-});
-
-describe('Default currency', () => {
-  it.each(['true', 'false'])(
-    'remains editable when multiCurrency is %s',
-    multiCurrency => {
-      renderWith(<CurrencySettings />, {
-        'flags.multiCurrency': multiCurrency,
-        defaultCurrencyCode: 'USD',
-      });
-
-      const selectedCurrency = screen
-        .getByText(/USD - US Dollar/)
-        .closest('button');
-      expect(selectedCurrency).not.toBeNull();
-      expect(selectedCurrency).toBeEnabled();
     },
   );
 });

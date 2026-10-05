@@ -23,6 +23,7 @@ import { useUndo } from '#hooks/useUndo';
 import { collapseModals, pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { BalanceCell } from './BalanceCell';
 import { BudgetCell } from './BudgetCell';
@@ -405,12 +406,15 @@ export function ExpenseCategoryListItem({
   ]);
 
   const navigate = useNavigate();
+  const budgetId = useBudgetSpace().id;
   const onShowActivity = useCallback(() => {
     if (!category) {
       return;
     }
-    void navigate(`/categories/${category.id}?month=${month}`);
-  }, [category, month, navigate]);
+    void navigate(
+      `${budgetRoutes.category(budgetId, category.id)}?month=${month}`,
+    );
+  }, [budgetId, category, month, navigate]);
 
   if (!category) {
     return null;

@@ -45,7 +45,7 @@ export type createCustomSpreadsheetProps = {
   endDate: string;
   interval: string;
   categories: { list: CategoryEntity[]; grouped: CategoryGroupEntity[] };
-  budgetType?: SyncedPrefs['budgetType'];
+  budgetType?: 'envelope' | 'tracking';
   conditions: RuleConditionEntity[];
   conditionsOp: string;
   showEmpty: boolean;

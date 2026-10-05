@@ -5,8 +5,10 @@ import { useParams } from 'react-router';
 import { Block } from '@actual-app/components/block';
 import { View } from '@actual-app/components/view';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDashboardPages } from '#hooks/useDashboardPages';
 import { useNavigate } from '#hooks/useNavigate';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { LoadingIndicator } from './LoadingIndicator';
 import { Overview } from './Overview';
@@ -15,14 +17,17 @@ export function ReportsDashboardRouter() {
   const { t } = useTranslation();
   const { dashboardId } = useParams<{ dashboardId?: string }>();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const { data: dashboardPages = [], isPending } = useDashboardPages();
 
   // Redirect to first dashboard if no dashboardId in URL
   useEffect(() => {
     if (!dashboardId && !isPending && dashboardPages.length > 0) {
-      void navigate(`/reports/${dashboardPages[0].id}`, { replace: true });
+      void navigate(budgetRoutes.reports(budgetId, dashboardPages[0].id), {
+        replace: true,
+      });
     }
-  }, [dashboardId, isPending, dashboardPages, navigate]);
+  }, [budgetId, dashboardId, isPending, dashboardPages, navigate]);
 
   // Show loading while we're fetching dashboards or redirecting
   if (isPending || (!dashboardId && dashboardPages.length > 0)) {

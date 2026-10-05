@@ -2,6 +2,7 @@ import { q } from '@actual-app/core/shared/query';
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TestProviders } from '#mocks';
 import { liveQuery } from '#queries/liveQuery';
 import type { LiveQuery } from '#queries/liveQuery';
 
@@ -42,13 +43,15 @@ describe('useSchedules', () => {
   });
 
   it('does not open any live query when no query is given', () => {
-    renderHook(() => useSchedules({}));
+    renderHook(() => useSchedules({}), { wrapper: TestProviders });
 
     expect(liveQuery).not.toHaveBeenCalled();
   });
 
   it('unsubscribes the previous status query when schedules refresh', () => {
-    renderHook(() => useSchedules({ query: q('schedules').select('*') }));
+    renderHook(() => useSchedules({ query: q('schedules').select('*') }), {
+      wrapper: TestProviders,
+    });
 
     // The schedules query is opened first; its onData opens the status query.
     expect(calls).toHaveLength(1);
@@ -67,8 +70,9 @@ describe('useSchedules', () => {
   });
 
   it('unsubscribes both queries on unmount', () => {
-    const { unmount } = renderHook(() =>
-      useSchedules({ query: q('schedules').select('*') }),
+    const { unmount } = renderHook(
+      () => useSchedules({ query: q('schedules').select('*') }),
+      { wrapper: TestProviders },
     );
 
     calls[0].onData([], []);
@@ -83,12 +87,22 @@ describe('useSchedules', () => {
 
 describe('getSchedulesQuery', () => {
   it('loads split schedules for concrete account views', () => {
-    const query = getSchedulesQuery('savings');
+    const query = getSchedulesQuery('default', 'savings');
 
     expect(query.state.filterExpressions).toContainEqual({
+      $and: [{ budget_id: 'default' }, { '_account.closed': false }],
+    });
+    expect(query.state.filterExpressions).toContainEqual({
       $or: [
-        { _account: 'savings' },
-        { '_payee.transfer_acct': 'savings' },
+        {
+          $and: [{ '_account.budget_id': 'default' }, { _account: 'savings' }],
+        },
+        {
+          $and: [
+            { '_payee.transfer_acct.budget_id': 'default' },
+            { '_payee.transfer_acct': 'savings' },
+          ],
+        },
         { _has_splits: true },
       ],
     });

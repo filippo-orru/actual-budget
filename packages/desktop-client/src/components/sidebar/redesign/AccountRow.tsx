@@ -20,6 +20,7 @@ import { useUpdatedAccounts } from '#hooks/useUpdatedAccounts';
 import { openAccountCloseModal, pushModal } from '#modals/modalsSlice';
 import { useDispatch, useSelector } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 import { isTouchDevice } from '#util/isTouchDevice';
 
 import { AccountHoverCard } from './AccountHoverCard';
@@ -47,7 +48,7 @@ export function AccountRow({
   const updatedAccounts = useUpdatedAccounts();
   const isUpdated = !isClosed && updatedAccounts.includes(account.id);
   const [isEditing, setIsEditing] = useState(false);
-  const href = `/accounts/${account.id}`;
+  const href = budgetRoutes.account(account.budget_id, account.id);
   const isActive = location.pathname === href;
 
   const reopenAccount = useReopenAccountMutation();

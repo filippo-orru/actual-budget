@@ -42,6 +42,7 @@ import { collapseModals, pushModal } from '#modals/modalsSlice';
 import * as queries from '#queries';
 import { useDispatch } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 export function AccountTransactions({
   account,
@@ -49,8 +50,8 @@ export function AccountTransactions({
   readonly account: AccountEntity;
 }) {
   const schedulesQuery = useMemo(
-    () => getSchedulesQuery(account.id),
-    [account.id],
+    () => getSchedulesQuery(account.budget_id, account.id),
+    [account.budget_id, account.id],
   );
 
   return (
@@ -85,14 +86,14 @@ function TransactionListWithPreviews({
 
   const baseTransactionsQuery = useCallback(() => {
     let query = queries
-      .transactions(account.id)
+      .transactions(account.budget_id, account.id)
       .options({ splits: 'all' })
       .select('*');
     if (hideReconciled === 'true' && !isReconciling) {
       query = query.filter({ reconciled: { $eq: false } });
     }
     return query;
-  }, [account.id, hideReconciled, isReconciling]);
+  }, [account.budget_id, account.id, hideReconciled, isReconciling]);
   const [transactionsQuery, setTransactionsQuery] = useState<Query>(
     baseTransactionsQuery(),
   );
@@ -125,11 +126,11 @@ function TransactionListWithPreviews({
 
   const accountBalanceValue = useSheetValue<
     'account',
-    'balance' | 'accounts-balance'
+    'balance' | `accounts-balance-${string}`
   >(
     account?.id
       ? bindings.accountBalance(account?.id)
-      : bindings.allAccountBalance(),
+      : bindings.allAccountBalance(account.budget_id),
   );
 
   const {
@@ -181,7 +182,9 @@ function TransactionListWithPreviews({
   const onOpenTransaction = useCallback(
     (transaction: TransactionEntity) => {
       if (!isPreviewId(transaction.id)) {
-        void navigate(`/transactions/${transaction.id}`);
+        void navigate(
+          budgetRoutes.transaction(account.budget_id, transaction.id),
+        );
       } else {
         dispatch(
           pushModal({
@@ -227,7 +230,7 @@ function TransactionListWithPreviews({
         );
       }
     },
-    [dispatch, navigate],
+    [account.budget_id, dispatch, navigate],
   );
 
   const { mutate: updateAccount } = useUpdateAccountMutation();

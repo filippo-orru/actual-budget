@@ -8,6 +8,7 @@ import type {
 } from '@actual-app/core/types/models';
 
 import { TransactionListWithBalances } from '#components/mobile/transactions/TransactionListWithBalances';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
 import { useCategoryPreviewTransactions } from '#hooks/useCategoryPreviewTransactions';
 import { useDateFormat } from '#hooks/useDateFormat';
@@ -15,6 +16,7 @@ import { useNavigate } from '#hooks/useNavigate';
 import { useTransactions } from '#hooks/useTransactions';
 import { useTransactionsSearch } from '#hooks/useTransactionsSearch';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 type CategoryTransactionsProps = {
   category: CategoryEntity;
@@ -25,7 +27,10 @@ export function CategoryTransactions({
   category,
   month,
 }: CategoryTransactionsProps) {
-  const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
+  const schedulesQuery = useMemo(
+    () => q('schedules').filter({ budget_id: category.budget_id }).select('*'),
+    [category.budget_id],
+  );
 
   return (
     <SchedulesProvider query={schedulesQuery}>
@@ -44,14 +49,16 @@ function TransactionListWithPreviews({
   month,
 }: TransactionListWithPreviewsProps) {
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
 
   const baseTransactionsQuery = useCallback(
     () =>
       q('transactions')
+        .filter({ 'account.budget_id': budgetId })
         .options({ splits: 'inline' })
         .filter(getCategoryMonthFilter(category, month))
         .select('*'),
-    [category, month],
+    [budgetId, category, month],
   );
 
   const [transactionsQuery, setTransactionsQuery] = useState(
@@ -78,10 +85,10 @@ function TransactionListWithPreviews({
     (transaction: TransactionEntity) => {
       // details of how the native app used to handle preview transactions here can be found at commit 05e58279
       if (!isPreviewId(transaction.id)) {
-        void navigate(`/transactions/${transaction.id}`);
+        void navigate(budgetRoutes.transaction(budgetId, transaction.id));
       }
     },
-    [navigate],
+    [budgetId, navigate],
   );
 
   const balance = bindings.categoryBalance(category.id, month);

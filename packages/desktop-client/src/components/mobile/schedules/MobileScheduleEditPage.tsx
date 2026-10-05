@@ -26,6 +26,7 @@ import { useScheduleEdit } from '#hooks/useScheduleEdit';
 import { useSelected } from '#hooks/useSelected';
 import { useUndo } from '#hooks/useUndo';
 import { aqlQuery } from '#queries/aqlQuery';
+import { budgetRoutes } from '#util/budget-routes';
 
 export function MobileScheduleEditPage() {
   const { t } = useTranslation();
@@ -134,11 +135,11 @@ export function MobileScheduleEditPage() {
     });
 
     // Navigate back to schedules list
-    void navigate('/schedules');
+    void navigate(budgetRoutes.schedules(budgetId));
   }
 
   async function onEditRule(ruleId: string) {
-    void navigate(`/rules/${ruleId}`);
+    void navigate(budgetRoutes.rules(budgetId, ruleId));
   }
 
   async function onLinkTransactions(ids: string[], scheduleId?: string) {
@@ -208,7 +209,9 @@ export function MobileScheduleEditPage() {
           <MobilePageHeader
             title={t('Schedule not found')}
             leftContent={
-              <MobileBackButton onPress={() => navigate('/schedules')} />
+              <MobileBackButton
+                onPress={() => navigate(budgetRoutes.schedules(budgetId))}
+              />
             }
           />
         }

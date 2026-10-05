@@ -17,6 +17,7 @@ import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 import { isValid as isDateValid, parse as parseDate } from 'date-fns';
 
 export function accountFilter(
+  budgetId: string,
   accountId?:
     | AccountEntity['id']
     | 'onbudget'
@@ -25,10 +26,12 @@ export function accountFilter(
     | 'uncategorized',
   field = 'account',
 ) {
+  const ownerFilter = { [`${field}.budget_id`]: budgetId };
   if (accountId) {
     if (accountId === 'onbudget') {
       return {
         $and: [
+          ownerFilter,
           { [`${field}.offbudget`]: false },
           { [`${field}.closed`]: false },
         ],
@@ -36,33 +39,40 @@ export function accountFilter(
     } else if (accountId === 'offbudget') {
       return {
         $and: [
+          ownerFilter,
           { [`${field}.offbudget`]: true },
           { [`${field}.closed`]: false },
         ],
       };
     } else if (accountId === 'closed') {
-      return { [`${field}.closed`]: true };
+      return { $and: [ownerFilter, { [`${field}.closed`]: true }] };
     } else if (accountId === 'uncategorized') {
       return {
-        [`${field}.offbudget`]: false,
-        category: null,
-        is_parent: false,
-        $or: [
+        $and: [
+          ownerFilter,
           {
-            'payee.transfer_acct.offbudget': true,
-            'payee.transfer_acct': null,
+            [`${field}.offbudget`]: false,
+            category: null,
+            is_parent: false,
+            $or: [
+              {
+                'payee.transfer_acct.offbudget': true,
+                'payee.transfer_acct': null,
+              },
+            ],
           },
         ],
       };
     } else {
-      return { [field]: accountId };
+      return { $and: [ownerFilter, { [field]: accountId }] };
     }
   }
 
-  return null;
+  return ownerFilter;
 }
 
 export function transactions(
+  budgetId: string,
   accountId?:
     | AccountEntity['id']
     | 'onbudget'
@@ -72,7 +82,7 @@ export function transactions(
 ) {
   let query = q('transactions').options({ splits: 'grouped' });
 
-  const filter = accountFilter(accountId);
+  const filter = accountFilter(budgetId, accountId);
   if (filter) {
     query = query.filter(filter);
   }
@@ -122,8 +132,9 @@ export function transactionsSearch(
   });
 }
 
-export function uncategorizedTransactions() {
+export function uncategorizedTransactions(budgetId: string) {
   return q('transactions').filter({
+    'account.budget_id': budgetId,
     'account.offbudget': false,
     category: null,
     $or: [

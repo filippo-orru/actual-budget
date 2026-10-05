@@ -6,7 +6,6 @@ import type {
   CategoryGroupEntity,
   RuleConditionEntity,
 } from '@actual-app/core/types/models';
-import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 
 import type { QueryDataEntity } from '#components/reports/ReportOptions';
 
@@ -196,7 +195,7 @@ export async function fetchBudgetData({
   categoryGroups: CategoryGroupEntity[];
   conditions?: RuleConditionEntity[];
   conditionsOp?: BudgetDataConditionsOp;
-  budgetType?: SyncedPrefs['budgetType'];
+  budgetType?: 'envelope' | 'tracking';
 }): Promise<{ assets: QueryDataEntity[]; debts: QueryDataEntity[] }> {
   const groupById = new Map(categoryGroups.map(g => [g.id, g] as const));
   const assets: QueryDataEntity[] = [];

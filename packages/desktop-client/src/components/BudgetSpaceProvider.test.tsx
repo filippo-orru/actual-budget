@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 
 import {
   clearServer,
@@ -42,9 +43,12 @@ function SelectedBudget() {
 function renderBudgetSpaceProvider(
   fileId = 'file-1',
   queryClient = createTestQueryClient(),
+  initialEntry = '/settings',
 ) {
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </MemoryRouter>
   );
 
   const result = render(
@@ -64,6 +68,7 @@ function listenForBudgetEvents(queryClient: QueryClient) {
 
 describe('BudgetSpaceProvider', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     vi.clearAllMocks();
     vi.spyOn(console, 'error').mockImplementation(vi.fn());
     initServer({
@@ -135,19 +140,46 @@ describe('BudgetSpaceProvider', () => {
     expect(screen.queryByTestId('selected-budget')).not.toBeInTheDocument();
   });
 
-  it('fails clearly rather than choosing among multiple budgets', async () => {
+  it('uses the explicit budget from the URL ahead of the saved default', async () => {
+    initServer({
+      'budget-spaces/get': async () => [
+        budgetSpace('default'),
+        budgetSpace('other'),
+      ],
+    });
+
+    renderBudgetSpaceProvider(
+      'file-1',
+      createTestQueryClient(),
+      '/budgets/other/budget',
+    );
+
+    expect(await screen.findByTestId('selected-budget')).toHaveTextContent(
+      'other',
+    );
+  });
+
+  it('does not fall back when an explicit URL references an unknown budget', async () => {
+    renderBudgetSpaceProvider(
+      'file-1',
+      createTestQueryClient(),
+      '/budgets/missing/budget',
+    );
+
+    expect(await screen.findByText('Budget not found')).toBeInTheDocument();
+    expect(screen.queryByTestId('selected-budget')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the first active budget when no default exists', async () => {
     initServer({
       'budget-spaces/get': async () => [budgetSpace('one'), budgetSpace('two')],
     });
 
     renderBudgetSpaceProvider();
 
-    expect(
-      await screen.findByText(
-        'This file contains multiple budgets, but budget selection is not available yet.',
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId('selected-budget')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('selected-budget')).toHaveTextContent(
+      'one',
+    );
   });
 
   it('loads a new selection when the opened file changes', async () => {
@@ -204,12 +236,12 @@ describe('BudgetSpaceProvider', () => {
       spaces = [budgetSpace('default'), budgetSpace('synced-budget')];
       await act(async () => {
         serverPush('sync-event', { type, tables: ['budgets'] });
-        await screen.findByText(
-          'This file contains multiple budgets, but budget selection is not available yet.',
-        );
+        await waitFor(() => expect(requestCount).toBe(2));
       });
 
-      expect(screen.queryByTestId('selected-budget')).not.toBeInTheDocument();
+      expect(screen.getByTestId('selected-budget')).toHaveTextContent(
+        'default',
+      );
       expect(requestCount).toBe(2);
       unlisten();
     },
@@ -238,12 +270,10 @@ describe('BudgetSpaceProvider', () => {
         tables: ['budgets'],
         undoTag: 'unmatched-undo-tag',
       });
-      await screen.findByText(
-        'This file contains multiple budgets, but budget selection is not available yet.',
-      );
+      await waitFor(() => expect(requestCount).toBe(2));
     });
 
-    expect(screen.queryByTestId('selected-budget')).not.toBeInTheDocument();
+    expect(screen.getByTestId('selected-budget')).toHaveTextContent('default');
     expect(requestCount).toBe(2);
     unlisten();
   });

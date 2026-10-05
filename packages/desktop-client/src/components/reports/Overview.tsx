@@ -25,6 +25,7 @@ import type {
 import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
 import { MobilePageHeader, Page } from '#components/Page';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import {
   useDashboardPages,
   useDashboardPageWidgets,
@@ -48,6 +49,7 @@ import {
   useUpdateDashboardWidgetMutation,
   useUpdateDashboardWidgetsMutation,
 } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { NON_DRAGGABLE_AREA_CLASS_NAME } from './constants';
 import { DashboardHeader } from './DashboardHeader';
@@ -145,6 +147,7 @@ export function Overview({ dashboard }: OverviewProps) {
     isCustomReportsLoading || isWidgetsLoading || isDashboardPageLoading;
 
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
 
   const location = useLocation();
   sessionStorage.setItem('url', location.pathname);
@@ -459,7 +462,7 @@ export function Overview({ dashboard }: OverviewProps) {
           const nextDashboard = dashboardPages.find(d => d.id !== id);
           // NOTE: This should hold since invariant dashboard_pages > 1
           if (nextDashboard) {
-            void navigate(`/reports/${nextDashboard.id}`);
+            void navigate(budgetRoutes.reports(budgetId, nextDashboard.id));
           }
         },
       },
@@ -551,7 +554,9 @@ export function Overview({ dashboard }: OverviewProps) {
                           slot="close"
                           onMenuSelect={item => {
                             if (item === 'custom-report') {
-                              void navigate('/reports/custom');
+                              void navigate(
+                                budgetRoutes.reports(budgetId, 'custom'),
+                              );
                               return;
                             }
 

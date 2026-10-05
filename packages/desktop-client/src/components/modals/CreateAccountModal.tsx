@@ -12,10 +12,12 @@ import { BuiltInProviders } from '#components/banksync/BuiltInProviders';
 import { useBuiltInBankSyncProviders } from '#components/banksync/useBuiltInBankSyncProviders';
 import { Link } from '#components/common/Link';
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
 import { pushModal, replaceModal } from '#modals/modalsSlice';
 import type { Modal as ModalType } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 type CreateAccountModalProps = Extract<
   ModalType,
@@ -28,6 +30,7 @@ export function CreateAccountModal({
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const { providers, syncServerStatus, permissionWarning } =
     useBuiltInBankSyncProviders({ upgradingAccountId });
 
@@ -122,7 +125,7 @@ export function CreateAccountModal({
                   <Button
                     onPress={() => {
                       state.close();
-                      void navigate('/bank-sync');
+                      void navigate(budgetRoutes.bankSync(budgetId));
                     }}
                     style={{
                       padding: '10px 0',

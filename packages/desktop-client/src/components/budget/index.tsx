@@ -28,6 +28,7 @@ import { useLocalPref } from '#hooks/useLocalPref';
 import { useNavigate } from '#hooks/useNavigate';
 import { SheetNameProvider } from '#hooks/useSheetName';
 import { useSpreadsheet } from '#hooks/useSpreadsheet';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { AutoSizingBudgetTable } from './DynamicBudgetTable';
 import * as envelopeBudget from './envelope/EnvelopeBudgetComponents';
@@ -146,7 +147,7 @@ export function Budget() {
         type: 'date',
       },
     ];
-    void navigate('/accounts', {
+    void navigate(budgetRoutes.accounts(budgetId), {
       state: {
         goBack: true,
         filterConditions,

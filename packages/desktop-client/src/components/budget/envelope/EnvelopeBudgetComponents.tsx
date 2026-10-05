@@ -22,6 +22,7 @@ import { NotesButton } from '#components/NotesButton';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
 import { Field, Row, SheetCell } from '#components/table';
 import type { SheetCellProps } from '#components/table';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategoryScheduleGoalTemplateIndicator } from '#hooks/useCategoryScheduleGoalTemplateIndicator';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -30,6 +31,7 @@ import { useSheetValue } from '#hooks/useSheetValue';
 import { useUndo } from '#hooks/useUndo';
 import type { Binding, SheetFields } from '#spreadsheet';
 import { envelopeBudget } from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 import type { CategoryGroupMonthProps, CategoryMonthProps } from '..';
 
 import { BalanceMovementMenu } from './BalanceMovementMenu';
@@ -249,6 +251,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
   const { showUndoNotification } = useUndo();
 
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
 
   const { schedule, scheduleStatus, isScheduleRecurring, description } =
     useCategoryScheduleGoalTemplateIndicator({
@@ -460,8 +463,10 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
                 }}
                 onPress={() =>
                   schedule._account
-                    ? navigate(`/accounts/${schedule._account}`)
-                    : navigate('/accounts')
+                    ? navigate(
+                        budgetRoutes.account(budgetId, schedule._account),
+                      )
+                    : navigate(budgetRoutes.accounts(budgetId))
                 }
               >
                 {isScheduleRecurring ? (

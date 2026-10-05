@@ -12,9 +12,11 @@ import {
   ModalTitle,
 } from '#components/common/Modal';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
 import { usePayees } from '#hooks/usePayees';
 import type { Modal as ModalType } from '#modals/modalsSlice';
+import { budgetRoutes } from '#util/budget-routes';
 
 type PayeeAutocompleteModalProps = Extract<
   ModalType,
@@ -29,13 +31,14 @@ export function PayeeAutocompleteModal({
   const { data: payees = [] } = usePayees();
   const { data: accounts = [] } = useAccounts();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
 
   const { isNarrowWidth } = useResponsive();
   const defaultAutocompleteProps = {
     containerProps: { style: { height: isNarrowWidth ? '90vh' : 275 } },
   };
 
-  const onManagePayees = () => navigate('/payees');
+  const onManagePayees = () => navigate(budgetRoutes.payees(budgetId));
 
   return (
     <Modal

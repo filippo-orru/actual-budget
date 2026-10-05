@@ -16,8 +16,10 @@ import {
 import { SvgCalendar3 } from '@actual-app/components/icons/v2';
 import { View } from '@actual-app/components/view';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { Item } from './Item';
 import { SecondaryItem } from './SecondaryItem';
@@ -28,14 +30,16 @@ export function PrimaryButtons() {
   const onToggle = useCallback(() => setOpen(open => !open), []);
   const location = useLocation();
 
+  const budgetId = useBudgetSpaceId();
+  const routes = budgetRoutes;
   const syncServerStatus = useSyncServerStatus();
   const isTestEnv = useIsTestEnv();
   const isUsingServer = syncServerStatus !== 'no-server' || isTestEnv;
 
   const isActive = [
-    '/payees',
-    '/rules',
-    '/bank-sync',
+    routes.payees(budgetId),
+    routes.rules(budgetId),
+    routes.bankSync(budgetId),
     '/settings',
     '/tools',
   ].some(route => location.pathname.startsWith(route));
@@ -48,9 +52,17 @@ export function PrimaryButtons() {
 
   return (
     <View data-testid="sidebar-primary-buttons" style={{ flexShrink: 0 }}>
-      <Item title={t('Budget')} Icon={SvgWallet} to="/budget" />
-      <Item title={t('Reports')} Icon={SvgReports} to="/reports" />
-      <Item title={t('Schedules')} Icon={SvgCalendar3} to="/schedules" />
+      <Item title={t('Budget')} Icon={SvgWallet} to={routes.budget(budgetId)} />
+      <Item
+        title={t('Reports')}
+        Icon={SvgReports}
+        to={routes.reports(budgetId)}
+      />
+      <Item
+        title={t('Schedules')}
+        Icon={SvgCalendar3}
+        to={routes.schedules(budgetId)}
+      />
       <Item
         title={t('More')}
         Icon={isOpen ? SvgCheveronDown : SvgCheveronRight}
@@ -63,27 +75,27 @@ export function PrimaryButtons() {
           <SecondaryItem
             title={t('Payees')}
             Icon={SvgStoreFront}
-            to="/payees"
+            to={routes.payees(budgetId)}
             indent={15}
           />
           <SecondaryItem
             title={t('Rules')}
             Icon={SvgTuning}
-            to="/rules"
+            to={routes.rules(budgetId)}
             indent={15}
           />
           {isUsingServer && (
             <SecondaryItem
               title={t('Bank Sync')}
               Icon={SvgCreditCard}
-              to="/bank-sync"
+              to={routes.bankSync(budgetId)}
               indent={15}
             />
           )}
           <SecondaryItem
             title={t('Tags')}
             Icon={SvgTag}
-            to="/tags"
+            to={routes.tags(budgetId)}
             indent={15}
           />
           <SecondaryItem

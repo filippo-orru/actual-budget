@@ -12,6 +12,7 @@ import * as undo from '@actual-app/core/platform/client/undo';
 import { getLatestAppVersion, sync } from '#app/appSlice';
 import { ProtectedRoute } from '#auth/ProtectedRoute';
 import { Permissions } from '#auth/types';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useMetadataPref } from '#hooks/useMetadataPref';
@@ -21,6 +22,7 @@ import { useNewsNotification } from '#hooks/useNewsNotification';
 import { ScrollProvider } from '#hooks/useScrollListener';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch, useSelector } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { UserAccessPage } from './admin/UserAccess/UserAccessPage';
 import { UserDirectoryPage } from './admin/UserDirectory/UserDirectoryPage';
@@ -41,6 +43,7 @@ import { Reports } from './reports';
 import { NarrowAlternate, WideComponent } from './responsive';
 import { useMultiuserEnabled } from './ServerContext';
 import { Settings } from './settings';
+import { BudgetSpaceSettings } from './settings/BudgetSpaceSettings';
 import { FloatableSidebar } from './sidebar';
 import { ManageTagsPage } from './tags/ManageTagsPage';
 import { Titlebar } from './Titlebar';
@@ -49,36 +52,40 @@ import { TourAutoOffer } from './tour/TourAutoOffer';
 import { TourProvider } from './tour/TourProvider';
 
 function NarrowNotSupported({
-  redirectTo = '/budget',
+  redirectTo,
   children,
 }: {
   redirectTo?: string;
   children: ReactElement;
 }) {
   const { isNarrowWidth } = useResponsive();
+  const budgetId = useBudgetSpaceId();
   const navigate = useNavigate();
+  const target = redirectTo ?? budgetRoutes.budget(budgetId);
   useEffect(() => {
     if (isNarrowWidth) {
-      void navigate(redirectTo);
+      void navigate(target);
     }
-  }, [isNarrowWidth, navigate, redirectTo]);
+  }, [isNarrowWidth, navigate, target]);
   return isNarrowWidth ? null : children;
 }
 
 function WideNotSupported({
   children,
-  redirectTo = '/budget',
+  redirectTo,
 }: {
   redirectTo?: string;
   children: ReactElement;
 }) {
   const { isNarrowWidth } = useResponsive();
+  const budgetId = useBudgetSpaceId();
   const navigate = useNavigate();
+  const target = redirectTo ?? budgetRoutes.budget(budgetId);
   useEffect(() => {
     if (!isNarrowWidth) {
-      void navigate(redirectTo);
+      void navigate(target);
     }
-  }, [isNarrowWidth, navigate, redirectTo]);
+  }, [isNarrowWidth, navigate, target]);
   return isNarrowWidth ? children : null;
 }
 
@@ -103,6 +110,7 @@ export function FinancesApp() {
 
 function FinancesAppContent() {
   const { isNarrowWidth } = useResponsive();
+  const budgetId = useBudgetSpaceId();
   useMetaThemeColor(theme.mobileViewTheme);
 
   const location = useLocation();
@@ -262,238 +270,267 @@ function FinancesAppContent() {
                   <BankSyncStatus />
                   {isNarrowWidth && <MobilePageHeaderSlot />}
 
-                  <Routes>
-                    <Route
-                      path="/"
-                      element={<Navigate to="/budget" replace />}
-                    />
-
-                    <Route path="/reports/*" element={<Reports />} />
-
-                    <Route
-                      path="/budget"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Budget" />
-                        </ErrorBoundary>
-                      }
-                    />
-
-                    <Route
-                      path="/schedules"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Schedules" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/schedules/:id"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <WideNotSupported>
-                            <NarrowAlternate name="ScheduleEdit" />
-                          </WideNotSupported>
-                        </ErrorBoundary>
-                      }
-                    />
-
-                    <Route
-                      path="/payees"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Payees" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/payees/:id"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <WideNotSupported>
-                            <NarrowAlternate name="PayeeEdit" />
-                          </WideNotSupported>
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/rules"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Rules" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/rules/:id"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="RuleEdit" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/bank-sync"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="BankSync" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/bank-sync/account/:accountId/edit"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <WideNotSupported redirectTo="/bank-sync">
-                            <MobileBankSyncAccountEditPage />
-                          </WideNotSupported>
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route path="/tags" element={<ManageTagsPage />} />
-                    <Route
-                      path="/notifications"
-                      element={<NotificationsPage />}
-                    />
-                    <Route path="/settings" element={<Settings />} />
-
-                    <Route
-                      path="/gocardless/link"
-                      element={
-                        <NarrowNotSupported>
-                          <WideComponent name="GoCardlessLink" />
-                        </NarrowNotSupported>
-                      }
-                    />
-
-                    <Route
-                      path="/enablebanking/auth_callback"
-                      element={<EnableBankingCallback />}
-                    />
-
-                    <Route
-                      path="/accounts"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Accounts" />
-                        </ErrorBoundary>
-                      }
-                    />
-
-                    <Route
-                      path="/accounts/:id"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Account" />
-                        </ErrorBoundary>
-                      }
-                    />
-
-                    <Route
-                      path="/transactions/:transactionId"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <WideNotSupported>
-                            <TransactionEdit />
-                          </WideNotSupported>
-                        </ErrorBoundary>
-                      }
-                    />
-
-                    <Route
-                      path="/categories/:id"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Category" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    {multiuserEnabled && (
+                  <div data-budget-screen key={budgetId}>
+                    <Routes>
                       <Route
-                        path="/user-directory"
+                        path="/budgets/:budgetId/reports/*"
+                        element={<Reports />}
+                      />
+
+                      <Route
+                        path="/budgets/:budgetId/budget"
                         element={
-                          <ProtectedRoute
-                            permission={Permissions.ADMINISTRATOR}
-                            element={<UserDirectoryPage />}
-                          />
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Budget" />
+                          </ErrorBoundary>
                         }
                       />
-                    )}
-                    {multiuserEnabled && (
+
                       <Route
-                        path="/user-access"
+                        path="/budgets/:budgetId/schedules"
                         element={
-                          <ProtectedRoute
-                            permission={Permissions.ADMINISTRATOR}
-                            validateOwner
-                            element={<UserAccessPage />}
-                          />
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Schedules" />
+                          </ErrorBoundary>
                         }
                       />
-                    )}
-                    {/* redirect all other traffic to the budget page */}
-                    <Route
-                      path="/*"
-                      element={<Navigate to="/budget" replace />}
-                    />
-                  </Routes>
+                      <Route
+                        path="/budgets/:budgetId/schedules/:id"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <WideNotSupported>
+                              <NarrowAlternate name="ScheduleEdit" />
+                            </WideNotSupported>
+                          </ErrorBoundary>
+                        }
+                      />
+
+                      <Route
+                        path="/budgets/:budgetId/payees"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Payees" />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/budgets/:budgetId/payees/:id"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <WideNotSupported>
+                              <NarrowAlternate name="PayeeEdit" />
+                            </WideNotSupported>
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/budgets/:budgetId/rules"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Rules" />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/budgets/:budgetId/rules/:id"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="RuleEdit" />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/budgets/:budgetId/bank-sync/*"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="BankSync" />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/budgets/:budgetId/bank-sync/account/:accountId/edit"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <WideNotSupported
+                              redirectTo={budgetRoutes.bankSync(budgetId)}
+                            >
+                              <MobileBankSyncAccountEditPage />
+                            </WideNotSupported>
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/budgets/:budgetId/tags"
+                        element={<ManageTagsPage />}
+                      />
+                      <Route
+                        path="/notifications"
+                        element={<NotificationsPage />}
+                      />
+                      <Route
+                        path="/budgets/:budgetId/settings"
+                        element={<BudgetSpaceSettings />}
+                      />
+                      <Route path="/settings" element={<Settings />} />
+
+                      <Route
+                        path="/gocardless/link"
+                        element={
+                          <NarrowNotSupported>
+                            <WideComponent name="GoCardlessLink" />
+                          </NarrowNotSupported>
+                        }
+                      />
+
+                      <Route
+                        path="/enablebanking/auth_callback"
+                        element={<EnableBankingCallback />}
+                      />
+
+                      <Route
+                        path="/budgets/:budgetId/accounts"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Accounts" />
+                          </ErrorBoundary>
+                        }
+                      />
+
+                      <Route
+                        path="/budgets/:budgetId/accounts/:id"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Account" />
+                          </ErrorBoundary>
+                        }
+                      />
+
+                      <Route
+                        path="/budgets/:budgetId/transactions/:transactionId"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <WideNotSupported>
+                              <TransactionEdit />
+                            </WideNotSupported>
+                          </ErrorBoundary>
+                        }
+                      />
+
+                      <Route
+                        path="/budgets/:budgetId/categories/:id"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Category" />
+                          </ErrorBoundary>
+                        }
+                      />
+                      {multiuserEnabled && (
+                        <Route
+                          path="/user-directory"
+                          element={
+                            <ProtectedRoute
+                              permission={Permissions.ADMINISTRATOR}
+                              element={<UserDirectoryPage />}
+                            />
+                          }
+                        />
+                      )}
+                      {multiuserEnabled && (
+                        <Route
+                          path="/user-access"
+                          element={
+                            <ProtectedRoute
+                              permission={Permissions.ADMINISTRATOR}
+                              validateOwner
+                              element={<UserAccessPage />}
+                            />
+                          }
+                        />
+                      )}
+                      {/* redirect all other traffic to the budget page */}
+                      <Route path="/*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </div>
                 </View>
 
-                <Routes>
-                  <Route path="/budget" element={<MobileNavTabs />} />
-                  <Route path="/accounts" element={<MobileNavTabs />} />
-                  <Route path="/settings" element={<MobileNavTabs />} />
-                  <Route path="/notifications" element={<MobileNavTabs />} />
-                  <Route path="/reports" element={<MobileNavTabs />} />
-                  <Route
-                    path="/reports/:dashboardId"
-                    element={<MobileNavTabs />}
-                  />
-                  <Route path="/bank-sync" element={<MobileNavTabs />} />
-                  <Route path="/rules" element={<MobileNavTabs />} />
-                  <Route path="/payees" element={<MobileNavTabs />} />
-                  <Route path="/schedules" element={<MobileNavTabs />} />
-                  <Route path="*" element={null} />
-                </Routes>
+                <div data-budget-screen key={`mobile-${budgetId}`}>
+                  <Routes>
+                    <Route
+                      path="/budgets/:budgetId/budget"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route
+                      path="/budgets/:budgetId/accounts"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route
+                      path="/budgets/:budgetId/settings"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route path="/settings" element={<MobileNavTabs />} />
+                    <Route path="/notifications" element={<MobileNavTabs />} />
+                    <Route
+                      path="/budgets/:budgetId/reports/*"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route
+                      path="/budgets/:budgetId/bank-sync/*"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route
+                      path="/budgets/:budgetId/rules"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route
+                      path="/budgets/:budgetId/payees"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route
+                      path="/budgets/:budgetId/schedules"
+                      element={<MobileNavTabs />}
+                    />
+                    <Route path="*" element={null} />
+                  </Routes>
+                </div>
               </MobilePageHeaderProvider>
             </ScrollProvider>
           </View>

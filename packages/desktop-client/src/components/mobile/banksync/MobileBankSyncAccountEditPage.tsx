@@ -15,13 +15,16 @@ import { useBankSyncAccountSettings } from '#components/banksync/useBankSyncAcco
 import { MobileBackButton } from '#components/mobile/MobileBackButton';
 import { MobilePageHeader, Page } from '#components/Page';
 import { useAccount } from '#hooks/useAccount';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
 import { pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 export function MobileBankSyncAccountEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const dispatch = useDispatch();
   const { accountId } = useParams<{ accountId: string }>();
   const account = useAccount(accountId!);
@@ -46,12 +49,12 @@ export function MobileBankSyncAccountEditPage() {
   } = useBankSyncAccountSettings(accountId!);
 
   const handleCancel = () => {
-    void navigate('/bank-sync');
+    void navigate(budgetRoutes.bankSync(budgetId));
   };
 
   const handleSave = async () => {
     saveSettings();
-    void navigate('/bank-sync');
+    void navigate(budgetRoutes.bankSync(budgetId));
   };
 
   const unlinkAccount = useUnlinkAccountMutation();
@@ -68,7 +71,7 @@ export function MobileBankSyncAccountEditPage() {
                 unlinkAccount.mutate(
                   { id: accountId },
                   {
-                    onSuccess: () => navigate('/bank-sync'),
+                    onSuccess: () => navigate(budgetRoutes.bankSync(budgetId)),
                   },
                 );
               }

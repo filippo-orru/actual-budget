@@ -15,11 +15,10 @@ type FormulaPreferencesOptions = {
 
 type CurrencySymbolPosition = 'before' | 'after';
 
-const DEFAULT_CURRENCY = getCurrency('USD');
+const DEFAULT_CURRENCY = getCurrency('');
 const LOCALE_NUMBER_FORMAT_SAMPLE = 1_000_000.23;
 type FormulaPreferenceId =
   | 'flags.currency'
-  | 'defaultCurrencyCode'
   | 'numberFormat'
   | 'hideFraction'
   | 'currencySymbolPosition'
@@ -27,7 +26,6 @@ type FormulaPreferenceId =
 
 const FORMULA_PREFERENCE_IDS: FormulaPreferenceId[] = [
   'flags.currency',
-  'defaultCurrencyCode',
   'numberFormat',
   'hideFraction',
   'currencySymbolPosition',
@@ -129,8 +127,7 @@ export async function loadUserPreferencesForFormulas({
           )
         ).data[0]?.currency_code
       : null;
-    const currencyCode =
-      budgetCurrencyCode ?? preferences.defaultCurrencyCode ?? null;
+    const currencyCode = budgetCurrencyCode ?? null;
     const currencyFromPreference = isCurrencyFeatureEnabled
       ? getCurrencyFromPreference(currencyCode)
       : null;

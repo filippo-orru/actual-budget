@@ -59,6 +59,7 @@ import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 import { mapField } from '#util/rule';
 
 export function Sankey() {
@@ -802,7 +803,9 @@ function SankeyInner({ widget }: SankeyInnerProps) {
           <MobilePageHeader
             title={title}
             leftContent={
-              <MobileBackButton onPress={() => navigate('/reports')} />
+              <MobileBackButton
+                onPress={() => navigate(budgetRoutes.reports(budgetId))}
+              />
             }
           />
         ) : (

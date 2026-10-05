@@ -291,6 +291,49 @@ describe('budget spaces', () => {
     ).toEqual({ currency_code: 'JPY' });
   });
 
+  it('allows clearing the currency while only one active budget exists', async () => {
+    await runHandler(handlers['budget-spaces/update'], {
+      id: 'default',
+      currencyCode: 'USD',
+    });
+
+    const updated = await runHandler(handlers['budget-spaces/update'], {
+      id: 'default',
+      currencyCode: '',
+    });
+
+    expect(updated.currency_code).toBe('');
+    expect(
+      await db.first<{ currency_code: string }>(
+        'SELECT currency_code FROM budgets WHERE id = ?',
+        ['default'],
+      ),
+    ).toEqual({ currency_code: '' });
+  });
+
+  it('rejects clearing any currency when multiple active budgets exist before writing', async () => {
+    const created = await createBudget('Second budget');
+    const beforeMessages = await db.all('SELECT * FROM messages_crdt');
+
+    await expect(
+      runHandler(handlers['budget-spaces/update'], {
+        id: 'default',
+        currencyCode: '',
+      }),
+    ).rejects.toThrow(
+      'Budget currency cannot be cleared while multiple budgets exist',
+    );
+
+    expect(
+      await db.first<{ currency_code: string }>(
+        'SELECT currency_code FROM budgets WHERE id = ?',
+        ['default'],
+      ),
+    ).toEqual({ currency_code: '' });
+    expect(await db.all('SELECT * FROM messages_crdt')).toEqual(beforeMessages);
+    expect(created.currency_code).toBe('USD');
+  });
+
   it('changes budget type without resetting another budget or stored amounts', async () => {
     const created = await createBudget('Tracking candidate');
     db.runQuery(

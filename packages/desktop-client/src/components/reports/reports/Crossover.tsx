@@ -49,6 +49,7 @@ import type { useSpreadsheet } from '#hooks/useSpreadsheet';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 
 export const defaultTimeFrame = {
   start: monthUtils.subMonths(monthUtils.currentMonth(), 120),
@@ -436,7 +437,9 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
           <MobilePageHeader
             title={title}
             leftContent={
-              <MobileBackButton onPress={() => navigate('/reports')} />
+              <MobileBackButton
+                onPress={() => navigate(budgetRoutes.reports(budgetId))}
+              />
             }
           />
         ) : (

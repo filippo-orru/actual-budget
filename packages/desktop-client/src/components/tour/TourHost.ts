@@ -33,12 +33,13 @@ export function TourHost({ tourId }: TourHostProps) {
   const { activeModal, modalStack } = useModalState();
   const reducedMotion = useReducedMotion();
   const navigate = useNavigate();
-  const budgetType = useBudgetSpace().budget_type;
+  const budgetSpace = useBudgetSpace();
   const pausedAtIndexRef = useRef<number | null>(null);
 
   const steps = getTourSteps(tourId, {
     navigate,
-    budgetType,
+    budgetId: budgetSpace.id,
+    budgetType: budgetSpace.budget_type,
   });
 
   const completeTour = () => {

@@ -2,10 +2,13 @@ import { useEffect } from 'react';
 
 import * as Platform from '@actual-app/core/shared/platform';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
+import { budgetRoutes } from '#util/budget-routes';
 
 export function GlobalKeys() {
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
       if (Platform.isBrowser) {
@@ -15,13 +18,13 @@ export function GlobalKeys() {
       if (e.metaKey) {
         switch (e.key) {
           case '1':
-            void navigate('/budget');
+            void navigate(budgetRoutes.budget(budgetId));
             break;
           case '2':
-            void navigate('/reports');
+            void navigate(budgetRoutes.reports(budgetId));
             break;
           case '3':
-            void navigate('/accounts');
+            void navigate(budgetRoutes.accounts(budgetId));
             break;
           case ',':
             if (Platform.OS === 'mac') {
@@ -36,7 +39,7 @@ export function GlobalKeys() {
     document.addEventListener('keydown', handleKeys);
 
     return () => document.removeEventListener('keydown', handleKeys);
-  }, [navigate]);
+  }, [budgetId, navigate]);
 
   return null;
 }

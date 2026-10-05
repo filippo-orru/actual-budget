@@ -10,6 +10,7 @@ import type {
 } from '@actual-app/core/types/models';
 
 import { TransactionListWithBalances } from '#components/mobile/transactions/TransactionListWithBalances';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -22,9 +23,14 @@ import { collapseModals, pushModal } from '#modals/modalsSlice';
 import * as queries from '#queries';
 import { useDispatch } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 export function OnBudgetAccountTransactions() {
-  const schedulesQuery = useMemo(() => getSchedulesQuery('onbudget'), []);
+  const budgetId = useBudgetSpaceId();
+  const schedulesQuery = useMemo(
+    () => getSchedulesQuery(budgetId, 'onbudget'),
+    [budgetId],
+  );
 
   return (
     <SchedulesProvider query={schedulesQuery}>
@@ -35,10 +41,14 @@ export function OnBudgetAccountTransactions() {
 
 function TransactionListWithPreviews() {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const baseTransactionsQuery = useCallback(
     () =>
-      queries.transactions('onbudget').options({ splits: 'all' }).select('*'),
-    [],
+      queries
+        .transactions(budgetId, 'onbudget')
+        .options({ splits: 'all' })
+        .select('*'),
+    [budgetId],
   );
 
   const [transactionsQuery, setTransactionsQuery] = useState<Query>(
@@ -77,7 +87,7 @@ function TransactionListWithPreviews() {
   const onOpenTransaction = useCallback(
     (transaction: TransactionEntity) => {
       if (!isPreviewId(transaction.id)) {
-        void navigate(`/transactions/${transaction.id}`);
+        void navigate(budgetRoutes.transaction(budgetId, transaction.id));
       } else {
         dispatch(
           pushModal({
@@ -123,14 +133,14 @@ function TransactionListWithPreviews() {
         );
       }
     },
-    [dispatch, navigate],
+    [budgetId, dispatch, navigate],
   );
 
   const balanceBindings = useMemo(
     () => ({
-      balance: bindings.onBudgetAccountBalance(),
+      balance: bindings.onBudgetAccountBalance(budgetId),
     }),
-    [],
+    [budgetId],
   );
 
   const transactionsToDisplay = !isSearching

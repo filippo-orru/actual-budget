@@ -82,6 +82,30 @@ describe('formula preference bootstrap', () => {
     expect(euroResult).not.toBe(yenResult);
   });
 
+  it('does not use the legacy global default currency for formula formatting', async () => {
+    await expect(
+      runHandler(handlers['preferences/save'], {
+        id: 'defaultCurrencyCode',
+        value: 'EUR',
+      } as never),
+    ).rejects.toThrow('Preference is no longer supported: defaultCurrencyCode');
+
+    await db.update('preferences', {
+      id: 'defaultCurrencyCode',
+      value: 'EUR',
+    });
+    await db.update('preferences', {
+      id: 'flags.currency',
+      value: 'true',
+    });
+
+    const preferences = await loadUserPreferencesForFormulas({
+      budgetId: 'default',
+    });
+
+    expect(preferences.currency.code).toBe('');
+  });
+
   it('infers number separators from locale formatting', async () => {
     const preferences = await loadUserPreferencesForFormulas({
       selectedLocale: 'de-DE',

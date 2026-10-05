@@ -152,15 +152,16 @@ export function useSchedules({
 }
 
 export function getSchedulesQuery(
+  budgetId: string,
   view?: AccountEntity['id'] | 'onbudget' | 'offbudget' | 'uncategorized',
 ) {
-  const filterByAccount = accountFilter(view, '_account');
-  const filterByPayee = accountFilter(view, '_payee.transfer_acct');
+  const filterByAccount = accountFilter(budgetId, view, '_account');
+  const filterByPayee = accountFilter(budgetId, view, '_payee.transfer_acct');
 
   let query = q('schedules')
     .select('*')
     .filter({
-      $and: [{ '_account.closed': false }],
+      $and: [{ budget_id: budgetId }, { '_account.closed': false }],
     });
 
   if (view) {

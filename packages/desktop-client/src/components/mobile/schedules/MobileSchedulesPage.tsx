@@ -15,6 +15,7 @@ import type { ScheduleEntity } from '@actual-app/core/types/models';
 import { Search } from '#components/common/Search';
 import { MobilePageHeader, Page } from '#components/Page';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -23,6 +24,7 @@ import { useSchedules } from '#hooks/useSchedules';
 import { useUndo } from '#hooks/useUndo';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { AddScheduleButton } from './AddScheduleButton';
 import { SchedulesList } from './SchedulesList';
@@ -30,6 +32,7 @@ import { SchedulesList } from './SchedulesList';
 export function MobileSchedulesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const dispatch = useDispatch();
   const { showUndoNotification } = useUndo();
   const [filter, setFilter] = useState('');
@@ -89,9 +92,9 @@ export function MobileSchedulesPage() {
 
   const handleSchedulePress = useCallback(
     (schedule: ScheduleEntity) => {
-      void navigate(`/schedules/${schedule.id}`);
+      void navigate(budgetRoutes.schedules(budgetId, schedule.id));
     },
-    [navigate],
+    [budgetId, navigate],
   );
 
   const handleScheduleDelete = useCallback(

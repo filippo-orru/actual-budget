@@ -20,6 +20,7 @@ import { MobilePageHeader, Page, PageHeader } from '#components/Page';
 import { FormulaResult } from '#components/reports/FormulaResult';
 import { LoadingIndicator } from '#components/reports/LoadingIndicator';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategories } from '#hooks/useCategories';
 import { useDashboardWidget } from '#hooks/useDashboardWidget';
 import { useFormulaExecution } from '#hooks/useFormulaExecution';
@@ -28,6 +29,7 @@ import { useThemeColors } from '#hooks/useThemeColors';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 
 const FormulaEditor = lazy(() =>
   import('#components/formula/FormulaEditor').then(module => ({
@@ -57,6 +59,7 @@ function FormulaInner({ widget }: FormulaInnerProps) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const { isNarrowWidth } = useResponsive();
   const themeColors = useThemeColors();
 
@@ -240,7 +243,9 @@ function FormulaInner({ widget }: FormulaInnerProps) {
           <MobilePageHeader
             title={title}
             leftContent={
-              <MobileBackButton onPress={() => navigate('/reports')} />
+              <MobileBackButton
+                onPress={() => navigate(budgetRoutes.reports(budgetId))}
+              />
             }
           />
         ) : (

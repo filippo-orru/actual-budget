@@ -25,6 +25,7 @@ import { css } from '@emotion/css';
 
 import { sync } from '#app/appSlice';
 import { SharedArrayBufferWarning } from '#components/SharedArrayBufferWarning';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useNavigate } from '#hooks/useNavigate';
@@ -33,6 +34,7 @@ import { useSyncedPref } from '#hooks/useSyncedPref';
 import { useSyncStatus } from '#hooks/useSyncStatus';
 import { useDispatch } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { AccountSyncCheck } from './accounts/AccountSyncCheck';
 import { AnimatedRefresh } from './AnimatedRefresh';
@@ -46,7 +48,10 @@ import { useSidebar } from './sidebar/SidebarProvider';
 import { ThemeSelector } from './ThemeSelector';
 
 function UncategorizedButton() {
-  const count: number | null = useSheetValue(bindings.uncategorizedCount());
+  const budgetId = useBudgetSpaceId();
+  const count: number | null = useSheetValue(
+    bindings.uncategorizedCount(budgetId),
+  );
   if (count === null || count <= 0) {
     return null;
   }
@@ -55,7 +60,7 @@ function UncategorizedButton() {
     <Link
       variant="button"
       buttonVariant="bare"
-      to="/categories/uncategorized"
+      to={budgetRoutes.category(budgetId, 'uncategorized')}
       style={{
         color: theme.errorText,
       }}
@@ -334,9 +339,12 @@ export function Titlebar({ style }: TitlebarProps) {
           }
         />
 
-        <Route path="/accounts/:id" element={<AccountSyncCheck />} />
+        <Route
+          path="/budgets/:budgetId/accounts/:id"
+          element={<AccountSyncCheck />}
+        />
 
-        <Route path="/budget" element={<BudgetTitlebar />} />
+        <Route path="/budgets/:budgetId/budget" element={<BudgetTitlebar />} />
       </Routes>
       <View style={{ flex: 1 }} />
       <SpaceBetween gap={10}>

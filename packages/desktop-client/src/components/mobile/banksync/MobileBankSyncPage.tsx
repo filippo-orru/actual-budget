@@ -22,6 +22,7 @@ import { useLocalPref } from '#hooks/useLocalPref';
 import { useNavigate } from '#hooks/useNavigate';
 import { pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { BankSyncAccountsList } from './BankSyncAccountsList';
 
@@ -74,7 +75,12 @@ export function MobileBankSyncPage() {
     (account: AccountEntity, action: 'link' | 'edit') => {
       switch (action) {
         case 'edit':
-          void navigate(`/bank-sync/account/${account.id}/edit`);
+          void navigate(
+            budgetRoutes.bankSync(
+              account.budget_id,
+              `account/${account.id}/edit`,
+            ),
+          );
           break;
         case 'link':
           dispatch(

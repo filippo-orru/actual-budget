@@ -2,7 +2,7 @@ import * as asyncStorage from '#platform/server/asyncStorage';
 import * as fs from '#platform/server/fs';
 import { createApp } from '#server/app';
 import * as db from '#server/db';
-import { PostError } from '#server/errors';
+import { PostError, ValidationError } from '#server/errors';
 import { resetFormulaPreferencesCache } from '#server/formulas/bootstrap';
 import { getDefaultDocumentDir } from '#server/main';
 import { mutator } from '#server/mutators';
@@ -31,7 +31,6 @@ export const app = createApp<PreferencesHandlers>();
 const FORMULA_FORMAT_SYNCED_PREFS = new Set<keyof SyncedPrefs>([
   'numberFormat',
   'hideFraction',
-  'defaultCurrencyCode',
   'currencySymbolPosition',
   'currencySpaceBetweenAmountAndSymbol',
 ]);
@@ -51,6 +50,11 @@ async function saveSyncedPrefs({
   id: keyof SyncedPrefs;
   value: string | undefined;
 }) {
+  if (['defaultCurrencyCode', 'budgetType'].includes(id as string)) {
+    throw new ValidationError(
+      `Preference is no longer supported: ${String(id)}`,
+    );
+  }
   if (!id) {
     return;
   }
@@ -67,7 +71,7 @@ async function saveSyncedPrefs({
 
 async function getSyncedPrefs(): Promise<SyncedPrefs> {
   const prefs = await db.all<Pick<db.DbPreference, 'id' | 'value'>>(
-    'SELECT id, value FROM preferences',
+    "SELECT id, value FROM preferences WHERE id NOT IN ('defaultCurrencyCode', 'budgetType')",
   );
 
   return prefs.reduce<SyncedPrefs>((carry, { value, id }) => {

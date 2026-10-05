@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { spacing } from '@actual-app/components/tokens';
 import { View } from '@actual-app/components/view';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import * as bindings from '#spreadsheet/bindings';
 
 import { AccountSearchField } from './AccountSearchField';
@@ -18,6 +19,7 @@ import { bucketKey, useSidebarCollapseState } from './useSidebarCollapseState';
 
 export function AccountsSection() {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const tree = useSidebarAccountTree();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -69,7 +71,7 @@ export function AccountsSection() {
             isDragDisabled={isSearching}
             showSyncDot={showSyncDot}
             sideData={visibleTree.onBudget}
-            totalBinding={bindings.onBudgetAccountBalance()}
+            totalBinding={bindings.onBudgetAccountBalance(budgetId)}
             balanceTestId="sidebar-on-budget-balance"
             isOpen={collapse.isOpen('onbudget')}
             onToggle={() => collapse.toggle('onbudget')}
@@ -84,7 +86,7 @@ export function AccountsSection() {
             isDragDisabled={isSearching}
             showSyncDot={showSyncDot}
             sideData={visibleTree.offBudget}
-            totalBinding={bindings.offBudgetAccountBalance()}
+            totalBinding={bindings.offBudgetAccountBalance(budgetId)}
             balanceTestId="sidebar-off-budget-balance"
             isOpen={collapse.isOpen('offbudget')}
             onToggle={() => collapse.toggle('offbudget')}

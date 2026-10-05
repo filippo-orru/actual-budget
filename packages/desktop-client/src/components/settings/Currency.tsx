@@ -1,144 +1,149 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Select } from '@actual-app/components/select';
 import { Text } from '@actual-app/components/text';
-import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
 import { getCurrency } from '@actual-app/core/shared/currencies';
 import { css } from '@emotion/css';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { budgetSpaceQueries } from '#budget-spaces/queries';
 import { Checkbox } from '#components/forms';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
 import { useCurrencyOptions } from '#hooks/useCurrencyOptions';
+import { useMetadataPref } from '#hooks/useMetadataPref';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 
 import { Column, Setting } from './UI';
 
 export function CurrencySettings() {
   const { t } = useTranslation();
-
+  const budgetSpace = useBudgetSpace();
+  const [fileId] = useMetadataPref('id');
+  const queryClient = useQueryClient();
   const { currencyOptions } = useCurrencyOptions();
+  const { data: budgetSpaces = [] } = useQuery(budgetSpaceQueries.list(fileId));
+  const [isSaving, setIsSaving] = useState(false);
+  const selectedCurrencyCode = budgetSpace.currency_code ?? '';
+  const canUseNone =
+    budgetSpaces.filter(space => !space.tombstone).length === 1;
+  const options = canUseNone
+    ? currencyOptions
+    : currencyOptions.filter(([code]) => code !== '');
 
-  const [defaultCurrencyCode, setDefaultCurrencyCodePref] = useSyncedPref(
-    'defaultCurrencyCode',
-  );
-  const selectedCurrencyCode = defaultCurrencyCode || '';
+  async function onCurrencyChange(code: string) {
+    if (code === selectedCurrencyCode) return;
+    const confirmed = window.confirm(
+      t('Changing currency will not convert existing amounts. Continue?'),
+    );
+    if (!confirmed) return;
 
-  const [symbolPosition, setSymbolPositionPref] = useSyncedPref(
-    'currencySymbolPosition',
-  );
-  const [spaceEnabled, setSpaceEnabledPref] = useSyncedPref(
-    'currencySpaceBetweenAmountAndSymbol',
-  );
-  const [, setNumberFormatPref] = useSyncedPref('numberFormat');
-  const [, setHideFractionPref] = useSyncedPref('hideFraction');
-
-  const selectButtonClassName = css({
-    '&[data-hovered]': {
-      backgroundColor: theme.buttonNormalBackgroundHover,
-    },
-  });
-
-  const handleCurrencyChange = (code: string) => {
-    setDefaultCurrencyCodePref(code);
-    if (code !== '') {
-      const cur = getCurrency(code);
-      setNumberFormatPref(cur.numberFormat);
-      setHideFractionPref(cur.decimalPlaces === 0 ? 'true' : 'false');
-      setSpaceEnabledPref(cur.symbolFirst ? 'false' : 'true');
-      setSymbolPositionPref(cur.symbolFirst ? 'before' : 'after');
+    setIsSaving(true);
+    try {
+      await send('budget-spaces/update', {
+        id: budgetSpace.id,
+        currencyCode: code,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: budgetSpaceQueries.all(),
+      });
+    } finally {
+      setIsSaving(false);
     }
-  };
+  }
 
-  const symbolPositionOptions = useMemo(() => {
-    const selectedCurrency = getCurrency(selectedCurrencyCode);
-    const symbol = selectedCurrency.symbol || '$';
-    const space = spaceEnabled === 'true' ? ' ' : '';
-
-    return [
-      {
-        value: 'before',
-        label: `${t('Before amount')} (${t('e.g.')} ${symbol}${space}100)`,
-      },
-      {
-        value: 'after',
-        label: `${t('After amount')} (${t('e.g.')} 100${space}${symbol})`,
-      },
-    ];
-  }, [selectedCurrencyCode, spaceEnabled, t]);
+  const currency = getCurrency(selectedCurrencyCode);
 
   return (
     <Setting
       primaryAction={
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.5em',
-            width: '100%',
-          }}
-        >
-          <View style={{ display: 'flex', flexDirection: 'row', gap: '1.5em' }}>
-            <Column title={t('Default Currency')}>
-              <Select
-                value={selectedCurrencyCode}
-                onChange={handleCurrencyChange}
-                options={currencyOptions}
-                className={selectButtonClassName}
-                style={{ width: '100%' }}
-              />
-            </Column>
+        <Column title={t('Budget currency')}>
+          <Select
+            value={selectedCurrencyCode}
+            onChange={code => void onCurrencyChange(code)}
+            options={options}
+            className={css({ width: '100%' })}
+            disabled={isSaving}
+          />
+        </Column>
+      }
+    >
+      <Text>
+        <Trans>
+          Changing this budget's display currency relabels existing amounts and
+          does not convert them. New amounts use the selected currency's decimal
+          places.
+        </Trans>
+      </Text>
+      {!canUseNone && (
+        <Text>
+          <Trans>
+            Currency cannot be cleared while this file contains multiple
+            budgets.
+          </Trans>
+        </Text>
+      )}
+      <Text>
+        <Trans>
+          Current currency: {{ currency: currency.code || t('None') }}
+        </Trans>
+      </Text>
+    </Setting>
+  );
+}
 
-            <Column
-              title={t('Symbol Position')}
-              style={{
-                visibility: selectedCurrencyCode === '' ? 'hidden' : 'visible',
-              }}
-            >
-              <Select
-                value={symbolPosition || 'before'}
-                onChange={value => setSymbolPositionPref(value)}
-                options={symbolPositionOptions.map(f => [f.value, f.label])}
-                className={selectButtonClassName}
-                style={{ width: '100%' }}
-                disabled={selectedCurrencyCode === ''}
-              />
-            </Column>
-          </View>
+export function CurrencyFormattingSettings() {
+  const { t } = useTranslation();
+  const budgetSpace = useBudgetSpace();
+  const selectedCurrency = getCurrency(budgetSpace.currency_code ?? '');
+  const [symbolPosition, setSymbolPosition] = useSyncedPref(
+    'currencySymbolPosition',
+  );
+  const [spaceEnabled, setSpaceEnabled] = useSyncedPref(
+    'currencySpaceBetweenAmountAndSymbol',
+  );
+  const symbol = selectedCurrency.symbol || '$';
+  const space = spaceEnabled === 'true' ? ' ' : '';
+  const symbolPositionOptions: [string, string][] = [
+    ['before', `${t('Before amount')} (${t('e.g.')} ${symbol}${space}100)`],
+    ['after', `${t('After amount')} (${t('e.g.')} 100${space}${symbol})`],
+  ];
 
-          {selectedCurrencyCode !== '' && (
-            <View
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-              }}
-            >
+  return (
+    <Setting
+      primaryAction={
+        <View style={{ display: 'flex', flexDirection: 'row', gap: '1.5em' }}>
+          <Column title={t('Symbol Position')}>
+            <Select
+              value={symbolPosition || 'before'}
+              onChange={value => setSymbolPosition(value)}
+              options={symbolPositionOptions}
+              className={css({ width: '100%' })}
+            />
+          </Column>
+          <Column title={t('Spacing')}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <Checkbox
                 id="settings-spaceEnabled"
                 checked={spaceEnabled === 'true'}
-                onChange={e =>
-                  setSpaceEnabledPref(e.target.checked ? 'true' : 'false')
+                onChange={event =>
+                  setSpaceEnabled(
+                    event.currentTarget.checked ? 'true' : 'false',
+                  )
                 }
               />
-              <label
-                htmlFor="settings-spaceEnabled"
-                style={{ marginLeft: '0.5em' }}
-              >
-                <Trans>Add space between amount and symbol</Trans>
-              </label>
-            </View>
-          )}
+              <Trans>Add space between amount and symbol</Trans>
+            </label>
+          </Column>
         </View>
       }
     >
       <Text>
         <Trans>
-          <strong>Currency settings</strong> affect how amounts are displayed
-          throughout the application. Changing the currency will affect the
-          number format, symbol position, and whether fractions are shown. These
-          can be adjusted after the currency is set.
+          Symbol position and spacing are shared display preferences for all
+          budgets.
         </Trans>
       </Text>
     </Setting>

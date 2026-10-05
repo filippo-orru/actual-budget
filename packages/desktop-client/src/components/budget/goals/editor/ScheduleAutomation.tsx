@@ -17,6 +17,8 @@ import {
 } from '#components/budget/goals/editor/fieldLayout';
 import { Link } from '#components/common/Link';
 import { FormField, FormLabel } from '#components/forms';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
+import { budgetRoutes } from '#util/budget-routes';
 
 type ScheduleAutomationProps = {
   schedules: readonly ScheduleEntity[];
@@ -30,6 +32,7 @@ export const ScheduleAutomation = ({
   dispatch,
 }: ScheduleAutomationProps) => {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const { isNarrowWidth } = useResponsive();
   const fieldFlex = isNarrowWidth ? STACKED_FIELD_FLEX : 1;
   // Match the filter applied to the Select options below — completed and
@@ -103,7 +106,7 @@ export const ScheduleAutomation = ({
     <Text style={{ marginTop: 10 }}>
       <Trans>
         No schedules found, create one in the{' '}
-        <Link variant="internal" to="/schedules">
+        <Link variant="internal" to={budgetRoutes.schedules(budgetId)}>
           schedules
         </Link>{' '}
         page.

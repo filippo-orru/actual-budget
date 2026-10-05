@@ -17,6 +17,7 @@ import { useNavigate } from '#hooks/useNavigate';
 import { collapseModals, pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { BalanceCell } from './BalanceCell';
 import { BudgetCell } from './BudgetCell';
@@ -184,7 +185,8 @@ export function IncomeCategoryListItem({
   const { value: category } = props;
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const budgetType = useBudgetSpace().budget_type;
+  const budgetSpace = useBudgetSpace();
+  const budgetType = budgetSpace.budget_type;
   const balanceMenuModalName = `envelope-income-balance-menu`;
 
   const onShowActivity = useCallback(() => {
@@ -192,8 +194,10 @@ export function IncomeCategoryListItem({
       return null;
     }
 
-    void navigate(`/categories/${category.id}?month=${month}`);
-  }, [category, month, navigate]);
+    void navigate(
+      `${budgetRoutes.category(budgetSpace.id, category.id)}?month=${month}`,
+    );
+  }, [budgetSpace.id, category, month, navigate]);
 
   const onCarryover = useCallback(
     (carryover: boolean) => {

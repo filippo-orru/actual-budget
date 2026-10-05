@@ -20,16 +20,14 @@ import { Checkbox, FormField, FormLabel } from '#components/forms';
 import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
 import { Page } from '#components/Page';
 import { useServerVersion } from '#components/ServerContext';
-import { useFeatureFlag } from '#hooks/useFeatureFlag';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useMetadataPref } from '#hooks/useMetadataPref';
-import { loadPrefs, saveSyncedPrefs } from '#prefs/prefsSlice';
+import { loadPrefs } from '#prefs/prefsSlice';
 import { useDispatch, useSelector } from '#redux';
 
 import { AuthSettings } from './AuthSettings';
 import { Backups } from './Backups';
-import { BudgetTypeSettings } from './BudgetTypeSettings';
-import { CurrencySettings } from './Currency';
+import { CurrencyFormattingSettings } from './Currency';
 import { EncryptionSettings } from './Encryption';
 import { ExperimentalFeatures } from './Experimental';
 import { ExportBudget } from './Export';
@@ -192,7 +190,6 @@ export function Settings() {
   const [floatingSidebar] = useGlobalPref('floatingSidebar');
   const [budgetName] = useMetadataPref('budgetName');
   const dispatch = useDispatch();
-  const isCurrencyExperimentalEnabled = useFeatureFlag('currency');
 
   const onCloseBudget = () => {
     void dispatch(closeBudget());
@@ -206,12 +203,6 @@ export function Settings() {
     void dispatch(loadPrefs());
     return () => unlisten();
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!isCurrencyExperimentalEnabled) {
-      void dispatch(saveSyncedPrefs({ prefs: { defaultCurrencyCode: '' } }));
-    }
-  }, [dispatch, isCurrencyExperimentalEnabled]);
 
   const { isNarrowWidth } = useResponsive();
 
@@ -259,11 +250,10 @@ export function Settings() {
         <About />
         <ThemeSettings />
         <FormatSettings />
-        {isCurrencyExperimentalEnabled && <CurrencySettings />}
+        <CurrencyFormattingSettings />
         <LanguageSettings />
         <AuthSettings />
         <EncryptionSettings />
-        <BudgetTypeSettings />
         {isElectron() && <Backups />}
         <ExportBudget />
         <AdvancedToggle>

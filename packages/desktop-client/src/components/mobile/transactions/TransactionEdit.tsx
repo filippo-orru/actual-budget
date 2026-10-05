@@ -104,6 +104,7 @@ import { locationService } from '#payees/location';
 import { aqlQuery } from '#queries/aqlQuery';
 import { useDispatch, useSelector } from '#redux';
 import { setLastTransaction } from '#transactions/transactionsSlice';
+import { budgetRoutes } from '#util/budget-routes';
 import { getStatusLabel } from '#util/schedule';
 import {
   calculateFutureTransactionInfo,
@@ -1571,6 +1572,7 @@ function TransactionEditUnconnected({
   dateFormat,
 }: TransactionEditUnconnectedProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const { transactionId } = useParams();
   const { state: locationState } = useLocation();
   const [searchParams] = useSearchParams();
@@ -1612,6 +1614,8 @@ function TransactionEditUnconnected({
     let unmounted = false;
 
     async function fetchTransaction() {
+      setTransactions([]);
+      setFetchedTransactions([]);
       // Query for the transaction based on the ID with grouped splits.
       //
       // This means if the transaction in question is a split transaction, its
@@ -1623,7 +1627,7 @@ function TransactionEditUnconnected({
       // flatten parent and children into one array.
       const { data } = await aqlQuery(
         q('transactions')
-          .filter({ id: transactionId })
+          .filter({ 'account.budget_id': budgetId, id: transactionId })
           .select('*')
           .options({ splits: 'grouped' }),
       );
@@ -1643,7 +1647,7 @@ function TransactionEditUnconnected({
     return () => {
       unmounted = true;
     };
-  }, [transactionId]);
+  }, [budgetId, transactionId]);
 
   useEffect(() => {
     if (!isLocationGranted) {
@@ -1989,7 +1993,7 @@ function TransactionEditUnconnected({
           <Button
             variant="primary"
             onPress={() => {
-              void navigate('/budget');
+              void navigate(budgetRoutes.budget(budgetId));
             }}
           >
             <Trans>Go to budget</Trans>

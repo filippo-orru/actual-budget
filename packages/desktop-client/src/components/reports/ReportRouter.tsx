@@ -40,10 +40,10 @@ export function ReportRouter() {
 
   return (
     <Routes>
-      <Route path="/" element={<ReportsDashboardRouter />} />
-      <Route path="/:dashboardId" element={<ReportsDashboardRouter />} />
+      <Route index element={<ReportsDashboardRouter />} />
+      <Route path=":dashboardId" element={<ReportsDashboardRouter />} />
       <Route
-        path="/net-worth"
+        path="net-worth"
         element={
           <ReportBoundary>
             <NetWorth />
@@ -51,7 +51,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/net-worth/:id"
+        path="net-worth/:id"
         element={
           <ReportBoundary>
             <NetWorth />
@@ -59,7 +59,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/crossover"
+        path="crossover"
         element={
           <ReportBoundary>
             <Crossover />
@@ -67,7 +67,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/crossover/:id"
+        path="crossover/:id"
         element={
           <ReportBoundary>
             <Crossover />
@@ -75,7 +75,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/age-of-money"
+        path="age-of-money"
         element={
           <ReportBoundary>
             <AgeOfMoney />
@@ -83,7 +83,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/age-of-money/:id"
+        path="age-of-money/:id"
         element={
           <ReportBoundary>
             <AgeOfMoney />
@@ -91,7 +91,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/cash-flow"
+        path="cash-flow"
         element={
           <ReportBoundary>
             <CashFlow />
@@ -99,7 +99,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/cash-flow/:id"
+        path="cash-flow/:id"
         element={
           <ReportBoundary>
             <CashFlow />
@@ -107,7 +107,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/custom"
+        path="custom"
         element={
           <ReportBoundary>
             <CustomReport />
@@ -115,7 +115,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/custom/:id"
+        path="custom/:id"
         element={
           <ReportBoundary>
             <CustomReport />
@@ -123,7 +123,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/spending"
+        path="spending"
         element={
           <ReportBoundary>
             <Spending />
@@ -131,7 +131,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/spending/:id"
+        path="spending/:id"
         element={
           <ReportBoundary>
             <Spending />
@@ -141,7 +141,7 @@ export function ReportRouter() {
       {budgetAnalysisReportEnabled && (
         <>
           <Route
-            path="/budget-analysis"
+            path="budget-analysis"
             element={
               <ReportBoundary>
                 <BudgetAnalysis />
@@ -149,7 +149,7 @@ export function ReportRouter() {
             }
           />
           <Route
-            path="/budget-analysis/:id"
+            path="budget-analysis/:id"
             element={
               <ReportBoundary>
                 <BudgetAnalysis />
@@ -159,7 +159,7 @@ export function ReportRouter() {
         </>
       )}
       <Route
-        path="/summary"
+        path="summary"
         element={
           <ReportBoundary>
             <Summary />
@@ -167,7 +167,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/summary/:id"
+        path="summary/:id"
         element={
           <ReportBoundary>
             <Summary />
@@ -175,7 +175,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/calendar"
+        path="calendar"
         element={
           <ReportBoundary>
             <Calendar />
@@ -183,7 +183,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/calendar/:id"
+        path="calendar/:id"
         element={
           <ReportBoundary>
             <Calendar />
@@ -191,7 +191,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/formula"
+        path="formula"
         element={
           <ReportBoundary>
             <Formula />
@@ -199,7 +199,7 @@ export function ReportRouter() {
         }
       />
       <Route
-        path="/formula/:id"
+        path="formula/:id"
         element={
           <ReportBoundary>
             <Formula />
@@ -209,7 +209,7 @@ export function ReportRouter() {
       {balanceForecastReportEnabled && (
         <>
           <Route
-            path="/forecast"
+            path="forecast"
             element={
               <ReportBoundary>
                 <BalanceForecast />
@@ -217,7 +217,7 @@ export function ReportRouter() {
             }
           />
           <Route
-            path="/forecast/:id"
+            path="forecast/:id"
             element={
               <ReportBoundary>
                 <BalanceForecast />
@@ -229,7 +229,7 @@ export function ReportRouter() {
       {monteCarloReportEnabled && (
         <>
           <Route
-            path="/monte-carlo"
+            path="monte-carlo"
             element={
               <ReportBoundary>
                 <MonteCarlo />
@@ -237,7 +237,7 @@ export function ReportRouter() {
             }
           />
           <Route
-            path="/monte-carlo/:id"
+            path="monte-carlo/:id"
             element={
               <ReportBoundary>
                 <MonteCarlo />
@@ -249,7 +249,7 @@ export function ReportRouter() {
       {sankeyReportEnabled && (
         <>
           <Route
-            path="/sankey"
+            path="sankey"
             element={
               <ReportBoundary>
                 <Sankey />
@@ -257,7 +257,7 @@ export function ReportRouter() {
             }
           />
           <Route
-            path="/sankey/:id"
+            path="sankey/:id"
             element={
               <ReportBoundary>
                 <Sankey />

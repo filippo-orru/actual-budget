@@ -13,7 +13,6 @@ import type {
   CategoryEntity,
   CategoryGroupEntity,
 } from '@actual-app/core/types/models';
-import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 import { t } from 'i18next';
 
 import type { DropPosition } from '#components/sort';
@@ -180,7 +179,7 @@ export function getScrollbarWidth() {
 
 export async function prewarmMonth(
   budgetId: string,
-  budgetType: SyncedPrefs['budgetType'],
+  budgetType: 'envelope' | 'tracking',
   spreadsheet: ReturnType<typeof useSpreadsheet>,
   month: string,
 ) {
@@ -198,7 +197,7 @@ export async function prewarmMonth(
 
 export async function prewarmAllMonths(
   budgetId: string,
-  budgetType: SyncedPrefs['budgetType'],
+  budgetType: 'envelope' | 'tracking',
   spreadsheet: ReturnType<typeof useSpreadsheet>,
   bounds: { start: string; end: string },
   startMonth: string,

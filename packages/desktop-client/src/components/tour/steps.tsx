@@ -4,6 +4,7 @@ import type { Step } from 'react-joyride';
 import * as monthUtils from '@actual-app/core/shared/months';
 
 import { Link } from '#components/common/Link';
+import { budgetRoutes } from '#util/budget-routes';
 
 import type { TourId } from './TourProvider';
 
@@ -11,6 +12,7 @@ export const ADD_ACCOUNT_STEP_ID = 'add-account';
 
 export type TourStepDeps = {
   navigate: (to: string) => void;
+  budgetId: string;
   budgetType: 'envelope' | 'tracking';
 };
 
@@ -59,7 +61,12 @@ function waitForElement(selector: string, timeoutMs = 4000): Promise<void> {
   });
 }
 
-function getBudgetTourSteps({ navigate, budgetType }: TourStepDeps): Step[] {
+function getBudgetTourSteps({
+  navigate,
+  budgetId,
+  budgetType,
+}: TourStepDeps): Step[] {
+  const budgetPath = budgetRoutes.budget(budgetId);
   return [
     {
       id: 'welcome',
@@ -81,8 +88,8 @@ function getBudgetTourSteps({ navigate, budgetType }: TourStepDeps): Step[] {
       scrollTarget: '[data-testid="budget-table-scroll-container"]',
       placement: 'center',
       before: async () => {
-        if (window.location.pathname !== '/budget') {
-          navigate('/budget');
+        if (window.location.pathname !== budgetPath) {
+          navigate(budgetPath);
         }
         await waitForElement('[data-testid="budget-table"]');
       },

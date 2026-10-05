@@ -3,16 +3,16 @@ import type { Query } from '@actual-app/core/shared/query';
 export type Spreadsheets = {
   account: {
     // Common fields
-    'uncategorized-amount': number;
-    'uncategorized-balance': number;
+    [key: `uncategorized-amount-${string}`]: number;
+    [key: `uncategorized-balance-${string}`]: number;
 
     // Account fields
     balance: number;
     [key: `balance-${string}-cleared`]: number | null;
-    'accounts-balance': number;
-    'onbudget-accounts-balance': number;
-    'offbudget-accounts-balance': number;
-    'closed-accounts-balance': number;
+    [key: `accounts-balance-${string}`]: number;
+    [key: `onbudget-accounts-balance-${string}`]: number;
+    [key: `offbudget-accounts-balance-${string}`]: number;
+    [key: `closed-accounts-balance-${string}`]: number;
     [key: `account-group-balance-${string}`]: number;
     balanceCleared: number;
     balanceUncleared: number;
@@ -20,8 +20,8 @@ export type Spreadsheets = {
   };
   category: {
     // Common fields
-    'uncategorized-amount': number;
-    'uncategorized-balance': number;
+    [key: `uncategorized-amount-${string}`]: number;
+    [key: `uncategorized-balance-${string}`]: number;
 
     balance: number;
     balanceCleared: number;
@@ -29,8 +29,8 @@ export type Spreadsheets = {
   };
   'envelope-budget': {
     // Common fields
-    'uncategorized-amount': number;
-    'uncategorized-balance': number;
+    [key: `uncategorized-amount-${string}`]: number;
+    [key: `uncategorized-balance-${string}`]: number;
 
     // Envelope budget fields
     'available-funds': number;
@@ -56,8 +56,8 @@ export type Spreadsheets = {
   };
   'tracking-budget': {
     // Common fields
-    'uncategorized-amount': number;
-    'uncategorized-balance': number;
+    [key: `uncategorized-amount-${string}`]: number;
+    [key: `uncategorized-balance-${string}`]: number;
 
     // Tracking budget fields
     'total-budgeted': number;
@@ -79,8 +79,8 @@ export type Spreadsheets = {
   };
   [`balance`]: {
     // Common fields
-    'uncategorized-amount': number;
-    'uncategorized-balance': number;
+    [key: `uncategorized-amount-${string}`]: number;
+    [key: `uncategorized-balance-${string}`]: number;
 
     // Balance fields
     [key: `balance-query-${string}`]: number;

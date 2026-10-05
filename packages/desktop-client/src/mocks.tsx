@@ -56,7 +56,7 @@ export function TestProviders({
           value={{
             id: 'default',
             name: '',
-            currency_code: 'USD',
+            currency_code: '',
             budget_type: 'envelope',
             sort_order: 0,
             tombstone: false,

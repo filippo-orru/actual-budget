@@ -64,13 +64,13 @@ type TransactionListWithBalancesProps = {
   isLoading: boolean;
   transactions: readonly TransactionEntity[];
   balance:
-    | Binding<'account', 'onbudget-accounts-balance'>
-    | Binding<'account', 'offbudget-accounts-balance'>
-    | Binding<'account', 'closed-accounts-balance'>
-    | Binding<SheetNames, 'uncategorized-balance'>
+    | Binding<'account', `onbudget-accounts-balance-${string}`>
+    | Binding<'account', `offbudget-accounts-balance-${string}`>
+    | Binding<'account', `closed-accounts-balance-${string}`>
+    | Binding<SheetNames, `uncategorized-balance-${string}`>
     | Binding<'category', 'balance'>
     | Binding<'account', 'balance'>
-    | Binding<'account', 'accounts-balance'>;
+    | Binding<'account', `accounts-balance-${string}`>;
   balanceCleared?:
     | Binding<'category', 'balanceCleared'>
     | Binding<'account', 'balanceCleared'>;

@@ -14,6 +14,7 @@ import {
   Row,
   SelectCell,
 } from '#components/table';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useContextMenu } from '#hooks/useContextMenu';
 import { useNavigate } from '#hooks/useNavigate';
 import { useProperFocus } from '#hooks/useProperFocus';
@@ -25,6 +26,7 @@ import {
   useUnhideTagsMutation,
   useUpdateTagMutation,
 } from '#tags';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { TagEditor } from './TagEditor';
 
@@ -51,6 +53,7 @@ export const TagRow = memo(
 
     const triggerRef = useRef(null);
     const navigate = useNavigate();
+    const budgetId = useBudgetSpaceId();
     const { mutate: updateTag } = useUpdateTagMutation();
     const { mutate: renameTag } = useRenameTagMutation();
     const { mutate: deleteTags } = useDeleteTagsMutation();
@@ -90,7 +93,7 @@ export const TagRow = memo(
           type: 'string',
         },
       ];
-      void navigate('/accounts', {
+      void navigate(budgetRoutes.accounts(budgetId), {
         state: {
           goBack: true,
           filterConditions,

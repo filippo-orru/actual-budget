@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { renderHook } from '@testing-library/react';
 
 import { CurrencyProvider } from '#components/CurrencyProvider';
+import { BudgetSpaceContext } from '#hooks/useBudgetSpace';
 import {
   configureTestAppStore,
   createTestQueryClient,
@@ -12,11 +13,13 @@ import { mergeSyncedPrefs } from '#prefs/prefsSlice';
 
 import { useFormat } from './useFormat';
 
-function renderFormat(currencyCode: string | undefined) {
+function renderFormat(
+  currencyCode: string | undefined,
+  budgetCurrencyCode?: string,
+) {
   const store = configureTestAppStore({ queryClient: createTestQueryClient() });
   store.dispatch(
     mergeSyncedPrefs({
-      defaultCurrencyCode: 'USD',
       numberFormat: 'comma-dot',
       hideFraction: 'false',
     }),
@@ -25,13 +28,28 @@ function renderFormat(currencyCode: string | undefined) {
   function wrapper({ children }: { children: ReactNode }) {
     return (
       <TestProviders store={store}>
-        {currencyCode === undefined ? (
-          children
-        ) : (
-          <CurrencyProvider currencyCode={currencyCode || null}>
-            {children}
-          </CurrencyProvider>
-        )}
+        <BudgetSpaceContext.Provider
+          value={
+            budgetCurrencyCode === undefined
+              ? null
+              : {
+                  id: 'budget-test',
+                  name: 'Test budget',
+                  currency_code: budgetCurrencyCode,
+                  budget_type: 'envelope',
+                  sort_order: 0,
+                  tombstone: false,
+                }
+          }
+        >
+          {currencyCode === undefined ? (
+            children
+          ) : (
+            <CurrencyProvider currencyCode={currencyCode || null}>
+              {children}
+            </CurrencyProvider>
+          )}
+        </BudgetSpaceContext.Provider>
       </TestProviders>
     );
   }
@@ -45,19 +63,28 @@ function plain(value: string) {
 }
 
 describe('useFormat', () => {
-  it('uses the global currency without a provider', () => {
+  it('uses None currency formatting without a financial budget context', () => {
     const format = renderFormat(undefined);
 
-    expect(plain(format(123456, 'financial'))).toBe('$1,234.56');
+    expect(plain(format(123456, 'financial'))).toBe('1,234.56');
     expect(format.forEdit(123456)).toBe('1,234.56');
     expect(format.fromEdit('12.34')).toBe(1234);
   });
 
-  it('uses the global currency when the provider holds null', () => {
+  it('uses None currency when the override provider holds null', () => {
     const format = renderFormat('');
 
-    expect(plain(format(123456, 'financial'))).toBe('$1,234.56');
-    expect(format.currency.code).toBe('USD');
+    expect(plain(format(123456, 'financial'))).toBe('1,234.56');
+    expect(format.currency.code).toBe('');
+  });
+
+  it('uses the owning budget currency for formatting and input parsing', () => {
+    const format = renderFormat(undefined, 'JPY');
+
+    expect(plain(format(1000, 'financial'))).toBe('¥1,000');
+    expect(format.forEdit(1000)).toBe('1,000');
+    expect(format.fromEdit('1000')).toBe(1000);
+    expect(format.currency.code).toBe('JPY');
   });
 
   it('formats and parses with 0 decimals inside a JPY provider', () => {

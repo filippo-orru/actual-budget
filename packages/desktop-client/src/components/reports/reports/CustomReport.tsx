@@ -20,7 +20,6 @@ import type {
   sortByOpType,
   TransactionEntity,
 } from '@actual-app/core/types/models';
-import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 import type { TransObjectLiteral } from '@actual-app/core/types/util';
 
 import { Warning } from '#components/alerts';
@@ -67,6 +66,7 @@ import { usePayees } from '#hooks/usePayees';
 import { useReport as useCustomReport } from '#hooks/useReport';
 import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
 import { useSyncedPref } from '#hooks/useSyncedPref';
+import { budgetRoutes } from '#util/budget-routes';
 
 /**
  * Transform `selectedCategories` into `conditions`.
@@ -138,7 +138,7 @@ export function CustomReport() {
 
 type CustomReportInnerProps = {
   report?: CustomReportEntity;
-  budgetType: SyncedPrefs['budgetType'];
+  budgetType: 'envelope' | 'tracking';
 };
 
 function CustomReportInner({
@@ -817,7 +817,9 @@ function CustomReportInner({
         setReport(params.savedReport);
 
         if (params.savedReport.id !== initialReport?.id) {
-          void navigate(`/reports/custom/${params.savedReport.id}`);
+          void navigate(
+            budgetRoutes.reports(budgetId, `custom/${params.savedReport.id}`),
+          );
         }
         break;
       case 'rename':
@@ -848,7 +850,7 @@ function CustomReportInner({
         setSavedStatus('saved');
         setReport(newReport);
         setReportData(newReport);
-        void navigate(`/reports/custom/${newReport.id}`);
+        void navigate(budgetRoutes.reports(budgetId, `custom/${newReport.id}`));
         break;
       }
       default:
@@ -856,7 +858,7 @@ function CustomReportInner({
   };
 
   const onBackClick = () => {
-    void navigate('/reports');
+    void navigate(budgetRoutes.reports(budgetId));
   };
 
   return (

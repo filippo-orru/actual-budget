@@ -6,7 +6,7 @@ const CurrencyContext = createContext<string | null>(null);
 type CurrencyProviderProps = {
   /**
    * ISO code of the currency to format amounts in. `null` keeps the default
-   * (global currency) behaviour.
+   * the owning budget's currency.
    */
   currencyCode: string | null;
   children: ReactNode;

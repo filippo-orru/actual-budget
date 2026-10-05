@@ -50,50 +50,60 @@ export function accountBalanceUncleared(accountId: AccountEntity['id']) {
   } satisfies Binding<'account', 'balanceUncleared'>;
 }
 
-export function allAccountBalance() {
+export function allAccountBalance(budgetId: string) {
   return {
     query: q('transactions')
-      .filter({ 'account.closed': false })
+      .filter({ 'account.budget_id': budgetId, 'account.closed': false })
       .calculate({ $sum: '$amount' }),
-    name: 'accounts-balance',
-  } satisfies Binding<'account', 'accounts-balance'>;
+    name: `accounts-balance-${budgetId}`,
+  } satisfies Binding<'account', `accounts-balance-${string}`>;
 }
 
-export function onBudgetAccountBalance() {
+export function onBudgetAccountBalance(budgetId: string) {
   return {
-    name: `onbudget-accounts-balance`,
+    name: `onbudget-accounts-balance-${budgetId}`,
     query: q('transactions')
-      .filter({ 'account.offbudget': false, 'account.closed': false })
+      .filter({
+        'account.budget_id': budgetId,
+        'account.offbudget': false,
+        'account.closed': false,
+      })
       .calculate({ $sum: '$amount' }),
-  } satisfies Binding<'account', 'onbudget-accounts-balance'>;
+  } satisfies Binding<'account', `onbudget-accounts-balance-${string}`>;
 }
 
-export function offBudgetAccountBalance() {
+export function offBudgetAccountBalance(budgetId: string) {
   return {
-    name: `offbudget-accounts-balance`,
+    name: `offbudget-accounts-balance-${budgetId}`,
     query: q('transactions')
-      .filter({ 'account.offbudget': true, 'account.closed': false })
+      .filter({
+        'account.budget_id': budgetId,
+        'account.offbudget': true,
+        'account.closed': false,
+      })
       .calculate({ $sum: '$amount' }),
-  } satisfies Binding<'account', 'offbudget-accounts-balance'>;
+  } satisfies Binding<'account', `offbudget-accounts-balance-${string}`>;
 }
 
-export function closedAccountBalance() {
+export function closedAccountBalance(budgetId: string) {
   return {
-    name: `closed-accounts-balance`,
+    name: `closed-accounts-balance-${budgetId}`,
     query: q('transactions')
-      .filter({ 'account.closed': true })
+      .filter({ 'account.budget_id': budgetId, 'account.closed': true })
       .calculate({ $sum: '$amount' }),
-  } satisfies Binding<'account', 'closed-accounts-balance'>;
+  } satisfies Binding<'account', `closed-accounts-balance-${string}`>;
 }
 
 export function accountGroupBalance(
+  budgetId: string,
   groupId: AccountGroupEntity['id'],
   offbudget: boolean,
 ) {
   return {
-    name: `account-group-balance-${groupId}-${offbudget ? 'off' : 'on'}`,
+    name: `account-group-balance-${budgetId}-${groupId}-${offbudget ? 'off' : 'on'}`,
     query: q('transactions')
       .filter({
+        'account.budget_id': budgetId,
         'account.account_group_id': groupId,
         'account.offbudget': offbudget,
         'account.closed': false,
@@ -153,18 +163,22 @@ export function categoryBalanceUncleared(
   } satisfies Binding<'category', 'balanceUncleared'>;
 }
 
-export function uncategorizedBalance<SheetName extends SheetNames>() {
+export function uncategorizedBalance<SheetName extends SheetNames>(
+  budgetId: string,
+) {
   return {
-    name: 'uncategorized-balance',
-    query: uncategorizedTransactions().calculate({ $sum: '$amount' }),
-  } satisfies Binding<SheetName, 'uncategorized-balance'>;
+    name: `uncategorized-balance-${budgetId}`,
+    query: uncategorizedTransactions(budgetId).calculate({ $sum: '$amount' }),
+  } satisfies Binding<SheetName, `uncategorized-balance-${string}`>;
 }
 
-export function uncategorizedCount<SheetName extends SheetNames>() {
+export function uncategorizedCount<SheetName extends SheetNames>(
+  budgetId: string,
+) {
   return {
-    name: 'uncategorized-amount',
-    query: uncategorizedTransactions().calculate({ $count: '$id' }),
-  } satisfies Binding<SheetName, 'uncategorized-amount'>;
+    name: `uncategorized-amount-${budgetId}`,
+    query: uncategorizedTransactions(budgetId).calculate({ $count: '$id' }),
+  } satisfies Binding<SheetName, `uncategorized-amount-${string}`>;
 }
 
 export const envelopeBudget = {

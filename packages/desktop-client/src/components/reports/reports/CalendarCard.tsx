@@ -43,6 +43,7 @@ import type { FormatType } from '#hooks/useFormat';
 import { useMergedRefs } from '#hooks/useMergedRefs';
 import { useNavigate } from '#hooks/useNavigate';
 import { useResizeObserver } from '#hooks/useResizeObserver';
+import { budgetRoutes } from '#util/budget-routes';
 
 type CalendarCardProps = {
   widgetId: string;
@@ -421,6 +422,7 @@ function CalendarCardInner({
   ) as Ref<HTMLDivElement>;
 
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
 
   const monthFormats = [
     { format: 'MMMM yyyy', text: formatDate(calendar.start, 'MMMM yyyy') },
@@ -467,7 +469,7 @@ function CalendarCardInner({
             }}
             onPress={() => {
               void navigate(
-                `/reports/calendar/${widgetId}?month=${formatDate(
+                `${budgetRoutes.reports(budgetId, `calendar/${widgetId}`)}?month=${formatDate(
                   calendar.start,
                   'yyyy-MM',
                 )}`,
@@ -545,13 +547,15 @@ function CalendarCardInner({
         onDayClick={date => {
           if (date) {
             void navigate(
-              `/reports/calendar/${widgetId}?day=${formatDate(
+              `${budgetRoutes.reports(budgetId, `calendar/${widgetId}`)}?day=${formatDate(
                 date,
                 'yyyy-MM-dd',
               )}`,
             );
           } else {
-            void navigate(`/reports/calendar/${widgetId}`);
+            void navigate(
+              budgetRoutes.reports(budgetId, `calendar/${widgetId}`),
+            );
           }
         }}
       />

@@ -8,7 +8,9 @@ import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 
 import { Link } from '#components/common/Link';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import type { Binding } from '#spreadsheet';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { AccountTree } from './AccountTree';
 import { CollapseChevron } from './CollapseChevron';
@@ -25,7 +27,8 @@ type SideGroupProps = {
   sideData: SidebarAccountSide;
   totalBinding: Binding<
     'account',
-    'onbudget-accounts-balance' | 'offbudget-accounts-balance'
+    | `onbudget-accounts-balance-${string}`
+    | `offbudget-accounts-balance-${string}`
   >;
   balanceTestId: string;
   isOpen: boolean;
@@ -49,6 +52,7 @@ export function SideGroup({
   onToggleBucket,
 }: SideGroupProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
 
   return (
     <View style={{ marginTop: spacing.xxs }}>
@@ -86,7 +90,10 @@ export function SideGroup({
         </Button>
         <Link
           variant="internal"
-          to={side === 'on' ? '/accounts/onbudget' : '/accounts/offbudget'}
+          to={budgetRoutes.account(
+            budgetId,
+            side === 'on' ? 'onbudget' : 'offbudget',
+          )}
           isExactPathMatch
           style={{
             display: 'flex',

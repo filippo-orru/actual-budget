@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getTourSteps } from './steps';
 import type { TourStepDeps } from './steps';
 
-const deps: TourStepDeps = { navigate: vi.fn(), budgetType: 'envelope' };
+const deps: TourStepDeps = {
+  navigate: vi.fn(),
+  budgetId: 'default',
+  budgetType: 'envelope',
+};
 
 describe('getTourSteps', () => {
   it('returns a tour that starts with a centered welcome step', () => {

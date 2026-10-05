@@ -144,7 +144,7 @@ describe('MobilePayeesPage', () => {
     const payeeButton = screen.getByText('Grocery Store');
     await user.click(payeeButton);
 
-    expect(mockNavigate).toBeCalledWith('/payees/payee-1');
+    expect(mockNavigate).toBeCalledWith('/budgets/default/payees/payee-1');
   });
 
   it('keeps the filter in the URL so it survives leaving the page', async () => {
@@ -175,7 +175,9 @@ describe('MobilePayeesPage', () => {
 
     await user.click(screen.getByText('Grocery Store'));
 
-    expect(mockNavigate).toBeCalledWith('/payees/payee-1?filter=Grocery');
+    expect(mockNavigate).toBeCalledWith(
+      '/budgets/default/payees/payee-1?filter=Grocery',
+    );
   });
 
   it('shows empty state when no payees match filter', async () => {

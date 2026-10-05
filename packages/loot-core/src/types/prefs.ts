@@ -20,7 +20,6 @@ export type FeatureFlag =
  */
 export type SyncedPrefs = Partial<
   Record<
-    | 'budgetType'
     | 'upcomingScheduledTransactionLength'
     | 'firstDayOfWeekIdx'
     | 'dateFormat'
@@ -29,7 +28,6 @@ export type SyncedPrefs = Partial<
     | 'isPrivacyEnabled'
     | 'currencySymbolPosition'
     | 'currencySpaceBetweenAmountAndSymbol'
-    | 'defaultCurrencyCode'
     | `show-account-${string}-net-worth-chart`
     | `side-nav.show-balance-history-${string}`
     // @deprecated: superseded by `transaction-table-columns-${string}`; only

@@ -12,6 +12,7 @@ import type {
 import * as bindings from '#spreadsheet/bindings';
 
 import { useAccounts } from './useAccounts';
+import { useBudgetSpaceId } from './useBudgetSpace';
 import { usePayees } from './usePayees';
 import { usePreviewTransactions } from './usePreviewTransactions';
 import { useSheetValue } from './useSheetValue';
@@ -34,6 +35,7 @@ type UseAccountPreviewTransactionsResult = ReturnType<
 export function useAccountPreviewTransactions({
   accountId,
 }: UseAccountPreviewTransactionsProps): UseAccountPreviewTransactionsResult {
+  const budgetId = useBudgetSpaceId();
   const { data: accounts = [] } = useAccounts();
   const accountsById = useMemo(() => groupById(accounts), [accounts]);
   const { data: payees = [] } = usePayees();
@@ -72,11 +74,11 @@ export function useAccountPreviewTransactions({
 
   const accountBalanceValue = useSheetValue<
     'account',
-    'balance' | 'accounts-balance'
+    'balance' | `accounts-balance-${string}`
   >(
     accountId
       ? bindings.accountBalance(accountId)
-      : bindings.allAccountBalance(),
+      : bindings.allAccountBalance(budgetId),
   );
 
   const [showBalances] = useSyncedPref(`show-balances-${accountId}`);

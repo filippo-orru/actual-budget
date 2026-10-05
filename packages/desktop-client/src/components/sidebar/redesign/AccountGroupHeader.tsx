@@ -24,6 +24,7 @@ import {
   useDeleteAccountGroupMutation,
   useUpdateAccountGroupMutation,
 } from '#account-groups';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useContextMenu } from '#hooks/useContextMenu';
 import { pushModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
@@ -56,6 +57,7 @@ export function AccountGroupHeader({
   isDropZoneActive,
 }: AccountGroupHeaderProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
   const dispatch = useDispatch();
   const [isEditing, setIsEditing] = useState(false);
   const updateGroup = useUpdateAccountGroupMutation();
@@ -173,6 +175,7 @@ export function AccountGroupHeader({
                 <View style={{ flex: 1 }} />
                 <SidebarBalance
                   binding={bindings.accountGroupBalance(
+                    budgetId,
                     group.id,
                     side === 'off',
                   )}

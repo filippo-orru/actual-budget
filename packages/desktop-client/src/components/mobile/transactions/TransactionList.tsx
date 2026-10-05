@@ -41,6 +41,7 @@ import type {
 
 import { FloatingActionBar } from '#components/mobile/FloatingActionBar';
 import { useAccounts } from '#hooks/useAccounts';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useCategoriesById } from '#hooks/useCategories';
 import { useLocale } from '#hooks/useLocale';
 import { useNavigate } from '#hooks/useNavigate';
@@ -51,6 +52,7 @@ import { useTransactionBatchActions } from '#hooks/useTransactionBatchActions';
 import { useUndo } from '#hooks/useUndo';
 import { setNotificationInset } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { ROW_HEIGHT, TransactionListItem } from './TransactionListItem';
 
@@ -342,6 +344,7 @@ function SelectedTransactionsFloatingActionBar({
   } = useTransactionBatchActions();
 
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const { data: accounts = [] } = useAccounts();
   const accountsById = useMemo(() => groupById(accounts), [accounts]);
 
@@ -526,13 +529,17 @@ function SelectedTransactionsFloatingActionBar({
                         [String(displayValue)]: () => {
                           switch (name) {
                             case 'account':
-                              void navigate(`/accounts/${String(value)}`);
+                              void navigate(
+                                budgetRoutes.account(budgetId, String(value)),
+                              );
                               break;
                             case 'category':
-                              void navigate(`/categories/${String(value)}`);
+                              void navigate(
+                                budgetRoutes.category(budgetId, String(value)),
+                              );
                               break;
                             case 'payee':
-                              void navigate(`/payees`);
+                              void navigate(budgetRoutes.payees(budgetId));
                               break;
                             default:
                               break;

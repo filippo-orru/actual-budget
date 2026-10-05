@@ -15,6 +15,7 @@ import {
 import type { IntegerAmount } from '@actual-app/core/shared/util';
 
 import { useCurrencyOverride } from '#components/CurrencyProvider';
+import { useOptionalBudgetSpace } from '#hooks/useBudgetSpace';
 
 import { useSyncedPref } from './useSyncedPref';
 
@@ -112,25 +113,22 @@ function format(
 export function useFormat(): UseFormatResult {
   const [numberFormatPref] = useSyncedPref('numberFormat');
   const [hideFractionPref] = useSyncedPref('hideFraction');
-  const [defaultCurrencyCodePref] = useSyncedPref('defaultCurrencyCode');
   const [symbolPositionPref] = useSyncedPref('currencySymbolPosition');
   const [spaceEnabledPref] = useSyncedPref(
     'currencySpaceBetweenAmountAndSymbol',
   );
 
+  const budgetSpace = useOptionalBudgetSpace();
   const currencyOverride = useCurrencyOverride();
-  // An override equal to the global currency is a no-op, so that amounts in
-  // the global currency keep using the user's symbol position preference.
+  const budgetCurrencyCode = budgetSpace?.currency_code ?? '';
+  const activeCurrencyCode = currencyOverride ?? budgetCurrencyCode;
   const hasOverride =
-    currencyOverride != null &&
-    currencyOverride !== '' &&
-    currencyOverride !== (defaultCurrencyCodePref || '');
+    currencyOverride != null && currencyOverride !== budgetCurrencyCode;
 
-  const activeCurrency = useMemo(() => {
-    return getCurrency(
-      hasOverride ? currencyOverride : defaultCurrencyCodePref || '',
-    );
-  }, [hasOverride, currencyOverride, defaultCurrencyCodePref]);
+  const activeCurrency = useMemo(
+    () => getCurrency(activeCurrencyCode),
+    [activeCurrencyCode],
+  );
 
   const numberFormatConfig = useMemo(
     () =>

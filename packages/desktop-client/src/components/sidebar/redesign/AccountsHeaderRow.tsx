@@ -11,9 +11,11 @@ import { spacing } from '@actual-app/components/tokens';
 import { View } from '@actual-app/components/view';
 
 import { Link } from '#components/common/Link';
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { replaceModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
+import { budgetRoutes } from '#util/budget-routes';
 
 import { SidebarBalance } from './SidebarBalance';
 import { SidebarIconButton } from './SidebarIconButton';
@@ -34,6 +36,8 @@ export function AccountsHeaderRow({
   onToggleSearch,
 }: AccountsHeaderRowProps) {
   const { t } = useTranslation();
+  const budgetId = useBudgetSpaceId();
+  const accountsPath = budgetRoutes.accounts(budgetId);
   const dispatch = useDispatch();
 
   const onAddAccount = () => {
@@ -52,7 +56,7 @@ export function AccountsHeaderRow({
     >
       <Link
         variant="internal"
-        to="/accounts"
+        to={accountsPath}
         isExactPathMatch
         style={{
           fontSize: 13,
@@ -84,13 +88,13 @@ export function AccountsHeaderRow({
       <View style={{ flex: 1 }} />
       <Link
         variant="internal"
-        to="/accounts"
+        to={accountsPath}
         isExactPathMatch
         style={{ textDecoration: 'none', color: theme.sidebarItemText }}
         activeStyle={{ color: theme.sidebarItemTextSelected }}
       >
         <SidebarBalance
-          binding={bindings.allAccountBalance()}
+          binding={bindings.allAccountBalance(budgetId)}
           testId="sidebar-all-accounts-balance"
           style={{ fontSize: 12, fontWeight: 600 }}
         />

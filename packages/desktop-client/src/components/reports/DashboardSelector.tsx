@@ -9,8 +9,10 @@ import { Popover } from '@actual-app/components/popover';
 import { View } from '@actual-app/components/view';
 import type { DashboardPageEntity } from '@actual-app/core/types/models';
 
+import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useNavigate } from '#hooks/useNavigate';
 import { useCreateDashboardPageMutation } from '#reports/mutations';
+import { budgetRoutes } from '#util/budget-routes';
 
 type DashboardSelectorProps = {
   dashboards: readonly DashboardPageEntity[];
@@ -23,6 +25,7 @@ export function DashboardSelector({
 }: DashboardSelectorProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const budgetId = useBudgetSpaceId();
   const triggerRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -34,7 +37,7 @@ export function DashboardSelector({
       { name: defaultName },
       {
         onSuccess: id => {
-          void navigate(`/reports/${id}`);
+          void navigate(budgetRoutes.reports(budgetId, id));
         },
       },
     );
@@ -98,7 +101,7 @@ export function DashboardSelector({
                 if (item === 'add-new') {
                   void handleAddDashboard();
                 } else {
-                  void navigate(`/reports/${item}`);
+                  void navigate(budgetRoutes.reports(budgetId, item));
                 }
                 setMenuOpen(false);
               }}

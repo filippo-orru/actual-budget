@@ -102,7 +102,6 @@ function CategoryList({
               : {};
             const { onClick, ...restSplitButtonProps } = splitButtonProps;
             return renderSplitTransactionButton({
-              key: 'split',
               ...restSplitButtonProps,
               onClick,
               highlighted:

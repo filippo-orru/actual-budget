@@ -1,4 +1,4 @@
-import React, { useEffect, useEffectEvent, useRef } from 'react';
+import { Fragment, useEffect, useEffectEvent, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
@@ -270,7 +270,7 @@ function FinancesAppContent() {
                   <BankSyncStatus />
                   {isNarrowWidth && <MobilePageHeaderSlot />}
 
-                  <div data-budget-screen key={budgetId}>
+                  <Fragment key={budgetId}>
                     <Routes>
                       <Route
                         path="/budgets/:budgetId/reports/*"
@@ -489,10 +489,10 @@ function FinancesAppContent() {
                       {/* redirect all other traffic to the budget page */}
                       <Route path="/*" element={<Navigate to="/" replace />} />
                     </Routes>
-                  </div>
+                  </Fragment>
                 </View>
 
-                <div data-budget-screen key={`mobile-${budgetId}`}>
+                <Fragment key={`mobile-${budgetId}`}>
                   <Routes>
                     <Route
                       path="/budgets/:budgetId/budget"
@@ -530,7 +530,7 @@ function FinancesAppContent() {
                     />
                     <Route path="*" element={null} />
                   </Routes>
-                </div>
+                </Fragment>
               </MobilePageHeaderProvider>
             </ScrollProvider>
           </View>

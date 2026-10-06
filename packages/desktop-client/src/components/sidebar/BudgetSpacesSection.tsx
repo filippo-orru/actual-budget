@@ -346,21 +346,21 @@ export function BudgetSpacesSection() {
           ...styles.smallText,
         }}
       >
-        <View
+        <Link
+          variant="internal"
+          to={budgetRoutes.spaces()}
           style={{
+            display: 'flex',
             flexDirection: 'row',
+            justifyContent: 'space-between',
             alignItems: 'center',
             gap: spacing.sm,
             borderBottom: `1.5px solid rgba(255,255,255,0.4)`,
             paddingBottom: '3px',
+            textDecoration: 'none',
           }}
         >
-          <Text
-            style={{
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
+          <Text>
             <Trans>Spaces</Trans>
           </Text>
           <Text style={{ color: theme.sidebarTextSubdued }}>
@@ -377,7 +377,7 @@ export function BudgetSpacesSection() {
               />
             )}
           </Text>
-        </View>
+        </Link>
       </View>
       {isBudgetListLoading ? (
         <Text
@@ -447,7 +447,7 @@ function FormatConvertedAmount({
   convertedAmount: number;
   currency: string;
 }) {
-  const approximated = convertedAmount > 0;
+  const approximated = convertedAmount !== 0;
   return (
     <CurrencyProvider currencyCode={currency}>
       {approximated && '≈ '}

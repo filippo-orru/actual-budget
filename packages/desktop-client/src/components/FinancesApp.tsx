@@ -45,6 +45,7 @@ import { useMultiuserEnabled } from './ServerContext';
 import { Settings } from './settings';
 import { BudgetSpaceSettings } from './settings/BudgetSpaceSettings';
 import { FloatableSidebar } from './sidebar';
+import { SpacesOverview } from './spaces/SpacesOverview';
 import { ManageTagsPage } from './tags/ManageTagsPage';
 import { Titlebar } from './Titlebar';
 import { Tour } from './tour/Tour';
@@ -272,6 +273,7 @@ function FinancesAppContent() {
 
                   <Fragment key={budgetId}>
                     <Routes>
+                      <Route path="/spaces" element={<SpacesOverview />} />
                       <Route
                         path="/spaces/:budgetId/reports/*"
                         element={<Reports />}

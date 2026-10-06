@@ -3,6 +3,7 @@ function segment(value: string) {
 }
 
 export const budgetRoutes = {
+  spaces: () => '/spaces',
   budget: (budgetId: string) => `/spaces/${segment(budgetId)}/budget`,
   accounts: (budgetId: string) => `/spaces/${segment(budgetId)}/accounts`,
   account: (budgetId: string, accountId: string) =>

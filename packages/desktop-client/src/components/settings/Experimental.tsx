@@ -79,8 +79,17 @@ function FeatureToggle({
 
 export function MultiCurrencyToggle() {
   return (
-    <FeatureToggle flag="multiCurrency">
-      <Trans>Multi-currency accounts</Trans>
+    <FeatureToggle
+      flag="multiCurrency"
+      note={
+        <Trans>
+          Each budget space has its own accounts and categories. This controls
+          creating budget spaces and cross-budget balance overviews; turning it
+          off does not change existing budgets or their accounting.
+        </Trans>
+      }
+    >
+      <Trans>Multiple budget spaces</Trans>
     </FeatureToggle>
   );
 }

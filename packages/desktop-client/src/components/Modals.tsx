@@ -29,6 +29,10 @@ import { AccountReconcileModal } from './modals/AccountReconcileModal';
 import { AkahuInitialiseModal } from './modals/AkahuInitialiseModal';
 import { BudgetAutomationsModal } from './modals/BudgetAutomationsModal';
 import { BudgetPageMenuModal } from './modals/BudgetPageMenuModal';
+import {
+  BudgetSpaceCurrencyRequiredModal,
+  CreateBudgetSpaceModal,
+} from './modals/BudgetSpaceModals';
 import { CategoryAutocompleteModal } from './modals/CategoryAutocompleteModal';
 import { CategoryGroupAutocompleteModal } from './modals/CategoryGroupAutocompleteModal';
 import { CategoryGroupMenuModal } from './modals/CategoryGroupMenuModal';
@@ -300,6 +304,14 @@ export function Modals() {
 
         case 'new-category':
           return <NewCategoryModal key={key} {...modal.options} />;
+
+        case 'budget-space-create':
+          return <CreateBudgetSpaceModal key={key} {...modal.options} />;
+
+        case 'budget-space-currency-required':
+          return (
+            <BudgetSpaceCurrencyRequiredModal key={key} {...modal.options} />
+          );
 
         case 'new-category-group':
           return <NewCategoryGroupModal key={key} {...modal.options} />;

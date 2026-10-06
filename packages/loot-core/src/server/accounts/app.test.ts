@@ -15,6 +15,7 @@ afterEach(() => {
 });
 
 async function createBudget(name: string, currencyCode: string) {
+  db.runQuery("UPDATE budgets SET currency_code = 'USD' WHERE id = 'default'");
   return runHandler(handlers['budget-spaces/create'], { name, currencyCode });
 }
 

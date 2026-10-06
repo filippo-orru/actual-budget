@@ -49,7 +49,7 @@ describe('MultiCurrencyToggle', () => {
       );
 
       expect(
-        screen.getByRole('checkbox', { name: 'Multi-currency accounts' }),
+        screen.getByRole('checkbox', { name: /Multiple budget spaces/ }),
       ).toBeEnabled();
       expect(statusHandler).not.toHaveBeenCalled();
       expect(assignmentHandler).not.toHaveBeenCalled();

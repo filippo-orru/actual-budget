@@ -3,6 +3,7 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { Select } from '@actual-app/components/select';
 import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { send } from '@actual-app/core/platform/client/connection';
 import { getCurrency } from '@actual-app/core/shared/currencies';
@@ -26,6 +27,7 @@ export function CurrencySettings() {
   const { currencyOptions } = useCurrencyOptions();
   const { data: budgetSpaces = [] } = useQuery(budgetSpaceQueries.list(fileId));
   const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const selectedCurrencyCode = budgetSpace.currency_code ?? '';
   const canUseNone =
     budgetSpaces.filter(space => !space.tombstone).length === 1;
@@ -35,6 +37,7 @@ export function CurrencySettings() {
 
   async function onCurrencyChange(code: string) {
     if (code === selectedCurrencyCode) return;
+    setErrorMessage(null);
     const confirmed = window.confirm(
       t('Changing currency will not convert existing amounts. Continue?'),
     );
@@ -42,6 +45,22 @@ export function CurrencySettings() {
 
     setIsSaving(true);
     try {
+      if (code === '') {
+        const latestBudgetSpaces = await send('budget-spaces/get');
+        queryClient.setQueryData(
+          budgetSpaceQueries.list(fileId).queryKey,
+          latestBudgetSpaces,
+        );
+        if (latestBudgetSpaces.filter(space => !space.tombstone).length > 1) {
+          setErrorMessage(
+            t(
+              'Currency cannot be cleared while this file contains multiple budget spaces.',
+            ),
+          );
+          return;
+        }
+      }
+
       await send('budget-spaces/update', {
         id: budgetSpace.id,
         currencyCode: code,
@@ -49,6 +68,8 @@ export function CurrencySettings() {
       await queryClient.invalidateQueries({
         queryKey: budgetSpaceQueries.all(),
       });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setIsSaving(false);
     }
@@ -59,7 +80,7 @@ export function CurrencySettings() {
   return (
     <Setting
       primaryAction={
-        <Column title={t('Budget currency')}>
+        <Column title={t('Budget space currency')}>
           <Select
             value={selectedCurrencyCode}
             onChange={code => void onCurrencyChange(code)}
@@ -72,18 +93,21 @@ export function CurrencySettings() {
     >
       <Text>
         <Trans>
-          Changing this budget's display currency relabels existing amounts and
-          does not convert them. New amounts use the selected currency's decimal
-          places.
+          Changing this budget space's display currency relabels existing
+          amounts and does not convert them. New amounts use the selected
+          currency's decimal places.
         </Trans>
       </Text>
       {!canUseNone && (
         <Text>
           <Trans>
-            Currency cannot be cleared while this file contains multiple
-            budgets.
+            Currency cannot be cleared while this file contains multiple budget
+            spaces.
           </Trans>
         </Text>
+      )}
+      {errorMessage && (
+        <Text style={{ color: theme.errorText }}>{errorMessage}</Text>
       )}
       <Text>
         <Trans>

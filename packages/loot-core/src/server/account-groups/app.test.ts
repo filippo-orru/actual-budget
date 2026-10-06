@@ -71,6 +71,9 @@ describe('account groups app', () => {
     db.runQuery(
       "INSERT OR REPLACE INTO preferences (id, value) VALUES ('flags.multiCurrency', 'true')",
     );
+    db.runQuery(
+      "UPDATE budgets SET currency_code = 'USD' WHERE id = 'default'",
+    );
     const second = await runHandler(handlers['budget-spaces/create'], {
       name: 'Second',
       currencyCode: 'USD',

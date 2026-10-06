@@ -1,8 +1,10 @@
+import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
 import { handlers } from '#server/main';
 import { runHandler } from '#server/mutators';
 import { setSyncingMode } from '#server/sync';
 import { DEFAULT_DASHBOARD_STATE } from '#shared/dashboard';
+import { q } from '#shared/query';
 
 import {
   assertBudgetOwner,
@@ -28,10 +30,110 @@ async function enableBudgetCreation() {
 
 async function createBudget(name = 'Travel', currencyCode = 'USD') {
   await enableBudgetCreation();
+  const defaultBudget = await db.first<{ currency_code: string }>(
+    "SELECT currency_code FROM budgets WHERE id = 'default'",
+  );
+  if (!defaultBudget?.currency_code) {
+    await runHandler(handlers['budget-spaces/update'], {
+      id: 'default',
+      currencyCode: 'EUR',
+    });
+  }
   return runHandler(handlers['budget-spaces/create'], { name, currencyCode });
 }
 
 describe('budget spaces', () => {
+  it('groups native account balances once per budget, including closed and off-budget accounts', async () => {
+    await runHandler(handlers['budget-spaces/update'], {
+      id: 'default',
+      currencyCode: 'EUR',
+    });
+    const second = await createBudget('Second', 'USD');
+
+    await db.insertAccount({
+      id: 'on-budget',
+      budget_id: 'default',
+      name: 'On budget',
+    });
+    await db.insertAccount({
+      id: 'off-budget',
+      budget_id: 'default',
+      name: 'Off budget',
+    });
+    db.runQuery("UPDATE accounts SET offbudget = 1 WHERE id = 'off-budget'");
+    await db.insertAccount({
+      id: 'debt',
+      budget_id: 'default',
+      name: 'Debt',
+    });
+    await db.insertAccount({
+      id: 'closed',
+      budget_id: 'default',
+      name: 'Closed',
+    });
+    db.runQuery("UPDATE accounts SET closed = 1 WHERE id = 'closed'");
+    await db.insertAccount({
+      id: 'other-budget',
+      budget_id: second.id,
+      name: 'Other budget',
+    });
+    await db.insertTransaction({
+      id: 'on-budget-parent',
+      account: 'on-budget',
+      amount: 10000,
+      date: '2024-01-01',
+      is_parent: true,
+    });
+    await db.insertTransaction({
+      id: 'on-budget-child',
+      account: 'on-budget',
+      amount: 10000,
+      date: '2024-01-01',
+      is_child: true,
+      parent_id: 'on-budget-parent',
+    });
+    await db.insertTransaction({
+      id: 'off-budget-balance',
+      account: 'off-budget',
+      amount: 10000,
+      date: '2024-01-01',
+    });
+    await db.insertTransaction({
+      id: 'debt-balance',
+      account: 'debt',
+      amount: -2500,
+      date: '2024-01-01',
+    });
+    await db.insertTransaction({
+      id: 'closed-balance',
+      account: 'closed',
+      amount: 1000,
+      date: '2024-01-01',
+    });
+    await db.insertTransaction({
+      id: 'other-balance',
+      account: 'other-budget',
+      amount: 10000,
+      date: '2024-01-01',
+    });
+
+    const { data } = await aqlQuery(
+      q('transactions')
+        .filter({ 'account.tombstone': false })
+        .options({ splits: 'none' })
+        .groupBy('account.budget_id')
+        .select([
+          { budgetId: 'account.budget_id' },
+          { balance: { $sum: '$amount' } },
+        ]),
+    );
+
+    expect(data).toEqual([
+      { budgetId: 'default', balance: 18500 },
+      { budgetId: second.id, balance: 10000 },
+    ]);
+  });
+
   it('lists the migrated default budget without changing the file identity', async () => {
     const spaces = await runHandler(handlers['budget-spaces/get']);
 
@@ -143,10 +245,32 @@ describe('budget spaces', () => {
         name: 'Blocked',
         currencyCode: 'USD',
       }),
-    ).rejects.toThrow('Creating additional budgets is disabled');
+    ).rejects.toThrow('Creating additional budget spaces is disabled');
 
     expect(await db.all('SELECT id FROM budgets')).toEqual([{ id: 'default' }]);
     expect(await db.all('SELECT id FROM messages_crdt')).toEqual([]);
+  });
+
+  it('requires every existing budget to have a known currency before creation', async () => {
+    await enableBudgetCreation();
+
+    await expect(
+      runHandler(handlers['budget-spaces/create'], {
+        name: 'Travel',
+        currencyCode: 'USD',
+      }),
+    ).rejects.toThrow(
+      'Every existing budget space must have a known currency before creating another one',
+    );
+    expect(await db.all('SELECT id FROM budgets')).toEqual([{ id: 'default' }]);
+    expect(await db.all('SELECT id FROM messages_crdt')).toEqual([]);
+
+    await runHandler(handlers['budget-spaces/update'], {
+      id: 'default',
+      currencyCode: 'EUR',
+    });
+    const created = await createBudget('Second', 'USD');
+    expect(created.currency_code).toBe('USD');
   });
 
   it('rejects invalid create and update fields before any write', async () => {
@@ -156,7 +280,7 @@ describe('budget spaces', () => {
         name: '  ',
         currencyCode: 'USD',
       }),
-    ).rejects.toThrow('Budget name must not be empty');
+    ).rejects.toThrow('Budget space name must not be empty');
     await expect(
       runHandler(handlers['budget-spaces/create'], {
         name: 'Unknown currency',
@@ -165,11 +289,19 @@ describe('budget spaces', () => {
     ).rejects.toThrow('Unknown currency code: XXX');
     await expect(
       runHandler(handlers['budget-spaces/create'], {
+        name: 'No currency',
+        currencyCode: '',
+      }),
+    ).rejects.toThrow('A known currency is required to create a budget space');
+    await expect(
+      runHandler(handlers['budget-spaces/create'], {
         name: 'Unexpected field',
         currencyCode: 'USD',
         budgetId: 'default',
       } as never),
     ).rejects.toThrow('Unexpected budget-space field: budgetId');
+    expect(await db.all('SELECT id FROM budgets')).toEqual([{ id: 'default' }]);
+    expect(await db.all('SELECT id FROM messages_crdt')).toEqual([]);
 
     const created = await createBudget();
     await expect(
@@ -189,7 +321,7 @@ describe('budget spaces', () => {
         id: created.id,
         name: '   ',
       }),
-    ).rejects.toThrow('Budget name must not be empty');
+    ).rejects.toThrow('Budget space name must not be empty');
 
     expect(
       await db.first<{ name: string; currency_code: string }>(
@@ -201,6 +333,10 @@ describe('budget spaces', () => {
 
   it('rolls back the complete create batch when scaffold insertion fails', async () => {
     await enableBudgetCreation();
+    await runHandler(handlers['budget-spaces/update'], {
+      id: 'default',
+      currencyCode: 'EUR',
+    });
     const existingBudgets = await db.all('SELECT id FROM budgets');
     const existingGroups = await db.all('SELECT id FROM category_groups');
     const existingCategories = await db.all('SELECT id FROM categories');
@@ -321,7 +457,7 @@ describe('budget spaces', () => {
         currencyCode: '',
       }),
     ).rejects.toThrow(
-      'Budget currency cannot be cleared while multiple budgets exist',
+      'Budget space currency cannot be cleared while multiple budget spaces exist',
     );
 
     expect(
@@ -329,7 +465,7 @@ describe('budget spaces', () => {
         'SELECT currency_code FROM budgets WHERE id = ?',
         ['default'],
       ),
-    ).toEqual({ currency_code: '' });
+    ).toEqual({ currency_code: 'EUR' });
     expect(await db.all('SELECT * FROM messages_crdt')).toEqual(beforeMessages);
     expect(created.currency_code).toBe('USD');
   });

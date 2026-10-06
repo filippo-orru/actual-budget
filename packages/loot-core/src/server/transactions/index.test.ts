@@ -18,6 +18,7 @@ import { batchUpdateTransactions } from './index';
 
 beforeEach(async () => {
   await global.emptyDatabase()();
+  db.runQuery("UPDATE budgets SET currency_code = 'USD' WHERE id = 'default'");
   clearUndo();
 });
 

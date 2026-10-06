@@ -685,6 +685,14 @@ export type Modal =
         templates: Template[];
         cleanup: CleanupTemplate[];
       };
+    }
+  | {
+      name: 'budget-space-create';
+      options: { defaultCurrencyCode?: string };
+    }
+  | {
+      name: 'budget-space-currency-required';
+      options: { budgetId: string; budgetName: string };
     };
 
 type OpenAccountCloseModalPayload = {

@@ -4,6 +4,7 @@ import { theme } from '@actual-app/components/theme';
 import { spacing } from '@actual-app/components/tokens';
 import { View } from '@actual-app/components/view';
 
+import { BudgetSpacesSection } from '#components/sidebar/BudgetSpacesSection';
 import { useSidebar } from '#components/sidebar/SidebarProvider';
 import { SidebarShell } from '#components/sidebar/SidebarShell';
 import { ToggleButton } from '#components/sidebar/ToggleButton';
@@ -41,6 +42,8 @@ export function SidebarRedesign() {
             <ToggleButton isFloating={isFloating} onFloat={onFloat} />
           )}
         </SidebarHeader>
+
+        <BudgetSpacesSection />
 
         <PrimaryNav />
 

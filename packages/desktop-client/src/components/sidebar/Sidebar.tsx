@@ -10,6 +10,7 @@ import { useDispatch } from '#redux';
 
 import { Accounts } from './Accounts';
 import { BudgetName } from './BudgetName';
+import { BudgetSpacesSection } from './BudgetSpacesSection';
 import { PrimaryButtons } from './PrimaryButtons';
 import { SecondaryButtons } from './SecondaryButtons';
 import { useSidebar } from './SidebarProvider';
@@ -38,6 +39,8 @@ export function Sidebar() {
           <ToggleButton isFloating={isFloating} onFloat={onFloat} />
         )}
       </BudgetName>
+
+      <BudgetSpacesSection />
 
       <View
         style={{

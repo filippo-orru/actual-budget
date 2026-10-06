@@ -43,7 +43,7 @@ export function BudgetSpaceSettings() {
   }
 
   return (
-    <Page header={budgetSpace.name}>
+    <Page header={t('Budget Space Settings')}>
       <View
         data-testid="budget-space-settings"
         style={{
@@ -59,7 +59,7 @@ export function BudgetSpaceSettings() {
           primaryAction={
             <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
               <Input
-                aria-label={t('Budget name')}
+                aria-label={t('Budget space name')}
                 value={name}
                 onChange={event => setName(event.currentTarget.value)}
               />
@@ -74,7 +74,7 @@ export function BudgetSpaceSettings() {
           }
         >
           <Text>
-            <Trans>Change the name used to identify this budget.</Trans>
+            <Trans>Change the name used to identify this budget space.</Trans>
           </Text>
         </Setting>
         <CurrencySettings />

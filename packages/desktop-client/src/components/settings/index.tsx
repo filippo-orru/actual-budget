@@ -27,6 +27,7 @@ import { useDispatch, useSelector } from '#redux';
 
 import { AuthSettings } from './AuthSettings';
 import { Backups } from './Backups';
+import { BudgetSpacesSettings } from './BudgetSpaces';
 import { CurrencyFormattingSettings } from './Currency';
 import { EncryptionSettings } from './Encryption';
 import { ExperimentalFeatures } from './Experimental';
@@ -248,6 +249,7 @@ export function Settings() {
           </View>
         )}
         <About />
+        <BudgetSpacesSettings />
         <ThemeSettings />
         <FormatSettings />
         <CurrencyFormattingSettings />

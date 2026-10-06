@@ -46,7 +46,7 @@ async function getBudgetSpaces(): Promise<BudgetSpaceEntity[]> {
 
 function validateName(name: unknown): string {
   if (typeof name !== 'string' || name.trim().length === 0) {
-    throw new ValidationError('Budget name must not be empty');
+    throw new ValidationError('Budget space name must not be empty');
   }
   return name.trim();
 }
@@ -79,12 +79,32 @@ async function createBudgetSpace(
   const { name, currencyCode } = args;
   const normalizedName = validateName(name);
   const normalizedCurrencyCode = validateCurrencyCode(currencyCode);
+  if (normalizedCurrencyCode === '') {
+    throw new ValidationError(
+      'A known currency is required to create a budget space',
+    );
+  }
   const multiBudgetFlag = await db.first<Pick<db.DbPreference, 'value'>>(
     'SELECT value FROM preferences WHERE id = ?',
     ['flags.multiCurrency'],
   );
   if (multiBudgetFlag?.value !== 'true') {
-    throw new ValidationError('Creating additional budgets is disabled');
+    throw new ValidationError('Creating additional budget spaces is disabled');
+  }
+
+  const existingBudgets = await db.all<Pick<db.DbBudgetSpace, 'currency_code'>>(
+    'SELECT currency_code FROM budgets WHERE tombstone = 0',
+  );
+  if (
+    existingBudgets.some(
+      budget =>
+        !budget.currency_code ||
+        !currencies.some(currency => currency.code === budget.currency_code),
+    )
+  ) {
+    throw new ValidationError(
+      'Every existing budget space must have a known currency before creating another one',
+    );
   }
 
   const lastBudget = await db.first<{ sort_order: number }>(
@@ -181,7 +201,7 @@ async function updateBudgetSpace(args: UpdateBudgetSpaceArgs) {
       );
       if ((budgetCount?.count ?? 0) > 1) {
         throw new ValidationError(
-          'Budget currency cannot be cleared while multiple budgets exist',
+          'Budget space currency cannot be cleared while multiple budget spaces exist',
         );
       }
     }

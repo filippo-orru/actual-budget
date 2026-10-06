@@ -241,10 +241,10 @@ export function MobileNavTabs() {
           }}
         >
           <span>
-            <Trans>Budget</Trans>
+            <Trans>Budget space</Trans>
           </span>
           <select
-            aria-label={t('Select budget')}
+            aria-label={t('Select budget space')}
             value={budgetId}
             onChange={event =>
               void navigate(budgetRoutes.budget(event.currentTarget.value))

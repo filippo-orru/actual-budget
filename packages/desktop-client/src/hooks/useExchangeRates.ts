@@ -2,16 +2,15 @@ import { send } from '@actual-app/core/platform/client/connection';
 import { useQueries, useQuery } from '@tanstack/react-query';
 
 type RatesByDate = Record<string, number | null>;
+type ExchangeRatesResult = { rates: RatesByDate; offline: boolean };
 
 const ONE_HOUR = 60 * 60 * 1000;
 
 function exchangeRateQuery(from: string, to: string, dates: string[]) {
   return {
     queryKey: ['exchange-rates', from, to, dates],
-    queryFn: async (): Promise<RatesByDate> => {
-      const result = await send('exchange-rates-get', { from, to, dates });
-      return result.rates;
-    },
+    queryFn: async (): Promise<ExchangeRatesResult> =>
+      send('exchange-rates-get', { from, to, dates }),
     staleTime: ONE_HOUR,
   };
 }
@@ -28,6 +27,7 @@ export function useExchangeRates(
 ) {
   return useQuery({
     ...exchangeRateQuery(from, to, dates),
+    select: result => result.rates,
     enabled: enabled && from !== '' && to !== '' && dates.length > 0,
   });
 }
@@ -53,9 +53,15 @@ export function useCurrencyRates(
       rates: Object.fromEntries(
         currencies.map((currency, index) => {
           const data = results[index]?.data;
-          return [currency, data === undefined ? undefined : data[date]];
+          return [currency, data === undefined ? undefined : data.rates[date]];
         }),
       ) as Record<string, number | null | undefined>,
+      offlineCurrencies: currencies.filter(
+        (_, index) => results[index]?.data?.offline,
+      ),
+      failedCurrencies: currencies.filter(
+        (_, index) => results[index]?.isError,
+      ),
     }),
   });
 }

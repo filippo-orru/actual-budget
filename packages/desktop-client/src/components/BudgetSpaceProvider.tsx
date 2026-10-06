@@ -79,7 +79,7 @@ export function BudgetSpaceProvider({
     );
   }
 
-  const explicitBudgetMatch = location.pathname.match(/^\/budgets\/([^/]+)/);
+  const explicitBudgetMatch = location.pathname.match(/^\/spaces\/([^/]+)/);
   const explicitBudgetId = explicitBudgetMatch
     ? decodeURIComponent(explicitBudgetMatch[1])
     : null;

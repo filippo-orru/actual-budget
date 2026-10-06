@@ -273,12 +273,12 @@ function FinancesAppContent() {
                   <Fragment key={budgetId}>
                     <Routes>
                       <Route
-                        path="/budgets/:budgetId/reports/*"
+                        path="/spaces/:budgetId/reports/*"
                         element={<Reports />}
                       />
 
                       <Route
-                        path="/budgets/:budgetId/budget"
+                        path="/spaces/:budgetId/budget"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -290,7 +290,7 @@ function FinancesAppContent() {
                       />
 
                       <Route
-                        path="/budgets/:budgetId/schedules"
+                        path="/spaces/:budgetId/schedules"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -301,7 +301,7 @@ function FinancesAppContent() {
                         }
                       />
                       <Route
-                        path="/budgets/:budgetId/schedules/:id"
+                        path="/spaces/:budgetId/schedules/:id"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -315,7 +315,7 @@ function FinancesAppContent() {
                       />
 
                       <Route
-                        path="/budgets/:budgetId/payees"
+                        path="/spaces/:budgetId/payees"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -326,7 +326,7 @@ function FinancesAppContent() {
                         }
                       />
                       <Route
-                        path="/budgets/:budgetId/payees/:id"
+                        path="/spaces/:budgetId/payees/:id"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -339,7 +339,7 @@ function FinancesAppContent() {
                         }
                       />
                       <Route
-                        path="/budgets/:budgetId/rules"
+                        path="/spaces/:budgetId/rules"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -350,7 +350,7 @@ function FinancesAppContent() {
                         }
                       />
                       <Route
-                        path="/budgets/:budgetId/rules/:id"
+                        path="/spaces/:budgetId/rules/:id"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -361,7 +361,7 @@ function FinancesAppContent() {
                         }
                       />
                       <Route
-                        path="/budgets/:budgetId/bank-sync/*"
+                        path="/spaces/:budgetId/bank-sync/*"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -372,7 +372,7 @@ function FinancesAppContent() {
                         }
                       />
                       <Route
-                        path="/budgets/:budgetId/bank-sync/account/:accountId/edit"
+                        path="/spaces/:budgetId/bank-sync/account/:accountId/edit"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -387,7 +387,7 @@ function FinancesAppContent() {
                         }
                       />
                       <Route
-                        path="/budgets/:budgetId/tags"
+                        path="/spaces/:budgetId/tags"
                         element={<ManageTagsPage />}
                       />
                       <Route
@@ -395,7 +395,7 @@ function FinancesAppContent() {
                         element={<NotificationsPage />}
                       />
                       <Route
-                        path="/budgets/:budgetId/settings"
+                        path="/spaces/:budgetId/settings"
                         element={<BudgetSpaceSettings />}
                       />
                       <Route path="/settings" element={<Settings />} />
@@ -415,7 +415,7 @@ function FinancesAppContent() {
                       />
 
                       <Route
-                        path="/budgets/:budgetId/accounts"
+                        path="/spaces/:budgetId/accounts"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -427,7 +427,7 @@ function FinancesAppContent() {
                       />
 
                       <Route
-                        path="/budgets/:budgetId/accounts/:id"
+                        path="/spaces/:budgetId/accounts/:id"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -439,7 +439,7 @@ function FinancesAppContent() {
                       />
 
                       <Route
-                        path="/budgets/:budgetId/transactions/:transactionId"
+                        path="/spaces/:budgetId/transactions/:transactionId"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -453,7 +453,7 @@ function FinancesAppContent() {
                       />
 
                       <Route
-                        path="/budgets/:budgetId/categories/:id"
+                        path="/spaces/:budgetId/categories/:id"
                         element={
                           <ErrorBoundary
                             FallbackComponent={FeatureErrorFallback}
@@ -495,37 +495,37 @@ function FinancesAppContent() {
                 <Fragment key={`mobile-${budgetId}`}>
                   <Routes>
                     <Route
-                      path="/budgets/:budgetId/budget"
+                      path="/spaces/:budgetId/budget"
                       element={<MobileNavTabs />}
                     />
                     <Route
-                      path="/budgets/:budgetId/accounts"
+                      path="/spaces/:budgetId/accounts"
                       element={<MobileNavTabs />}
                     />
                     <Route
-                      path="/budgets/:budgetId/settings"
+                      path="/spaces/:budgetId/settings"
                       element={<MobileNavTabs />}
                     />
                     <Route path="/settings" element={<MobileNavTabs />} />
                     <Route path="/notifications" element={<MobileNavTabs />} />
                     <Route
-                      path="/budgets/:budgetId/reports/*"
+                      path="/spaces/:budgetId/reports/*"
                       element={<MobileNavTabs />}
                     />
                     <Route
-                      path="/budgets/:budgetId/bank-sync/*"
+                      path="/spaces/:budgetId/bank-sync/*"
                       element={<MobileNavTabs />}
                     />
                     <Route
-                      path="/budgets/:budgetId/rules"
+                      path="/spaces/:budgetId/rules"
                       element={<MobileNavTabs />}
                     />
                     <Route
-                      path="/budgets/:budgetId/payees"
+                      path="/spaces/:budgetId/payees"
                       element={<MobileNavTabs />}
                     />
                     <Route
-                      path="/budgets/:budgetId/schedules"
+                      path="/spaces/:budgetId/schedules"
                       element={<MobileNavTabs />}
                     />
                     <Route path="*" element={null} />

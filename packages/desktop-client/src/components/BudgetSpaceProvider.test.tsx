@@ -151,7 +151,7 @@ describe('BudgetSpaceProvider', () => {
     renderBudgetSpaceProvider(
       'file-1',
       createTestQueryClient(),
-      '/budgets/other/budget',
+      '/spaces/other/budget',
     );
 
     expect(await screen.findByTestId('selected-budget')).toHaveTextContent(
@@ -163,7 +163,7 @@ describe('BudgetSpaceProvider', () => {
     renderBudgetSpaceProvider(
       'file-1',
       createTestQueryClient(),
-      '/budgets/missing/budget',
+      '/spaces/missing/budget',
     );
 
     expect(await screen.findByText('Budget not found')).toBeInTheDocument();

@@ -83,7 +83,7 @@ describe('BudgetSpacesSection', () => {
     render(
       <TestProviders store={store} queryClient={queryClient}>
         <BudgetSpaceContext.Provider value={budgets[0]}>
-          <MemoryRouter initialEntries={['/budgets/default/budget']}>
+          <MemoryRouter initialEntries={['/spaces/default/budget']}>
             <BudgetSpacesSection />
           </MemoryRouter>
         </BudgetSpaceContext.Provider>
@@ -103,11 +103,11 @@ describe('BudgetSpacesSection', () => {
     const empty = screen.getByRole('link', { name: /Empty/ });
     const unspecified = screen.getByRole('link', { name: /Unspecified/ });
 
-    expect(selected).toHaveAttribute('href', '/budgets/default/settings');
+    expect(selected).toHaveAttribute('href', '/spaces/default/settings');
     expect(selected).toHaveTextContent('Home');
     expect(selected).toHaveTextContent('€');
     expect(selected).toHaveTextContent('185');
-    expect(travel).toHaveAttribute('href', '/budgets/travel/budget');
+    expect(travel).toHaveAttribute('href', '/spaces/travel/budget');
     expect(travel).toHaveTextContent('Travel');
     expect(travel).toHaveTextContent('≈');
     expect(empty).toHaveTextContent('Empty');

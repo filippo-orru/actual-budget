@@ -3,26 +3,26 @@ function segment(value: string) {
 }
 
 export const budgetRoutes = {
-  budget: (budgetId: string) => `/budgets/${segment(budgetId)}/budget`,
-  accounts: (budgetId: string) => `/budgets/${segment(budgetId)}/accounts`,
+  budget: (budgetId: string) => `/spaces/${segment(budgetId)}/budget`,
+  accounts: (budgetId: string) => `/spaces/${segment(budgetId)}/accounts`,
   account: (budgetId: string, accountId: string) =>
-    `/budgets/${segment(budgetId)}/accounts/${segment(accountId)}`,
+    `/spaces/${segment(budgetId)}/accounts/${segment(accountId)}`,
   category: (budgetId: string, categoryId: string) =>
-    `/budgets/${segment(budgetId)}/categories/${segment(categoryId)}`,
+    `/spaces/${segment(budgetId)}/categories/${segment(categoryId)}`,
   transaction: (budgetId: string, transactionId: string) =>
-    `/budgets/${segment(budgetId)}/transactions/${segment(transactionId)}`,
+    `/spaces/${segment(budgetId)}/transactions/${segment(transactionId)}`,
   schedules: (budgetId: string, scheduleId?: string) =>
-    `/budgets/${segment(budgetId)}/schedules${scheduleId ? `/${segment(scheduleId)}` : ''}`,
+    `/spaces/${segment(budgetId)}/schedules${scheduleId ? `/${segment(scheduleId)}` : ''}`,
   rules: (budgetId: string, ruleId?: string) =>
-    `/budgets/${segment(budgetId)}/rules${ruleId ? `/${segment(ruleId)}` : ''}`,
+    `/spaces/${segment(budgetId)}/rules${ruleId ? `/${segment(ruleId)}` : ''}`,
   reports: (budgetId: string, reportPath = '') =>
-    `/budgets/${segment(budgetId)}/reports${reportPath ? `/${reportPath.replace(/^\/+/, '')}` : ''}`,
-  settings: (budgetId: string) => `/budgets/${segment(budgetId)}/settings`,
+    `/spaces/${segment(budgetId)}/reports${reportPath ? `/${reportPath.replace(/^\/+/, '')}` : ''}`,
+  settings: (budgetId: string) => `/spaces/${segment(budgetId)}/settings`,
   bankSync: (budgetId: string, path = '') =>
-    `/budgets/${segment(budgetId)}/bank-sync${path ? `/${path.replace(/^\/+/, '')}` : ''}`,
+    `/spaces/${segment(budgetId)}/bank-sync${path ? `/${path.replace(/^\/+/, '')}` : ''}`,
   payees: (budgetId: string, payeeId?: string) =>
-    `/budgets/${segment(budgetId)}/payees${payeeId ? `/${segment(payeeId)}` : ''}`,
-  tags: (budgetId: string) => `/budgets/${segment(budgetId)}/tags`,
+    `/spaces/${segment(budgetId)}/payees${payeeId ? `/${segment(payeeId)}` : ''}`,
+  tags: (budgetId: string) => `/spaces/${segment(budgetId)}/tags`,
 };
 
 /** Maps the existing short in-app budget URLs to their canonical budget URL. */

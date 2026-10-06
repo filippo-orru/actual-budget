@@ -340,11 +340,11 @@ export function Titlebar({ style }: TitlebarProps) {
         />
 
         <Route
-          path="/budgets/:budgetId/accounts/:id"
+          path="/spaces/:budgetId/accounts/:id"
           element={<AccountSyncCheck />}
         />
 
-        <Route path="/budgets/:budgetId/budget" element={<BudgetTitlebar />} />
+        <Route path="/spaces/:budgetId/budget" element={<BudgetTitlebar />} />
       </Routes>
       <View style={{ flex: 1 }} />
       <SpaceBetween gap={10}>

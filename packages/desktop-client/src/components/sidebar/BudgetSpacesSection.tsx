@@ -1,39 +1,36 @@
-import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import type { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
-import { Button } from "@actual-app/components/button";
-import { SvgAdd } from "@actual-app/components/icons/v1";
-import { styles } from "@actual-app/components/styles";
-import { Text } from "@actual-app/components/text";
-import { theme } from "@actual-app/components/theme";
-import { spacing } from "@actual-app/components/tokens";
-import { Tooltip } from "@actual-app/components/tooltip";
-import { View } from "@actual-app/components/view";
-import * as monthUtils from "@actual-app/core/shared/months";
-import type { BudgetSpaceEntity } from "@actual-app/core/types/models";
-import { useQuery } from "@tanstack/react-query";
+import { styles } from '@actual-app/components/styles';
+import { Text } from '@actual-app/components/text';
+import { theme } from '@actual-app/components/theme';
+import { spacing } from '@actual-app/components/tokens';
+import { Tooltip } from '@actual-app/components/tooltip';
+import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type { BudgetSpaceEntity } from '@actual-app/core/types/models';
+import { useQuery } from '@tanstack/react-query';
 
 import {
   convertOverviewBalance,
   mapBudgetBalances,
-} from "#budget-spaces/overview";
-import { budgetSpaceQueries } from "#budget-spaces/queries";
-import { useOpenCreateBudgetSpace } from "#budget-spaces/useOpenCreateBudgetSpace";
-import { Link } from "#components/common/Link";
-import { CurrencyProvider } from "#components/CurrencyProvider";
-import { FinancialText } from "#components/FinancialText";
-import { useBudgetOverview } from "#hooks/useBudgetOverview";
-import { useBudgetSpace } from "#hooks/useBudgetSpace";
-import { useContextMenu } from "#hooks/useContextMenu";
-import { useCurrencyRates } from "#hooks/useExchangeRates";
-import { useFeatureFlag } from "#hooks/useFeatureFlag";
-import { useFormat } from "#hooks/useFormat";
-import { useMetadataPref } from "#hooks/useMetadataPref";
-import { useNavigate } from "#hooks/useNavigate";
-import { usePrivacyMode } from "#hooks/usePrivacyMode";
-import { budgetRoutes } from "#util/budget-routes";
-import { isTouchDevice } from "#util/isTouchDevice";
+} from '#budget-spaces/overview';
+import { budgetSpaceQueries } from '#budget-spaces/queries';
+import { Link } from '#components/common/Link';
+import { CurrencyProvider } from '#components/CurrencyProvider';
+import { FinancialText } from '#components/FinancialText';
+import { useBudgetOverview } from '#hooks/useBudgetOverview';
+import { useBudgetSpace } from '#hooks/useBudgetSpace';
+import { useContextMenu } from '#hooks/useContextMenu';
+import { useCurrencyRates } from '#hooks/useExchangeRates';
+import { useFeatureFlag } from '#hooks/useFeatureFlag';
+import { useFormat } from '#hooks/useFormat';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { useNavigate } from '#hooks/useNavigate';
+import { usePrivacyMode } from '#hooks/usePrivacyMode';
+import { budgetRoutes } from '#util/budget-routes';
+import { isTouchDevice } from '#util/isTouchDevice';
 
 function BudgetSpaceAmount({
   budget,
@@ -60,7 +57,7 @@ function BudgetSpaceAmount({
 }) {
   const { t } = useTranslation();
   const isPrivate = usePrivacyMode();
-  const sourceCurrency = budget.currency_code ?? "";
+  const sourceCurrency = budget.currency_code ?? '';
   const worthConverting =
     shouldConvert &&
     !!sourceCurrency &&
@@ -73,17 +70,13 @@ function BudgetSpaceAmount({
       : null;
 
   if (isPrivate) {
-    return (
-      <Text style={{ color: theme.sidebarTextSubdued, fontSize: 12 }}>
-        ••••••
-      </Text>
-    );
+    return <Text style={{ color: theme.sidebarTextSubdued }}>••••••</Text>;
   }
 
   if (amount == null) {
     return (
-      <Text style={{ color: theme.sidebarTextSubdued, fontSize: 12 }}>
-        {isOverviewError ? "—" : <Trans>Loading…</Trans>}
+      <Text style={{ color: theme.sidebarTextSubdued }}>
+        {isOverviewError ? '—' : <Trans>Loading…</Trans>}
       </Text>
     );
   }
@@ -93,13 +86,6 @@ function BudgetSpaceAmount({
       <FormattedAmount amount={amount} />
     </CurrencyProvider>
   );
-  const nativeLabel = (
-    <Text>
-      {sourceCurrency && `${sourceCurrency}: `}
-      {nativeTotal}
-      {sourceCurrency && ` ${sourceCurrency}`}
-    </Text>
-  );
   const nativeAmountLabel = (
     <>
       {nativeTotal}
@@ -108,19 +94,15 @@ function BudgetSpaceAmount({
   );
 
   if (!canConvert) {
-    return (
-      <Text style={{ color: theme.sidebarTextSubdued, fontSize: 12 }}>
-        {nativeAmountLabel}
-      </Text>
-    );
+    return <Text>{nativeAmountLabel}</Text>;
   }
 
   const nativeTooltip = (
     <View style={{ gap: spacing.xs }}>
-      {nativeLabel}
+      <Text>{nativeTotal}</Text>
       {converted == null && (rate !== undefined || isRateError) && (
         <Text>
-          {t("Exchange rate {{from}}/{{to}} is unavailable for {{date}}.", {
+          {t('Exchange rate {{from}}/{{to}} is unavailable for {{date}}.', {
             from: sourceCurrency,
             to: targetCurrency,
             date: today,
@@ -144,11 +126,11 @@ function BudgetSpaceAmount({
         <Text
           tabIndex={0}
           aria-label={t(
-            "Converted balance unavailable. Native balance is available in the tooltip."
+            'Converted balance unavailable. Native balance is available in the tooltip.',
           )}
-          style={{ color: theme.sidebarTextSubdued, fontSize: 12 }}
+          style={{ color: theme.sidebarTextSubdued }}
         >
-          {rate === undefined && !isRateError ? t("Loading…") : "—"}
+          {rate === undefined && !isRateError ? t('Loading…') : '—'}
         </Text>
       </Tooltip>
     );
@@ -159,14 +141,13 @@ function BudgetSpaceAmount({
       <Text
         tabIndex={0}
         aria-label={t(
-          "Approximate converted balance. Native balance is available in the tooltip."
+          'Approximate converted balance. Native balance is available in the tooltip.',
         )}
-        style={{ color: theme.sidebarTextSubdued, fontSize: 12 }}
       >
-        ≈{" "}
-        <CurrencyProvider currencyCode={targetCurrency}>
-          <FormattedAmount amount={converted} />
-        </CurrencyProvider>
+        <FormatConvertedAmount
+          convertedAmount={converted}
+          currency={targetCurrency}
+        />
       </Text>
     </Tooltip>
   );
@@ -190,8 +171,8 @@ function BudgetSpaceRow({
     enabled: !isTouchDevice(),
     items: [
       {
-        name: "budget-space-settings",
-        text: t("Settings"),
+        name: 'budget-space-settings',
+        text: t('Settings'),
         onClick: () => void navigate(budgetRoutes.settings(budget.id)),
       },
     ],
@@ -211,9 +192,9 @@ function BudgetSpaceRow({
             : budgetRoutes.budget(budget.id)
         }
         style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
           gap: spacing.sm,
           minWidth: 0,
           marginTop: -2,
@@ -223,13 +204,13 @@ function BudgetSpaceRow({
           paddingRight: 15,
           paddingLeft: 10,
           borderLeft: `4px solid ${
-            selected ? theme.sidebarItemAccentSelected : "transparent"
+            selected ? theme.sidebarItemAccentSelected : 'transparent'
           }`,
-          textDecoration: "none",
+          textDecoration: 'none',
           color: selected
             ? theme.sidebarItemTextSelected
             : theme.sidebarItemText,
-          ":hover": { backgroundColor: theme.sidebarItemBackgroundHover },
+          ':hover': { backgroundColor: theme.sidebarItemBackgroundHover },
           ...styles.smallText,
         }}
         activeStyle={{ color: theme.sidebarItemTextSelected }}
@@ -239,7 +220,7 @@ function BudgetSpaceRow({
             flex: 1,
             minWidth: 0,
             ...styles.ellipsisText,
-            fontWeight: selected ? 600 : "normal",
+            fontWeight: selected ? 600 : 'normal',
           }}
         >
           {budget.name}
@@ -252,25 +233,24 @@ function BudgetSpaceRow({
 
 function FormattedAmount({ amount }: { amount: number }) {
   const format = useFormat();
-  return <FinancialText>{format(amount, "financial")}</FinancialText>;
+  return <FinancialText>{format(amount, 'financial')}</FinancialText>;
 }
 
 export function BudgetSpacesSection() {
-  const { t } = useTranslation();
   const selectedBudget = useBudgetSpace();
-  const [fileId] = useMetadataPref("id");
+  const [fileId] = useMetadataPref('id');
   const { data: budgetSpaces = [], isLoading: isBudgetListLoading } = useQuery(
-    budgetSpaceQueries.list(fileId)
+    budgetSpaceQueries.list(fileId),
   );
-  const activeBudgets = budgetSpaces.filter((budget) => !budget.tombstone);
+  const activeBudgets = budgetSpaces.filter(budget => !budget.tombstone);
   const {
     rows,
     isLoading: isOverviewLoading,
     error: overviewError,
   } = useBudgetOverview();
   const balances = rows == null ? null : mapBudgetBalances(activeBudgets, rows);
-  const multiBudgetEnabled = useFeatureFlag("multiCurrency");
-  const currencyEnabled = useFeatureFlag("currency");
+  const multiBudgetEnabled = useFeatureFlag('multiCurrency');
+  const currencyEnabled = useFeatureFlag('currency');
   const shouldConvert = multiBudgetEnabled && currencyEnabled;
   const today = useTodayWithRollover();
   const sourceCurrencies = useMemo(
@@ -278,7 +258,7 @@ export function BudgetSpacesSection() {
       [
         ...new Set(
           activeBudgets
-            .filter((budget) => {
+            .filter(budget => {
               const balance = balances?.[budget.id];
               return (
                 budget.id !== selectedBudget.id &&
@@ -288,19 +268,57 @@ export function BudgetSpacesSection() {
                 balance !== 0
               );
             })
-            .map((budget) => budget.currency_code)
-            .filter((code): code is string => Boolean(code))
+            .map(budget => budget.currency_code)
+            .filter((code): code is string => Boolean(code)),
         ),
       ].sort(),
-    [activeBudgets, balances, selectedBudget.currency_code, selectedBudget.id]
+    [activeBudgets, balances, selectedBudget.currency_code, selectedBudget.id],
   );
   const { rates, offlineCurrencies, failedCurrencies } = useCurrencyRates(
     sourceCurrencies,
-    selectedBudget.currency_code ?? "",
+    selectedBudget.currency_code ?? '',
     today,
-    { enabled: shouldConvert }
+    { enabled: shouldConvert },
   );
-  const openCreate = useOpenCreateBudgetSpace();
+  const total = useMemo(() => {
+    if (isOverviewLoading || overviewError || balances == null) {
+      return null;
+    }
+
+    return activeBudgets.reduce<number | null>((sum, budget) => {
+      if (sum == null) {
+        return null;
+      }
+
+      const amount = balances[budget.id] ?? 0;
+      const sourceCurrency = budget.currency_code ?? '';
+      const targetCurrency = selectedBudget.currency_code ?? '';
+      if (sourceCurrency === targetCurrency || !sourceCurrency) {
+        return sum + amount;
+      }
+      if (!targetCurrency) {
+        return null;
+      }
+
+      const quote = rates[sourceCurrency];
+      const converted = convertOverviewBalance(
+        amount,
+        quote,
+        sourceCurrency,
+        targetCurrency,
+      );
+      return converted == null ? null : sum + converted;
+    }, 0);
+  }, [
+    activeBudgets,
+    balances,
+    isOverviewLoading,
+    overviewError,
+    rates,
+    selectedBudget.currency_code,
+  ]);
+
+  const isPrivate = usePrivacyMode();
 
   return (
     <View
@@ -314,33 +332,52 @@ export function BudgetSpacesSection() {
     >
       <View
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: spacing.xs,
-          padding: `${spacing.xs}px ${spacing.md}px`,
-          marginBottom: spacing.xs,
+          marginTop: -2,
+          marginBottom: 2,
+          paddingTop: 4,
+          paddingBottom: 4,
+          paddingRight: 15,
+          paddingLeft: 10,
+          borderLeft: '4px solid transparent',
+          textDecoration: 'none',
+          fontWeight: 600,
+          color: theme.sidebarItemText,
+          ':hover': { backgroundColor: theme.sidebarItemBackgroundHover },
+          ...styles.smallText,
         }}
       >
-        <Text
+        <View
           style={{
-            flex: 1,
-            color: theme.sidebarHeaderText,
-            fontSize: 13,
-            fontWeight: 700,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+            borderBottom: `1.5px solid rgba(255,255,255,0.4)`,
+            paddingBottom: '3px',
           }}
         >
-          <Trans>Budget Spaces</Trans>
-        </Text>
-        {multiBudgetEnabled && (
-          <Button
-            variant="bare"
-            aria-label={t("Create budget space")}
-            onPress={() => void openCreate()}
-            style={{ padding: 3, color: theme.sidebarTextSubdued }}
+          <Text
+            style={{
+              flex: 1,
+              minWidth: 0,
+            }}
           >
-            <SvgAdd width={14} height={14} />
-          </Button>
-        )}
+            <Trans>Spaces</Trans>
+          </Text>
+          <Text style={{ color: theme.sidebarTextSubdued }}>
+            {isPrivate ? (
+              '••••••'
+            ) : isBudgetListLoading || isOverviewLoading ? (
+              <Trans>Loading…</Trans>
+            ) : total == null ? (
+              '—'
+            ) : (
+              <FormatConvertedAmount
+                convertedAmount={total}
+                currency={selectedBudget.currency_code ?? ''}
+              />
+            )}
+          </Text>
+        </View>
       </View>
       {isBudgetListLoading ? (
         <Text
@@ -352,25 +389,25 @@ export function BudgetSpacesSection() {
           <Trans>Loading…</Trans>
         </Text>
       ) : (
-        activeBudgets.map((budget) => {
+        activeBudgets.map(budget => {
           const selected = budget.id === selectedBudget.id;
           const balance =
             isOverviewLoading || overviewError
               ? null
-              : balances?.[budget.id] ?? 0;
-          const sourceCode = budget.currency_code ?? "";
+              : (balances?.[budget.id] ?? 0);
+          const sourceCode = budget.currency_code ?? '';
           const quote = sourceCurrencies.includes(sourceCode)
             ? rates[sourceCode]
             : sourceCode === selectedBudget.currency_code
-            ? 1
-            : undefined;
+              ? 1
+              : undefined;
 
           return (
             <BudgetSpaceRow key={budget.id} budget={budget} selected={selected}>
               <BudgetSpaceAmount
                 budget={budget}
                 amount={balance}
-                targetCurrency={selectedBudget.currency_code ?? ""}
+                targetCurrency={selectedBudget.currency_code ?? ''}
                 isSelected={selected}
                 shouldConvert={shouldConvert}
                 rate={quote}
@@ -393,12 +430,28 @@ function useTodayWithRollover() {
   useEffect(() => {
     const updateToday = () => setToday(monthUtils.currentDay());
     const timer = window.setInterval(updateToday, 60_000);
-    window.addEventListener("focus", updateToday);
+    window.addEventListener('focus', updateToday);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("focus", updateToday);
+      window.removeEventListener('focus', updateToday);
     };
   }, []);
 
   return today;
+}
+
+function FormatConvertedAmount({
+  convertedAmount,
+  currency,
+}: {
+  convertedAmount: number;
+  currency: string;
+}) {
+  const approximated = convertedAmount > 0;
+  return (
+    <CurrencyProvider currencyCode={currency}>
+      {approximated && '≈ '}
+      <FormattedAmount amount={convertedAmount} />
+    </CurrencyProvider>
+  );
 }

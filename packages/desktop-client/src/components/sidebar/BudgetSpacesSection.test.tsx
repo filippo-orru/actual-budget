@@ -90,22 +90,28 @@ describe('BudgetSpacesSection', () => {
       </TestProviders>,
     );
 
-    expect(screen.getByText('Budget Spaces')).toBeInTheDocument();
+    expect(screen.getByText('Spaces')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-budget-spaces')).toHaveTextContent(
+      '300',
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Create budget space' }),
+    ).not.toBeInTheDocument();
 
     const selected = screen.getByRole('link', { name: /Home/ });
     const travel = screen.getByRole('link', { name: /Travel/ });
     const empty = screen.getByRole('link', { name: /Empty/ });
     const unspecified = screen.getByRole('link', { name: /Unspecified/ });
 
-    expect(selected).toHaveAttribute('href', '/budgets/default/budget');
+    expect(selected).toHaveAttribute('href', '/budgets/default/settings');
     expect(selected).toHaveTextContent('Home');
-    expect(selected).toHaveTextContent('EUR');
+    expect(selected).toHaveTextContent('€');
     expect(selected).toHaveTextContent('185');
     expect(travel).toHaveAttribute('href', '/budgets/travel/budget');
     expect(travel).toHaveTextContent('Travel');
     expect(travel).toHaveTextContent('≈');
     expect(empty).toHaveTextContent('Empty');
-    expect(empty).toHaveTextContent('EUR');
+    expect(empty).toHaveTextContent('€');
     expect(empty).toHaveTextContent('0');
     expect(unspecified).toHaveTextContent('5.00');
     expect(unspecified).not.toHaveTextContent('None');

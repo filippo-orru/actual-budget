@@ -4,8 +4,17 @@ import { useLocation } from 'react-router';
 
 import { send } from '@actual-app/core/platform/client/connection';
 import * as monthUtils from '@actual-app/core/shared/months';
+import { useQuery } from '@tanstack/react-query';
 
-import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
+import { budgetSpaceQueries } from '#budget-spaces/queries';
+import {
+  getLastSelectedBudgetSpaceId,
+  selectBudgetSpace,
+} from '#budget-spaces/selection';
+import {
+  BudgetSpaceContext,
+  useOptionalBudgetSpace,
+} from '#hooks/useBudgetSpace';
 import { useMetadataPref } from '#hooks/useMetadataPref';
 import { useModalState } from '#hooks/useModalState';
 import { SheetNameProvider } from '#hooks/useSheetName';
@@ -92,12 +101,48 @@ import { ScheduleEditModal } from './schedules/ScheduleEditModal';
 import { ScheduleLink } from './schedules/ScheduleLink';
 import { UpcomingLength } from './schedules/UpcomingLength';
 
+const MANAGER_MODAL_NAMES = new Set([
+  'delete-budget',
+  'duplicate-budget',
+  'import',
+  'files-settings',
+  'confirm-change-document-dir',
+  'import-ynab4',
+  'import-ynab5',
+  'import-actual',
+  'edit-access',
+  'edit-user',
+  'transfer-ownership',
+  'enable-openid',
+  'enable-password-auth',
+]);
+
 export function Modals() {
   const location = useLocation();
   const dispatch = useDispatch();
   const { modalStack } = useModalState();
-  const [budgetId] = useMetadataPref('id');
-  const budgetSpaceId = useBudgetSpaceId();
+  const [fileId] = useMetadataPref('id');
+  const budgetSpaceContext = useOptionalBudgetSpace();
+  const budgetSpacesQuery = useQuery({
+    ...budgetSpaceQueries.list(fileId),
+    enabled: !!fileId && !budgetSpaceContext,
+  });
+  const explicitBudgetMatch = location.pathname.match(/^\/budgets\/([^/]+)/);
+  const explicitBudgetId = explicitBudgetMatch
+    ? decodeURIComponent(explicitBudgetMatch[1])
+    : null;
+  const budgetSpaces = budgetSpacesQuery.data?.filter(
+    space => !space.tombstone,
+  );
+  const resolvedBudgetSpace =
+    budgetSpaceContext ??
+    (explicitBudgetId
+      ? budgetSpaces?.find(space => space.id === explicitBudgetId)
+      : fileId && budgetSpaces?.length
+        ? selectBudgetSpace(budgetSpaces, getLastSelectedBudgetSpaceId(fileId))
+        : null);
+  const budgetSpaceId = resolvedBudgetSpace?.id;
+  const budgetId = fileId;
 
   const onCloseModal = useEffectEvent(() => {
     if (modalStack.length > 0) {
@@ -109,21 +154,26 @@ export function Modals() {
     onCloseModal();
   }, [location]);
 
+  if (fileId && (!budgetSpaces || !resolvedBudgetSpace)) return null;
+
   const modals = modalStack
     .map((modal, idx) => {
       const { name } = modal;
+      if (!resolvedBudgetSpace && !MANAGER_MODAL_NAMES.has(name)) return null;
       const key = `${name}-${idx}`;
       switch (name) {
         case 'goal-templates':
-          return budgetId ? <GoalTemplateModal key={key} /> : null;
+          return budgetId && budgetSpaceId ? (
+            <GoalTemplateModal key={key} />
+          ) : null;
 
         case 'category-automations-edit':
-          return budgetId ? (
+          return budgetId && budgetSpaceId ? (
             <BudgetAutomationsModal key={name} {...modal.options} />
           ) : null;
 
         case 'category-automations-unmigrate':
-          return budgetId ? (
+          return budgetId && budgetSpaceId ? (
             <UnmigrateBudgetAutomationsModal key={name} {...modal.options} />
           ) : null;
 
@@ -475,7 +525,15 @@ export function Modals() {
       <Fragment key={`${modalStack[idx].name}-${idx}`}>{modal}</Fragment>
     ));
 
-  // fragment needed per TS types
+  if (resolvedBudgetSpace) {
+    return (
+      <BudgetSpaceContext.Provider value={resolvedBudgetSpace}>
+        {modals}
+      </BudgetSpaceContext.Provider>
+    );
+  }
+
+  // Manager modals can be rendered without an open budget space.
   // oxlint-disable-next-line react/jsx-no-useless-fragment
   return <>{modals}</>;
 }

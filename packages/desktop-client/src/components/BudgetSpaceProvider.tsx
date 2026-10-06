@@ -6,7 +6,11 @@ import { Navigate, useLocation } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
 import { budgetSpaceQueries } from '#budget-spaces/queries';
-import { selectBudgetSpace } from '#budget-spaces/selection';
+import {
+  getLastSelectedBudgetSpaceId,
+  rememberSelectedBudgetSpace,
+  selectBudgetSpace,
+} from '#budget-spaces/selection';
 import { BudgetSpaceContext } from '#hooks/useBudgetSpace';
 import {
   budgetRoutes,
@@ -15,28 +19,10 @@ import {
 
 import { FeatureErrorFallback } from './FeatureErrorFallback';
 
-const SELECTED_BUDGET_PREFIX = 'selected-budget-space:';
-
 type BudgetSpaceProviderProps = {
   fileId: string | undefined;
   children: ReactNode;
 };
-
-function readSelectedBudget(fileId: string): string | null {
-  try {
-    return window.localStorage.getItem(`${SELECTED_BUDGET_PREFIX}${fileId}`);
-  } catch {
-    return null;
-  }
-}
-
-function writeSelectedBudget(fileId: string, budgetId: string) {
-  try {
-    window.localStorage.setItem(`${SELECTED_BUDGET_PREFIX}${fileId}`, budgetId);
-  } catch {
-    // The URL remains authoritative when local storage is unavailable.
-  }
-}
 
 function BudgetNotFound() {
   return (
@@ -99,7 +85,7 @@ export function BudgetSpaceProvider({
     : null;
   const activeBudget = explicitBudgetId
     ? budgetSpaces.find(budgetSpace => budgetSpace.id === explicitBudgetId)
-    : selectBudgetSpace(budgetSpaces, readSelectedBudget(fileId));
+    : selectBudgetSpace(budgetSpaces, getLastSelectedBudgetSpaceId(fileId));
 
   if (explicitBudgetId && !activeBudget) return <BudgetNotFound />;
 
@@ -131,7 +117,7 @@ export function BudgetSpaceProvider({
 function RememberBudgetSelection({ fileId }: { fileId: string }) {
   const budgetSpace = useContext(BudgetSpaceContext);
   useEffect(() => {
-    if (budgetSpace) writeSelectedBudget(fileId, budgetSpace.id);
+    if (budgetSpace) rememberSelectedBudgetSpace(fileId, budgetSpace.id);
   }, [budgetSpace, fileId]);
   return null;
 }

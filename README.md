@@ -1,3 +1,26 @@
+> [!INFO]
+> This repo adds budget spaces with multi currency support to Actual Budget
+
+To try it out:
+
+- download a backup
+- replace this in your Docker Compose file:
+
+  ```diff
+  services:
+    actual_server:
+  -    image: docker.io/actualbudget/actual-server:latest
+  +    build:
+  +      context: https://github.com/filippo-orru/actual-budget#develop
+  +      dockerfile: packages/sync-server/docker/ubuntu.Dockerfile
+  ```
+
+- Redeploy:
+
+  ```bash
+  docker compose up --build -d
+  ```
+
 <p align="center">
   <img src="/demo.png" alt="Actualbudget" />
 </p>

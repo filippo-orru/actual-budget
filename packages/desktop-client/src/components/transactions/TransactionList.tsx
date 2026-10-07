@@ -320,11 +320,11 @@ export function TransactionList({
   const onManagePayees = useCallback(
     (id: PayeeEntity['id']) => {
       void navigate(
-        budgetRoutes.payees(budgetId),
+        budgetRoutes.payees(),
         id ? { state: { selectedPayee: id } } : undefined,
       );
     },
-    [budgetId, navigate],
+    [navigate],
   );
 
   const onNavigateToTransferAccount = useCallback(

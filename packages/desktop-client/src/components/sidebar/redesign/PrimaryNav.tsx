@@ -3,9 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   SvgLibrary,
   SvgReports,
-  SvgTag,
   SvgTuning,
-  SvgUserGroup,
   SvgWallet,
 } from '@actual-app/components/icons/v1';
 import { SvgCalendar3 } from '@actual-app/components/icons/v2';
@@ -50,11 +48,6 @@ export function PrimaryNav() {
         to={budgetRoutes.schedules(budgetId)}
       />
       <NavRow
-        title={t('Payees')}
-        Icon={SvgUserGroup}
-        to={budgetRoutes.payees(budgetId)}
-      />
-      <NavRow
         title={t('Rules')}
         Icon={SvgTuning}
         to={budgetRoutes.rules(budgetId)}
@@ -66,11 +59,6 @@ export function PrimaryNav() {
           to={budgetRoutes.bankSync(budgetId)}
         />
       )}
-      <NavRow
-        title={t('Tags')}
-        Icon={SvgTag}
-        to={budgetRoutes.tags(budgetId)}
-      />
     </View>
   );
 }

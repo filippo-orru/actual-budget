@@ -136,7 +136,7 @@ export function MobileNavTabs() {
     },
     {
       name: t('Payees'),
-      path: budgetRoutes.payees(budgetId),
+      path: budgetRoutes.payees(),
       style: navTabStyle,
       Icon: SvgStoreFront,
     },

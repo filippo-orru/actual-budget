@@ -21,9 +21,9 @@ export const budgetRoutes = {
   settings: (budgetId: string) => `/spaces/${segment(budgetId)}/settings`,
   bankSync: (budgetId: string, path = '') =>
     `/spaces/${segment(budgetId)}/bank-sync${path ? `/${path.replace(/^\/+/, '')}` : ''}`,
-  payees: (budgetId: string, payeeId?: string) =>
-    `/spaces/${segment(budgetId)}/payees${payeeId ? `/${segment(payeeId)}` : ''}`,
-  tags: (budgetId: string) => `/spaces/${segment(budgetId)}/tags`,
+  payees: (payeeId?: string) =>
+    `/payees${payeeId ? `/${segment(payeeId)}` : ''}`,
+  tags: () => '/tags',
 };
 
 /** Maps the existing short in-app budget URLs to their canonical budget URL. */
@@ -36,8 +36,6 @@ export function canonicalizeLegacyBudgetPath(
     '/accounts': budgetRoutes.accounts(budgetId),
     '/schedules': budgetRoutes.schedules(budgetId),
     '/rules': budgetRoutes.rules(budgetId),
-    '/tags': budgetRoutes.tags(budgetId),
-    '/payees': budgetRoutes.payees(budgetId),
     '/bank-sync': budgetRoutes.bankSync(budgetId),
   };
   if (exact[pathname]) return exact[pathname];
@@ -62,10 +60,6 @@ export function canonicalizeLegacyBudgetPath(
     [
       /^\/rules\/([^/]+)$/,
       m => budgetRoutes.rules(budgetId, decodeURIComponent(m[1])),
-    ],
-    [
-      /^\/payees\/([^/]+)$/,
-      m => budgetRoutes.payees(budgetId, decodeURIComponent(m[1])),
     ],
     [/^\/reports(?:\/(.*))?$/, m => budgetRoutes.reports(budgetId, m[1] ?? '')],
     [

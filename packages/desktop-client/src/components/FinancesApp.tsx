@@ -317,6 +317,17 @@ function FinancesAppContent() {
                       />
 
                       <Route
+                        path="/payees"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <NarrowAlternate name="Payees" />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
                         path="/spaces/:budgetId/payees"
                         element={
                           <ErrorBoundary
@@ -324,6 +335,19 @@ function FinancesAppContent() {
                             resetKeys={[location.pathname]}
                           >
                             <NarrowAlternate name="Payees" />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/payees/:id"
+                        element={
+                          <ErrorBoundary
+                            FallbackComponent={FeatureErrorFallback}
+                            resetKeys={[location.pathname]}
+                          >
+                            <WideNotSupported>
+                              <NarrowAlternate name="PayeeEdit" />
+                            </WideNotSupported>
                           </ErrorBoundary>
                         }
                       />
@@ -388,6 +412,7 @@ function FinancesAppContent() {
                           </ErrorBoundary>
                         }
                       />
+                      <Route path="/tags" element={<ManageTagsPage />} />
                       <Route
                         path="/spaces/:budgetId/tags"
                         element={<ManageTagsPage />}
@@ -522,6 +547,7 @@ function FinancesAppContent() {
                       path="/spaces/:budgetId/rules"
                       element={<MobileNavTabs />}
                     />
+                    <Route path="/payees" element={<MobileNavTabs />} />
                     <Route
                       path="/spaces/:budgetId/payees"
                       element={<MobileNavTabs />}

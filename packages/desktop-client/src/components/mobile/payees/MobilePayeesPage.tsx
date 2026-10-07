@@ -64,10 +64,10 @@ export function MobilePayeesPage() {
   const handlePayeePress = useCallback(
     (payee: PayeeEntity) => {
       void navigate(
-        `${budgetRoutes.payees(budgetId, payee.id)}${withFilterParam(location.search, filter)}`,
+        `${budgetRoutes.payees(payee.id)}${withFilterParam(location.search, filter)}`,
       );
     },
-    [budgetId, navigate, location.search, filter],
+    [navigate, location.search, filter],
   );
 
   const handlePayeeRuleAction = useCallback(

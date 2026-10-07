@@ -539,7 +539,7 @@ function SelectedTransactionsFloatingActionBar({
                               );
                               break;
                             case 'payee':
-                              void navigate(budgetRoutes.payees(budgetId));
+                              void navigate(budgetRoutes.payees());
                               break;
                             default:
                               break;

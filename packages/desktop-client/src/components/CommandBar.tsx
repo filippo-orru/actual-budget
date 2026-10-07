@@ -127,7 +127,7 @@ export function CommandBar() {
       {
         id: 'payees',
         name: t('Payees'),
-        path: budgetRoutes.payees(budgetId),
+        path: budgetRoutes.payees(),
         Icon: SvgStoreFront,
       },
       {
@@ -139,7 +139,7 @@ export function CommandBar() {
       {
         id: 'tags',
         name: t('Tags'),
-        path: budgetRoutes.tags(budgetId),
+        path: budgetRoutes.tags(),
         Icon: SvgTag,
       },
       { id: 'settings', name: t('Settings'), path: '/settings', Icon: SvgCog },

@@ -37,7 +37,7 @@ export function PrimaryButtons() {
   const isUsingServer = syncServerStatus !== 'no-server' || isTestEnv;
 
   const isActive = [
-    routes.payees(budgetId),
+    routes.payees(),
     routes.rules(budgetId),
     routes.bankSync(budgetId),
     '/settings',
@@ -75,7 +75,7 @@ export function PrimaryButtons() {
           <SecondaryItem
             title={t('Payees')}
             Icon={SvgStoreFront}
-            to={routes.payees(budgetId)}
+            to={routes.payees()}
             indent={15}
           />
           <SecondaryItem
@@ -95,7 +95,7 @@ export function PrimaryButtons() {
           <SecondaryItem
             title={t('Tags')}
             Icon={SvgTag}
-            to={routes.tags(budgetId)}
+            to={routes.tags()}
             indent={15}
           />
           <SecondaryItem

@@ -38,10 +38,8 @@ type PrepareArgs = {
   offBudget: boolean;
   targetBalance?: number;
   adjustmentNote?: string;
-  categoryDecisions?: Record<string, string>;
 };
 
-type CategoryDecision = string;
 type PreparedMove = {
   token: string;
   fileId: string;
@@ -76,7 +74,6 @@ type PreparedMove = {
     sourceId: string;
   }>;
   categoryMap: Record<string, string>;
-  categoryDecisions: Record<string, CategoryDecision>;
   sourceRows: MigrationTransaction[];
   counterpartUpdates: Array<{ transaction: TransactionEntity; note: string }>;
   allSourceRows: TransactionEntity[];
@@ -265,7 +262,7 @@ async function getCategoryInfo(budgetId: string) {
     [budgetId],
   );
   const groups = await db.all<db.DbCategoryGroup>(
-    'SELECT * FROM category_groups WHERE budget_id = ? AND tombstone = 0',
+    'SELECT * FROM category_groups WHERE budget_id = ? AND tombstone = 0 ORDER BY sort_order, id',
     [budgetId],
   );
   const groupsById = new Map(groups.map(group => [group.id, group]));
@@ -541,7 +538,6 @@ async function prepareAccountMigration(args: PrepareArgs) {
   const destinationGroupsById = new Map(
     destinationCategoryInfo.groups.map(group => [group.id, group]),
   );
-  const decisions = args.categoryDecisions ?? {};
   const categoryMap: Record<string, string> = {};
   const pendingCategories: PreparedMove['pendingCategories'] = [];
   const destinationPayeeIds = new Set(
@@ -561,14 +557,6 @@ async function prepareAccountMigration(args: PrepareArgs) {
       );
   const pendingRules: PreparedMove['pendingRules'] = [];
   const pendingGroups = new Map<string, string>();
-  const unresolvedCategories: Array<{
-    id: string;
-    name: string;
-    sourceGroup: string;
-    options: Array<{ id: string; groupName: string }>;
-    createGroupOptions: Array<{ id: string; name: string }>;
-    canCreate: boolean;
-  }> = [];
 
   for (const sourceId of usedCategoryIds) {
     if (sourceAccount.offbudget === 1 || args.offBudget) continue;
@@ -598,112 +586,42 @@ async function prepareAccountMigration(args: PrepareArgs) {
     );
     const automaticMatches =
       sameNamedGroupMatches.length > 0 ? sameNamedGroupMatches : compatible;
-    let chosenId: string | undefined;
-    const decision = decisions[sourceId];
-    if (decision && !decision.startsWith('create')) {
-      if (!automaticMatches.some(category => category.id === decision)) {
-        throw new ValidationError(
-          `Invalid destination category choice for ${sourceCategory.name}`,
-        );
-      }
-      chosenId = decision;
-    } else if (decision?.startsWith('create')) {
-      chosenId = uuidv4();
-      const matchingGroups = destinationCategoryInfo.groups.filter(
-        candidate =>
-          candidate.name === sourceGroup.name &&
-          candidate.is_income === sourceGroup.is_income,
-      );
-      const selectedGroupId = decision.startsWith('create:')
-        ? decision.slice('create:'.length)
-        : null;
-      if (matchingGroups.length > 1 && !selectedGroupId) {
-        unresolvedCategories.push({
-          id: sourceId,
-          name: sourceCategory.name,
-          sourceGroup: sourceGroup.name,
-          options: [],
-          createGroupOptions: matchingGroups.map(group => ({
-            id: group.id,
-            name: group.name,
-          })),
-          canCreate: true,
-        });
-        continue;
-      }
-      if (
-        selectedGroupId &&
-        selectedGroupId !== 'new' &&
-        !matchingGroups.some(group => group.id === selectedGroupId)
-      ) {
-        throw new ValidationError(
-          `Invalid destination group choice for ${sourceCategory.name}`,
-        );
-      }
-      const group = matchingGroups.find(group => group.id === selectedGroupId);
-      let groupId: string;
-      if (group) {
-        groupId = group.id;
-      } else {
-        groupId =
-          pendingGroups.get(
-            `${sourceGroup.name}\u0000${sourceGroup.is_income}`,
-          ) ?? uuidv4();
-        pendingGroups.set(
-          `${sourceGroup.name}\u0000${sourceGroup.is_income}`,
-          groupId,
-        );
-      }
-      const matchingPendingCategory = pendingCategories.find(
-        category =>
-          category.groupId === groupId &&
-          category.name === sourceCategory.name &&
-          category.isIncome === !!sourceCategory.is_income,
-      );
-      if (matchingPendingCategory) {
-        chosenId = matchingPendingCategory.id;
-      } else {
-        pendingCategories.push({
-          id: chosenId,
-          groupId,
-          name: sourceCategory.name,
-          groupName: sourceGroup.name,
-          isIncome: !!sourceCategory.is_income,
-          hidden: !!sourceCategory.hidden,
-          sourceId,
-        });
-      }
-    } else if (automaticMatches.length === 1) {
-      chosenId = automaticMatches[0].id;
-    } else if (automaticMatches.length === 0) {
-      unresolvedCategories.push({
-        id: sourceId,
-        name: sourceCategory.name,
-        sourceGroup: sourceGroup.name,
-        options: [],
-        createGroupOptions: destinationCategoryInfo.groups
-          .filter(
-            group =>
-              group.name === sourceGroup.name &&
-              group.is_income === sourceGroup.is_income,
-          )
-          .map(group => ({ id: group.id, name: group.name })),
-        canCreate: true,
-      });
-    } else {
-      unresolvedCategories.push({
-        id: sourceId,
-        name: sourceCategory.name,
-        sourceGroup: sourceGroup.name,
-        options: automaticMatches.map(category => ({
-          id: category.id,
-          groupName: destinationGroupsById.get(category.cat_group)?.name ?? '',
-        })),
-        createGroupOptions: [],
-        canCreate: false,
-      });
+    // Prefer the same group when names are duplicated, then use the first
+    // category in sort order so matching stays deterministic.
+    const existingCategory = automaticMatches[0];
+    if (existingCategory) {
+      categoryMap[sourceId] = existingCategory.id;
+      continue;
     }
-    if (chosenId) categoryMap[sourceId] = chosenId;
+    const matchingPendingCategory = pendingCategories.find(
+      category =>
+        category.name === sourceCategory.name &&
+        category.isIncome === !!sourceCategory.is_income,
+    );
+    if (matchingPendingCategory) {
+      categoryMap[sourceId] = matchingPendingCategory.id;
+      continue;
+    }
+    const matchingGroup = destinationCategoryInfo.groups.find(
+      group =>
+        group.name === sourceGroup.name &&
+        group.is_income === sourceGroup.is_income,
+    );
+    const groupKey = `${sourceGroup.name}\u0000${sourceGroup.is_income}`;
+    const groupId =
+      matchingGroup?.id ?? pendingGroups.get(groupKey) ?? uuidv4();
+    if (!matchingGroup) pendingGroups.set(groupKey, groupId);
+    const categoryId = uuidv4();
+    pendingCategories.push({
+      id: categoryId,
+      groupId,
+      name: sourceCategory.name,
+      groupName: sourceGroup.name,
+      isIncome: !!sourceCategory.is_income,
+      hidden: !!sourceCategory.hidden,
+      sourceId,
+    });
+    categoryMap[sourceId] = categoryId;
   }
 
   let skippedApplicableRuleCount = 0;
@@ -923,7 +841,7 @@ async function prepareAccountMigration(args: PrepareArgs) {
       ? [{ id: row.id, excludedChildIds }]
       : [];
   });
-  const unresolved = unresolvedCategories.length > 0 || missingRates.length > 0;
+  const unresolved = missingRates.length > 0;
   if (cancelledRequests.has(args.requestId)) {
     cancelledRequests.delete(args.requestId);
     throw new ValidationError('Account migration preparation was cancelled');
@@ -967,7 +885,6 @@ async function prepareAccountMigration(args: PrepareArgs) {
     representativeTransactions: transformed?.representativeTransactions ?? [],
     missingRates,
     offline: rateStatus.offline,
-    unresolvedCategories,
     copiedRuleCount: pendingRules.length,
     skippedApplicableRuleCount,
     categoryCreations: pendingCategories.map(
@@ -990,7 +907,6 @@ async function prepareAccountMigration(args: PrepareArgs) {
     pendingCategories,
     pendingRules,
     categoryMap,
-    categoryDecisions: decisions,
     sourceRows,
     counterpartUpdates: dependency.counterpartUpdates,
     allSourceRows,
@@ -1058,9 +974,7 @@ async function commitAccountMigration({ token }: { token: string }) {
     !prepared.review.canCommit ||
     !prepared.transformed
   ) {
-    throw new ValidationError(
-      'Resolve missing rates and category choices before committing',
-    );
+    throw new ValidationError('Resolve missing rates before committing');
   }
   if ((prefs.getPrefs()?.id ?? '') !== prepared.fileId) {
     throw new ValidationError(

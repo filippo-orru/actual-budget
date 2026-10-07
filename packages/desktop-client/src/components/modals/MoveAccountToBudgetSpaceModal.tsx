@@ -52,13 +52,11 @@ type Review = {
     sourceAmount: number;
     destinationAmount: number;
   }>;
-  unresolvedCategories: Array<{
+  categoryCreations: Array<{
     id: string;
+    groupId: string;
     name: string;
-    sourceGroup: string;
-    options: Array<{ id: string; groupName: string }>;
-    createGroupOptions: Array<{ id: string; name: string }>;
-    canCreate: boolean;
+    groupName: string;
   }>;
   canCommit: boolean;
 };
@@ -121,9 +119,7 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
   const [phase, setPhase] = useState<
     'loading' | 'configure' | 'preparing' | 'review' | 'committing' | 'done'
   >('loading');
-  const [categoryChoices, setCategoryChoices] = useState<
-    Record<string, string>
-  >({});
+  const creatingSpace = useRef<Promise<BudgetSpaceEntity> | null>(null);
   const [blockers, setBlockers] = useState<Array<{
     type: string;
     id: string;
@@ -213,7 +209,7 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
       ? newSpaceCurrency
       : (spaces.find(space => space.id === destinationId)?.currency_code ?? '');
 
-  async function prepare(decisions?: Record<string, string>) {
+  async function prepare() {
     setError(null);
     setPhase('preparing');
     setConfirmed(false);
@@ -228,6 +224,7 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
       const checked = await send('account-migration/check', {
         sourceAccountId: account.id,
       });
+      if (activeRequestId.current !== requestId) return;
       if (checked.blockers.length > 0) {
         setBlockers(checked.blockers);
         setPhase('configure');
@@ -244,16 +241,51 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
           getDecimalPlaces(destinationCurrency),
         );
       }
+      if (activeRequestId.current !== requestId) return;
+      let preparedDestination = destination;
+      if (destination.type === 'new') {
+        creatingSpace.current ??= send('budget-spaces/create', {
+          name: destination.name,
+          currencyCode: destination.currencyCode,
+        });
+        const spaceRequest = creatingSpace.current;
+        let createdSpace: BudgetSpaceEntity;
+        try {
+          createdSpace = await spaceRequest;
+        } catch (cause) {
+          if (creatingSpace.current === spaceRequest) {
+            creatingSpace.current = null;
+          }
+          throw cause;
+        }
+        setSpaces(current =>
+          current.some(space => space.id === createdSpace.id)
+            ? current
+            : [...current, createdSpace],
+        );
+        if (creatingSpace.current === spaceRequest) {
+          setDestinationId(current =>
+            current === '__new__' ? createdSpace.id : current,
+          );
+        }
+        preparedDestination = {
+          type: 'existing',
+          budgetId: createdSpace.id,
+        };
+        await queryClient.invalidateQueries({
+          queryKey: budgetSpaceQueries.list(fileId).queryKey,
+        });
+      }
+      if (activeRequestId.current !== requestId) return;
       const result = await send('account-migration/prepare', {
         requestId,
         sourceAccountId: account.id,
-        destination,
+        destination: preparedDestination,
         inputCurrency,
         accountName,
         offBudget,
         targetBalance: target,
         adjustmentNote: t('Migration balance adjustment'),
-        categoryDecisions: decisions,
       });
       if (activeRequestId.current !== requestId) return;
       setPreparation(result);
@@ -514,100 +546,22 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
                       dates: preparation.review.missingRates.join(', '),
                     })}
                   </FormError>
-                  <Button onPress={() => void prepare(categoryChoices)}>
+                  <Button onPress={() => void prepare()}>
                     <Trans>Retry rate lookup</Trans>
                   </Button>
                 </>
               )}
-              {preparation.review.unresolvedCategories.length > 0 && (
+              {preparation.review.categoryCreations.length > 0 && (
                 <View style={{ gap: 8 }}>
+                  <Text style={{ fontWeight: 600 }}>
+                    <Trans>Category matching</Trans>
+                  </Text>
                   <Paragraph>
-                    <Trans>Categories needing a destination choice:</Trans>
+                    {t(
+                      "Categories will be matched automatically based on name. {{count}} categories that don't exist will be created.",
+                      { count: preparation.review.categoryCreations.length },
+                    )}
                   </Paragraph>
-                  {preparation.review.unresolvedCategories.map(category => {
-                    const options: [string, string][] = category.canCreate
-                      ? [
-                          ...category.createGroupOptions.map(
-                            group =>
-                              [
-                                `create:${group.id}`,
-                                t('Create a copy in {{group}}', {
-                                  group: group.name,
-                                }),
-                              ] as [string, string],
-                          ),
-                          ...(category.createGroupOptions.length > 1
-                            ? [
-                                [
-                                  'create:new',
-                                  t('Create a new group named {{group}}', {
-                                    group: category.sourceGroup,
-                                  }),
-                                ] as [string, string],
-                              ]
-                            : category.createGroupOptions.length === 0
-                              ? [
-                                  ['create', t('Create a copy and group')] as [
-                                    string,
-                                    string,
-                                  ],
-                                ]
-                              : []),
-                        ]
-                      : category.options.map(
-                          option =>
-                            [
-                              option.id,
-                              `${category.name} (${option.groupName})`,
-                            ] as [string, string],
-                        );
-                    return (
-                      <label
-                        key={category.id}
-                        style={{ display: 'grid', gap: 6 }}
-                      >
-                        <Text>
-                          {category.name} ({category.sourceGroup})
-                        </Text>
-                        <Select
-                          aria-label={t('Destination for {{category}}', {
-                            category: category.name,
-                          })}
-                          value={categoryChoices[category.id] ?? ''}
-                          onChange={value =>
-                            setCategoryChoices({
-                              ...categoryChoices,
-                              [category.id]: value,
-                            })
-                          }
-                          options={[
-                            ['', t('Choose a destination')],
-                            ...options,
-                          ]}
-                        />
-                      </label>
-                    );
-                  })}
-                  {preparation.review.unresolvedCategories.every(
-                    category => !!categoryChoices[category.id],
-                  ) && (
-                    <Button
-                      onPress={() =>
-                        void prepare(
-                          Object.fromEntries(
-                            preparation.review.unresolvedCategories.map(
-                              category => [
-                                category.id,
-                                categoryChoices[category.id],
-                              ],
-                            ),
-                          ),
-                        )
-                      }
-                    >
-                      <Trans>Prepare updated review</Trans>
-                    </Button>
-                  )}
                 </View>
               )}
               <Paragraph>
@@ -660,8 +614,7 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
                   isDisabled={
                     !confirmed ||
                     !preparation.review.canCommit ||
-                    preparation.review.missingRates.length > 0 ||
-                    preparation.review.unresolvedCategories.length > 0
+                    preparation.review.missingRates.length > 0
                   }
                   onPress={() => void commit(() => state.close())}
                 >
@@ -692,7 +645,7 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
                     onChange={value => {
                       setDestinationId(value);
                       setTargetBalance('');
-                      setCategoryChoices({});
+                      creatingSpace.current = null;
                       if (preparation) {
                         void send('account-migration/cancel', {
                           token: preparation.token,
@@ -728,7 +681,7 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
                           setNewSpaceCurrency(value);
                           setNewSpaceName(value);
                           setTargetBalance('');
-                          setCategoryChoices({});
+                          creatingSpace.current = null;
                         }}
                         options={currencyOptions}
                       />
@@ -739,9 +692,10 @@ export function MoveAccountToBudgetSpaceModal({ account }: Props) {
                       </Text>
                       <Input
                         value={newSpaceName}
-                        onChange={event =>
-                          setNewSpaceName(event.currentTarget.value)
-                        }
+                        onChange={event => {
+                          setNewSpaceName(event.currentTarget.value);
+                          creatingSpace.current = null;
+                        }}
                       />
                     </label>
                   </>

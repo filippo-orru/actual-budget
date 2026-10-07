@@ -190,8 +190,17 @@ describe('account migration', () => {
       inputCurrency: 'USD',
       accountName: 'Checking',
       offBudget: false,
-      categoryDecisions: { 'source-food-category': 'create' },
     });
+    expect(prepared.review.canCommit).toBe(true);
+    expect(prepared.review.categoryCreations).toEqual([
+      expect.objectContaining({ name: 'Food', groupName: 'Living' }),
+    ]);
+    expect(
+      await db.first<db.DbCategory>(
+        'SELECT * FROM categories WHERE budget_id = ? AND name = ?',
+        [destination.id, 'Food'],
+      ),
+    ).toBeNull();
     await runHandler(handlers['account-migration/commit'], {
       token: prepared.token,
     });
@@ -213,6 +222,156 @@ describe('account migration', () => {
       ),
     ).toEqual({ id: copiedCategoryId, transferId: copiedCategoryId });
   });
+
+  it.each(['new', 'existing'] as const)(
+    'matches the starting balance category in a %s destination space',
+    async destinationType => {
+      const destination = await runHandler(handlers['budget-spaces/create'], {
+        name: 'Starting balance destination',
+        currencyCode: 'USD',
+      });
+      await db.insertWithSchema('category_groups', {
+        id: 'source-income-group',
+        budget_id: 'default',
+        name: 'Income',
+        is_income: true,
+        sort_order: 0,
+      });
+      await db.insertWithSchema('categories', {
+        id: 'source-starting-balance',
+        budget_id: 'default',
+        name: 'Starting Balances',
+        group: 'source-income-group',
+        is_income: true,
+        hidden: false,
+        sort_order: 0,
+      });
+      await db.insert('category_mapping', {
+        id: 'source-starting-balance',
+        transferId: 'source-starting-balance',
+      });
+      const sourceId = await db.insertAccount({
+        id: 'starting-balance-source',
+        budget_id: 'default',
+        name: 'Checking',
+      });
+      await db.insertTransaction({
+        id: 'starting-balance-transaction',
+        account: sourceId,
+        amount: 5000,
+        date: '2024-01-15',
+        category: 'source-starting-balance',
+      });
+      const prepared = await runHandler(handlers['account-migration/prepare'], {
+        requestId: 'starting-balance-prepare',
+        sourceAccountId: sourceId,
+        destination:
+          destinationType === 'new'
+            ? { type: 'new', name: 'New destination', currencyCode: 'USD' }
+            : { type: 'existing', budgetId: destination.id },
+        inputCurrency: 'USD',
+        accountName: 'Checking',
+        offBudget: false,
+      });
+      expect(prepared.review.canCommit).toBe(true);
+      expect(prepared.review.categoryCreations).toHaveLength(0);
+      const result = await runHandler(handlers['account-migration/commit'], {
+        token: prepared.token,
+      });
+      const destinationCategory = await db.first<db.DbCategory>(
+        'SELECT * FROM categories WHERE budget_id = ? AND name = ?',
+        [result.budgetId, 'Starting Balances'],
+      );
+      expect(await db.getTransactions(result.accountId)).toEqual([
+        expect.objectContaining({ category: destinationCategory!.id }),
+      ]);
+    },
+  );
+
+  it.each([true, false])(
+    'matches duplicate category names automatically (same group: %s)',
+    async sameGroup => {
+      const destination = await runHandler(handlers['budget-spaces/create'], {
+        name: 'Matching destination',
+        currencyCode: 'USD',
+      });
+      for (const [id, budgetId, name] of [
+        ['source-group', 'default', 'Living'],
+        ['destination-first-group', destination.id, 'Other'],
+        [
+          'destination-second-group',
+          destination.id,
+          sameGroup ? 'Living' : 'Other',
+        ],
+      ]) {
+        await db.insertWithSchema('category_groups', {
+          id,
+          budget_id: budgetId,
+          name,
+          is_income: false,
+          sort_order: 1000,
+        });
+      }
+      for (const [id, budgetId, group, sortOrder] of [
+        ['source-food', 'default', 'source-group', 1000],
+        [
+          'destination-first-food',
+          destination.id,
+          'destination-first-group',
+          1000,
+        ],
+        [
+          'destination-second-food',
+          destination.id,
+          'destination-second-group',
+          2000,
+        ],
+      ] as const) {
+        await db.insertWithSchema('categories', {
+          id,
+          budget_id: budgetId,
+          name: 'Food',
+          group,
+          is_income: false,
+          hidden: false,
+          sort_order: sortOrder,
+        });
+        await db.insert('category_mapping', { id, transferId: id });
+      }
+      const sourceId = await db.insertAccount({
+        id: 'matching-source',
+        budget_id: 'default',
+        name: 'Checking',
+      });
+      await db.insertTransaction({
+        id: 'matching-transaction',
+        account: sourceId,
+        amount: -4500,
+        date: '2024-01-15',
+        category: 'source-food',
+      });
+      const prepared = await runHandler(handlers['account-migration/prepare'], {
+        requestId: 'matching-prepare',
+        sourceAccountId: sourceId,
+        destination: { type: 'existing', budgetId: destination.id },
+        inputCurrency: 'USD',
+        accountName: 'Checking',
+        offBudget: false,
+      });
+      expect(prepared.review.canCommit).toBe(true);
+      expect(prepared.review.categoryCreations).toHaveLength(0);
+      const result = await runHandler(handlers['account-migration/commit'], {
+        token: prepared.token,
+      });
+      expect(await db.getTransactions(result.accountId)).toEqual([
+        expect.objectContaining({
+          category: sameGroup
+            ? 'destination-second-food'
+            : 'destination-first-food',
+        }),
+      ]);
+    },
+  );
 
   it('blocks executable account-specific rules in both eligibility and preparation', async () => {
     const accountId = await db.insertAccount({

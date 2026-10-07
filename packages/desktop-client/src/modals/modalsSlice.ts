@@ -66,6 +66,10 @@ export type Modal =
       };
     }
   | {
+      name: 'move-account-to-budget-space';
+      options: { account: AccountEntity };
+    }
+  | {
       name: 'close-account';
       options: {
         account: AccountEntity;

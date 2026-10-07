@@ -165,7 +165,15 @@ export function useUpdateAccountMutation() {
 
   return useMutation({
     mutationFn: async ({ account }: UpdateAccountPayload) => {
-      await send('account-update', account);
+      // Full account objects include immutable ownership fields. Only send
+      // fields supported by the update handler.
+      const { id, name, last_reconciled, account_group_id } = account;
+      await send('account-update', {
+        id,
+        ...(name !== undefined && { name }),
+        ...(last_reconciled !== undefined && { last_reconciled }),
+        ...(account_group_id !== undefined && { account_group_id }),
+      });
       return account;
     },
     onSuccess: () => invalidateQueries(queryClient),

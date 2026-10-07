@@ -1,4 +1,5 @@
 import type { AccountGroupsHandlers } from '#server/account-groups/app';
+import type { AccountMigrationHandlers } from '#server/account-migration/app';
 import type { AccountHandlers } from '#server/accounts/app';
 import type { AdminHandlers } from '#server/admin/app';
 import type { AuthHandlers } from '#server/auth/app';
@@ -44,6 +45,7 @@ export type Handlers = {} & ServerHandlers &
   ToolsHandlers &
   AccountHandlers &
   AccountGroupsHandlers &
+  AccountMigrationHandlers &
   ExchangeRatesHandlers &
   PayeesHandlers &
   SpreadsheetHandlers &

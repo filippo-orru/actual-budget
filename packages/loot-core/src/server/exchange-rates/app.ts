@@ -88,7 +88,7 @@ async function fetchMissing(
   }
 }
 
-async function getExchangeRates({
+export async function getExchangeRates({
   from,
   to,
   dates,

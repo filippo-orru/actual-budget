@@ -7,6 +7,7 @@ import * as asyncStorage from '#platform/server/asyncStorage';
 import * as connection from '#platform/server/connection';
 import * as fs from '#platform/server/fs';
 import { logger } from '#platform/server/log';
+import { clearAccountMigrationPreparations } from '#server/account-migration/app';
 import { createApp } from '#server/app';
 import * as budget from '#server/budget/base';
 import * as cloudStorage from '#server/cloud-storage';
@@ -259,6 +260,7 @@ async function createDemoBudget() {
 
 async function closeBudget() {
   captureBreadcrumb({ message: 'Closing budget' });
+  clearAccountMigrationPreparations();
   resetFormulaPreferencesCache();
 
   // The spreadsheet may be running, wait for it to complete

@@ -9,6 +9,7 @@ import { amountToInteger, integerToAmount } from '#shared/util';
 import type { Handlers } from '#types/handlers';
 
 import { app as accountGroupsApp } from './account-groups/app';
+import { app as accountMigrationApp } from './account-migration/app';
 import { app as accountsApp } from './accounts/app';
 import { app as adminApp } from './admin/app';
 import { installAPI } from './api';
@@ -150,6 +151,7 @@ app.combine(
   transactionsApp,
   accountsApp,
   accountGroupsApp,
+  accountMigrationApp,
   exchangeRatesApp,
   payeesApp,
   spreadsheetApp,

@@ -113,12 +113,17 @@ export async function makeBackup(id: string) {
     await fs.removeFile(fs.join(fs.getBudgetDir(id), LATEST_BACKUP_FILENAME));
   }
 
-  const backupId = `${dateFns.format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.zip`;
-  const backupPath = fs.join(budgetDir, 'backups', backupId);
-
   if (!(await fs.exists(fs.join(budgetDir, 'backups')))) {
     await fs.mkdir(fs.join(budgetDir, 'backups'));
   }
+  const timestamp = dateFns.format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+  let backupId = `${timestamp}.zip`;
+  let collision = 1;
+  while (await fs.exists(fs.join(budgetDir, 'backups', backupId))) {
+    backupId = `${timestamp}_${collision}.zip`;
+    collision++;
+  }
+  const backupPath = fs.join(budgetDir, 'backups', backupId);
 
   // Copy db to a temp path so we can clean CRDT messages before zipping
   const tempDbPath = fs.join(

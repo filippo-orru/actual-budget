@@ -50,17 +50,59 @@ export async function init({
 }: { baseURL?: string; wasmBinary?: ArrayBuffer | Uint8Array } = {}) {
   // `initSqlJS` doesn't actually return a real promise, so make sure
   // we're returning a real one for correct semantics
+  const wasmBaseURL = baseURL ?? '/';
+  const normalizedBaseURL = wasmBaseURL.endsWith('/')
+    ? wasmBaseURL
+    : `${wasmBaseURL}/`;
+  const wasmURL = `${normalizedBaseURL}sql-wasm.wasm`;
   return new Promise((resolve, reject) => {
     initSqlJS({
-      locateFile: file => baseURL + file,
+      locateFile: file => `${normalizedBaseURL}${file}`,
       ...(wasmBinary ? { wasmBinary: wasmBinary as ArrayBuffer } : {}),
     }).then(
       sql => {
         SQL = sql as SqlJsModule;
         resolve(undefined);
       },
-      err => {
-        reject(err);
+      error => {
+        const errorMessage =
+          typeof error === 'object' && error !== null
+            ? (error as { message?: unknown }).message
+            : undefined;
+        const errno =
+          typeof error === 'object' && error !== null
+            ? (error as { Oa?: unknown }).Oa
+            : undefined;
+        let message =
+          typeof errorMessage === 'string' && errorMessage ? errorMessage : '';
+        if (!message && typeof error === 'object' && error !== null) {
+          const stack = (error as { stack?: unknown }).stack;
+          if (typeof stack === 'string' && stack) message = stack;
+        }
+        if (!message) {
+          try {
+            message = JSON.stringify(error) || String(error);
+          } catch {
+            message = String(error);
+          }
+        }
+        if (typeof errno === 'number') {
+          const errnoName =
+            errno === 10
+              ? 'EBUSY'
+              : errno === 20
+                ? 'EEXIST'
+                : errno === 44
+                  ? 'ENOENT'
+                  : `errno ${errno}`;
+          message = `${message} (${errnoName})`;
+        }
+        logger.error(`Unable to initialize SQL.js from ${wasmURL}: ${message}`);
+        reject(
+          new Error(`Unable to initialize SQL.js from ${wasmURL}: ${message}`, {
+            cause: error,
+          }),
+        );
       },
     );
   });

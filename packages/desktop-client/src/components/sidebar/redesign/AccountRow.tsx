@@ -95,6 +95,19 @@ export function AccountRow({
             }),
           ),
       },
+      {
+        name: 'account-move-budget-space',
+        text: t('Move to budget space'),
+        onClick: () =>
+          dispatch(
+            pushModal({
+              modal: {
+                name: 'move-account-to-budget-space',
+                options: { account },
+              },
+            }),
+          ),
+      },
     ],
   });
 

@@ -97,6 +97,19 @@ type ImportProgressEvent = {
   batch?: { amount: number; account: string };
 };
 
+type AccountMigrationProgressEvent = {
+  operationId: string;
+  phase:
+    | 'reading-transactions'
+    | 'fetching-rates'
+    | 'preparing-preview'
+    | 'review-ready'
+    | 'moving-transactions'
+    | 'complete';
+  completed?: number;
+  total?: number;
+};
+
 type PrefsUpdatedEvent = undefined;
 type SchedulesOfflineEvent = undefined;
 type ServerErrorEvent = undefined;
@@ -106,6 +119,7 @@ type StartLoadEvent = undefined;
 type ApiFetchRedirectedEvent = undefined;
 
 export type ServerEvents = {
+  'account-migration-progress': AccountMigrationProgressEvent;
   'backups-updated': BackupUpdatedEvent;
   'cells-changed': CellsChangedEvent;
   'fallback-write-error': FallbackWriteErrorEvent;

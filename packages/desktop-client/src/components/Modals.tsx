@@ -79,6 +79,7 @@ import { ImportYNAB4Modal } from './modals/manager/ImportYNAB4Modal';
 import { ImportYNAB5Modal } from './modals/manager/ImportYNAB5Modal';
 import { ManageRulesModal } from './modals/ManageRulesModal';
 import { MergeUnusedPayeesModal } from './modals/MergeUnusedPayeesModal';
+import { MoveAccountToBudgetSpaceModal } from './modals/MoveAccountToBudgetSpaceModal';
 import { NewCategoryGroupModal } from './modals/NewCategoryGroupModal';
 import { NewCategoryModal } from './modals/NewCategoryModal';
 import { NotesModal } from './modals/NotesModal';
@@ -196,6 +197,9 @@ export function Modals() {
 
         case 'account-groups':
           return <AccountGroupsModal key={key} {...modal.options} />;
+
+        case 'move-account-to-budget-space':
+          return <MoveAccountToBudgetSpaceModal key={key} {...modal.options} />;
 
         case 'close-account':
           return <CloseAccountModal key={key} {...modal.options} />;

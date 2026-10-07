@@ -32,7 +32,7 @@ import { useDragRef } from '#hooks/useDragRef';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
 import { useNotes } from '#hooks/useNotes';
 import { useSyncedPref } from '#hooks/useSyncedPref';
-import { openAccountCloseModal } from '#modals/modalsSlice';
+import { openAccountCloseModal, pushModal } from '#modals/modalsSlice';
 import { useDispatch, useSelector } from '#redux';
 import type { Binding, SheetFields } from '#spreadsheet';
 import { isTouchDevice } from '#util/isTouchDevice';
@@ -153,6 +153,19 @@ export function Account<FieldName extends SheetFields<'account'>>({
             onClick: () =>
               dispatch(openAccountCloseModal({ accountId: account.id })),
           },
+      {
+        name: 'account-move-budget-space',
+        text: t('Move to budget space'),
+        onClick: () =>
+          dispatch(
+            pushModal({
+              modal: {
+                name: 'move-account-to-budget-space',
+                options: { account },
+              },
+            }),
+          ),
+      },
     ],
   });
 

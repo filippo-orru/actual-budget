@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
 import type { ComponentProps, ComponentType, CSSProperties } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
 import { animated, config, useSpring } from 'react-spring';
 
@@ -19,14 +19,10 @@ import { SvgCalendar3 } from '@actual-app/components/icons/v2';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-import { useQuery } from '@tanstack/react-query';
 import { useDrag } from '@use-gesture/react';
 
-import { budgetSpaceQueries } from '#budget-spaces/queries';
 import { useBudgetSpaceId } from '#hooks/useBudgetSpace';
 import { useIsTestEnv } from '#hooks/useIsTestEnv';
-import { useMetadataPref } from '#hooks/useMetadataPref';
-import { useNavigate } from '#hooks/useNavigate';
 import { useScrollListener } from '#hooks/useScrollListener';
 import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
 import { budgetRoutes } from '#util/budget-routes';
@@ -48,10 +44,6 @@ export function MobileNavTabs() {
   const isTestEnv = useIsTestEnv();
   const isUsingServer = syncServerStatus !== 'no-server' || isTestEnv;
   const budgetId = useBudgetSpaceId();
-  const navigate = useNavigate();
-  const [fileId] = useMetadataPref('id');
-  const { data: budgetSpaces = [] } = useQuery(budgetSpaceQueries.list(fileId));
-  const activeBudgetSpaces = budgetSpaces.filter(space => !space.tombstone);
   const [navbarState, setNavbarState] = useState<'default' | 'open' | 'hidden'>(
     'default',
   );
@@ -223,84 +215,48 @@ export function MobileNavTabs() {
   );
 
   return (
-    <>
-      {activeBudgetSpaces.length > 1 && (
-        <label
+    <animated.div
+      role="navigation"
+      {...bind()}
+      style={{
+        y,
+        touchAction: 'pan-x',
+        backgroundColor: theme.mobileNavBackground,
+        borderTop: `1px solid ${theme.menuBorder}`,
+        ...styles.shadow,
+        height: TOTAL_HEIGHT + PILL_HEIGHT,
+        width: '100%',
+        position: 'fixed',
+        zIndex: 100,
+        bottom: 0,
+        ...(!isNarrowWidth && { display: 'none' }),
+      }}
+      data-navbar-state={navbarState}
+    >
+      <View>
+        <div
           style={{
-            position: 'fixed',
-            bottom: TOTAL_HEIGHT + PILL_HEIGHT + 8,
-            left: 12,
-            zIndex: 101,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 10px',
-            borderRadius: 8,
-            background: theme.mobileNavBackground,
-            color: theme.mobileNavItem,
+            backgroundColor: theme.pillBorder,
+            borderRadius: 10,
+            width: 30,
+            marginTop: 5,
+            marginBottom: 5,
+            padding: 2,
+            alignSelf: 'center',
+          }}
+        />
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            height: TOTAL_HEIGHT,
+            width: '100%',
           }}
         >
-          <span>
-            <Trans>Budget space</Trans>
-          </span>
-          <select
-            aria-label={t('Select budget space')}
-            value={budgetId}
-            onChange={event =>
-              void navigate(budgetRoutes.budget(event.currentTarget.value))
-            }
-          >
-            {activeBudgetSpaces.map(space => (
-              <option key={space.id} value={space.id}>
-                {space.name} ({space.currency_code || t('None')})
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <animated.div
-        role="navigation"
-        {...bind()}
-        style={{
-          y,
-          touchAction: 'pan-x',
-          backgroundColor: theme.mobileNavBackground,
-          borderTop: `1px solid ${theme.menuBorder}`,
-          ...styles.shadow,
-          height: TOTAL_HEIGHT + PILL_HEIGHT,
-          width: '100%',
-          position: 'fixed',
-          zIndex: 100,
-          bottom: 0,
-          ...(!isNarrowWidth && { display: 'none' }),
-        }}
-        data-navbar-state={navbarState}
-      >
-        <View>
-          <div
-            style={{
-              backgroundColor: theme.pillBorder,
-              borderRadius: 10,
-              width: 30,
-              marginTop: 5,
-              marginBottom: 5,
-              padding: 2,
-              alignSelf: 'center',
-            }}
-          />
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              height: TOTAL_HEIGHT,
-              width: '100%',
-            }}
-          >
-            {[navTabs, bufferTabs]}
-          </View>
+          {[navTabs, bufferTabs]}
         </View>
-      </animated.div>
-    </>
+      </View>
+    </animated.div>
   );
 }
 

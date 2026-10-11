@@ -98,6 +98,80 @@ describe('account migration', () => {
     ).toEqual({ tombstone: 1 });
   });
 
+  it.each(['from', 'to'] as const)(
+    'persists transfers %s a migrated account in a secondary budget',
+    async direction => {
+      const originalAccount = await runHandler(handlers['account-create'], {
+        budgetId: 'default',
+        name: 'Checking',
+      });
+      const prepared = await runHandler(handlers['account-migration/prepare'], {
+        requestId: `transfer-${direction}-prepare`,
+        sourceAccountId: originalAccount,
+        destination: { type: 'new', name: 'Second', currencyCode: 'USD' },
+        inputCurrency: 'USD',
+        accountName: 'Checking',
+        offBudget: false,
+      });
+      const migrated = await runHandler(handlers['account-migration/commit'], {
+        token: prepared.token,
+      });
+      const otherAccount = await runHandler(handlers['account-create'], {
+        budgetId: migrated.budgetId,
+        name: 'Savings',
+      });
+      const sourceAccount =
+        direction === 'from' ? migrated.accountId : otherAccount;
+      const targetAccount =
+        direction === 'to' ? migrated.accountId : otherAccount;
+      const sourcePayee = await db.first<{ id: string }>(
+        'SELECT id FROM payees WHERE transfer_acct = ?',
+        [sourceAccount],
+      );
+      const targetPayee = await db.first<{ id: string }>(
+        'SELECT id FROM payees WHERE transfer_acct = ?',
+        [targetAccount],
+      );
+      if (!sourcePayee || !targetPayee) {
+        throw new Error('Missing transfer payee');
+      }
+
+      await runHandler(handlers['transaction-add'], {
+        id: 'new-transfer',
+        account: sourceAccount,
+        amount: -1234,
+        date: '2024-02-01',
+      });
+      await runHandler(handlers['transactions-batch-update'], {
+        updated: [{ id: 'new-transfer', payee: targetPayee.id }],
+      });
+
+      // Read through the same mapped transaction views used after a refresh.
+      const source = await db.getTransaction('new-transfer');
+      expect(source).toMatchObject({
+        account: sourceAccount,
+        payee: targetPayee.id,
+        transfer_id: expect.any(String),
+      });
+      if (!source?.transfer_id) {
+        throw new Error('Missing transfer counterpart');
+      }
+      expect(await db.getTransaction(source.transfer_id)).toMatchObject({
+        account: targetAccount,
+        payee: sourcePayee.id,
+        amount: 1234,
+        transfer_id: source.id,
+      });
+      const migratedPayee = direction === 'from' ? sourcePayee : targetPayee;
+      expect(
+        await db.first<db.DbPayeeMapping>(
+          'SELECT * FROM payee_mapping WHERE id = ?',
+          [migratedPayee.id],
+        ),
+      ).toEqual({ id: migratedPayee.id, targetId: migratedPayee.id });
+    },
+  );
+
   it('commits without attempting to create an automatic backup', async () => {
     const sourceId = await db.insertAccount({
       id: 'backup-failure-source',

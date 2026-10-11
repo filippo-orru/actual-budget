@@ -1279,13 +1279,15 @@ async function commitAccountMigration({ token }: { token: string }) {
         bank_sync_status: null,
         account_group_id: null,
       });
-      await db.insertWithSchema('payees', {
+      // Use the payee helper so the transfer payee also gets the identity
+      // mapping required by transaction views.
+      await db.insertPayee({
         id: prepared.transferPayeeId,
         name: '',
         transfer_acct: prepared.destinationAccountId,
-        favorite: false,
-        learn_categories: false,
-        tombstone: false,
+        favorite: 0,
+        learn_categories: 0,
+        tombstone: 0,
       });
 
       for (const update of prepared.counterpartUpdates) {

@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { ErrorBoundary, useErrorBoundary } from 'react-error-boundary';
 import type { FallbackProps } from 'react-error-boundary';
+import { ErrorBoundary, useErrorBoundary } from 'react-error-boundary';
 import { HotkeysProvider } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter } from 'react-router';
 
 import { styles } from '@actual-app/components/styles';
+import { theme as appTheme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import {
   init as initConnection,
@@ -215,6 +216,8 @@ export function App() {
                     data-theme={theme}
                     style={{
                       height: '100%',
+                      color: appTheme.pageTextLight,
+                      backgroundColor: appTheme.pageBackground,
                       display: 'flex',
                       flexDirection: 'column',
                     }}

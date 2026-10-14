@@ -208,6 +208,7 @@ export const schema = {
     carryover: f('integer'),
     goal: f('integer'),
     long_goal: f('integer'),
+    tombstone: f('boolean'),
   },
   zero_budgets: {
     id: f('id'),
@@ -218,12 +219,14 @@ export const schema = {
     carryover: f('integer'),
     goal: f('integer'),
     long_goal: f('integer'),
+    tombstone: f('boolean'),
   },
   zero_budget_months: {
     id: f('id'),
     budget_id: f('id', { ref: 'budgets', required: true }),
     month: f('string'),
     buffered: f('integer'),
+    tombstone: f('boolean'),
   },
   dashboard_pages: {
     id: f('id'),

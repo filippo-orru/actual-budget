@@ -170,6 +170,83 @@ describe('BudgetSpaceProvider', () => {
     expect(screen.queryByTestId('selected-budget')).not.toBeInTheDocument();
   });
 
+  it.each(['removed', 'tombstoned'] as const)(
+    'redirects to budget spaces without showing not found when the current budget is %s',
+    async deletion => {
+      const remainingBudget = budgetSpace('default');
+      const deletedBudget = budgetSpace('other');
+      initServer({
+        'budget-spaces/get': async () => [remainingBudget, deletedBudget],
+      });
+      const { queryClient, container } = renderBudgetSpaceProvider(
+        'file-1',
+        createTestQueryClient(),
+        '/spaces/other/settings',
+      );
+      expect(await screen.findByTestId('selected-budget')).toHaveTextContent(
+        'other',
+      );
+
+      const notFoundScreens: Node[] = [];
+      const observer = new MutationObserver(records => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node.textContent?.includes('Budget not found')) {
+              notFoundScreens.push(node);
+            }
+          }
+        }
+      });
+      observer.observe(container, { childList: true, subtree: true });
+      try {
+        await act(async () => {
+          queryClient.setQueryData(
+            ['budget-spaces', 'file-1', 'list'],
+            deletion === 'removed'
+              ? [remainingBudget]
+              : [remainingBudget, { ...deletedBudget, tombstone: true }],
+          );
+        });
+
+        await waitFor(() =>
+          expect(screen.getByTestId('selected-budget')).toHaveTextContent(
+            'default',
+          ),
+        );
+        expect(notFoundScreens).toEqual([]);
+      } finally {
+        observer.disconnect();
+      }
+    },
+  );
+
+  it('does not redirect when the budget is missing in a newly opened file', async () => {
+    initServer({
+      'budget-spaces/get': async () => [budgetSpace('other')],
+    });
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      ['budget-spaces', 'file-2', 'list'],
+      [budgetSpace('default')],
+    );
+    const { rerender } = renderBudgetSpaceProvider(
+      'file-1',
+      queryClient,
+      '/spaces/other/budget',
+    );
+    expect(await screen.findByTestId('selected-budget')).toHaveTextContent(
+      'other',
+    );
+
+    rerender(
+      <BudgetSpaceProvider fileId="file-2">
+        <SelectedBudget />
+      </BudgetSpaceProvider>,
+    );
+
+    expect(await screen.findByText('Budget not found')).toBeInTheDocument();
+  });
+
   it('falls back to the first active budget when no default exists', async () => {
     initServer({
       'budget-spaces/get': async () => [budgetSpace('one'), budgetSpace('two')],

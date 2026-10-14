@@ -29,16 +29,20 @@ type UpdateBudgetSpaceArgs = {
   budgetType?: 'envelope' | 'tracking';
 };
 
+type DeleteBudgetSpaceArgs = { id: string };
+
 export type BudgetSpaceHandlers = {
   'budget-spaces/get': typeof getBudgetSpaces;
   'budget-spaces/create': typeof createBudgetSpace;
   'budget-spaces/update': typeof updateBudgetSpace;
+  'budget-spaces/delete': typeof deleteBudgetSpace;
 };
 
 export const app = createApp<BudgetSpaceHandlers>();
 app.method('budget-spaces/get', getBudgetSpaces);
 app.method('budget-spaces/create', mutator(undoable(createBudgetSpace)));
 app.method('budget-spaces/update', mutator(undoable(updateBudgetSpace)));
+app.method('budget-spaces/delete', mutator(undoable(deleteBudgetSpace)));
 
 async function getBudgetSpaces(): Promise<BudgetSpaceEntity[]> {
   return (await getBudgetSpaceRows()).map(row => budgetSpaceModel.fromDb(row));
@@ -178,6 +182,124 @@ async function createBudgetSpace(
     throw new Error(`Created budget space was not found: ${id}`);
   }
   return budgetSpaceModel.fromDb(createdBudget);
+}
+
+async function deleteBudgetSpace(args: DeleteBudgetSpaceArgs) {
+  rejectUnknownFields(args, ['id']);
+  const { id } = args;
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new ValidationError('Budget ID is required');
+  }
+  await validateBudgetExists(id);
+
+  const activeBudgets = await db.first<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM budgets WHERE tombstone = 0',
+  );
+  if ((activeBudgets?.count ?? 0) <= 1) {
+    throw new ValidationError('The last budget space cannot be deleted');
+  }
+
+  const ownedTables = [
+    'accounts',
+    'account_groups',
+    'categories',
+    'category_groups',
+    'cleanup_groups',
+    'rules',
+    'schedules',
+    'transaction_filters',
+    'custom_reports',
+    'dashboard_pages',
+    'zero_budgets',
+    'reflect_budgets',
+    'zero_budget_months',
+  ] as const;
+
+  await batchMessages(async () => {
+    const accountIds = await getIds('accounts', id);
+    const categoryIds = await getIds('categories', id);
+    const categoryGroupIds = await getIds('category_groups', id);
+    const scheduleIds = await getIds('schedules', id);
+    const dashboardPageIds = await getIds('dashboard_pages', id);
+
+    await clearNotes([
+      ...accountIds.map(accountId => `account-${accountId}`),
+      ...categoryIds,
+      ...categoryGroupIds,
+    ]);
+    await deleteRows('transactions', 'acct', accountIds);
+    await deleteRows('dashboard', 'dashboard_page_id', dashboardPageIds);
+    await deleteRows('schedules_next_date', 'schedule_id', scheduleIds);
+
+    if (categoryIds.length > 0) {
+      const placeholders = categoryIds.map(() => '?').join(', ');
+      const mappings = await db.all<{ id: string }>(
+        `SELECT id FROM category_mapping WHERE id IN (${placeholders})`,
+        categoryIds,
+      );
+      await Promise.all(
+        mappings.map(({ id: mappingId }) =>
+          db.update('category_mapping', {
+            id: mappingId,
+            transferId: mappingId,
+          }),
+        ),
+      );
+    }
+
+    // Payees and their mappings/locations are shared between budget spaces.
+    // Leave transfer payees intact even when their linked account is deleted.
+
+    for (const table of ownedTables) {
+      await deleteRows(table, 'budget_id', [id]);
+    }
+    await db.delete_('budgets', id);
+  });
+}
+
+async function getIds(
+  table: (typeof ownedTablesForIds)[number],
+  budgetId: string,
+): Promise<string[]> {
+  const rows = await db.all<{ id: string }>(
+    `SELECT id FROM ${table} WHERE budget_id = ?`,
+    [budgetId],
+  );
+  return rows.map(({ id }) => id);
+}
+
+const ownedTablesForIds = [
+  'accounts',
+  'categories',
+  'category_groups',
+  'schedules',
+  'dashboard_pages',
+] as const;
+
+async function clearNotes(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  const notes = await db.all<{ id: string }>(
+    `SELECT id FROM notes WHERE id IN (${placeholders})`,
+    ids,
+  );
+  await Promise.all(
+    notes.map(({ id }) => db.update('notes', { id, note: '' })),
+  );
+}
+
+async function deleteRows(
+  table: string,
+  field: string,
+  ids: string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = await db.all<{ id: string }>(
+    `SELECT id FROM ${table} WHERE ${field} IN (${placeholders})`,
+    ids,
+  );
+  await Promise.all(rows.map(({ id: rowId }) => db.delete_(table, rowId)));
 }
 
 async function updateBudgetSpace(args: UpdateBudgetSpaceArgs) {

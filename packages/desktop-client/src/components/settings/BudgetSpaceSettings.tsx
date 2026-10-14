@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { ButtonWithLoading } from '@actual-app/components/button';
+import { Button, ButtonWithLoading } from '@actual-app/components/button';
 import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
 import { send } from '@actual-app/core/platform/client/connection';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { budgetSpaceQueries } from '#budget-spaces/queries';
 import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
 import { Page } from '#components/Page';
 import { useBudgetSpace } from '#hooks/useBudgetSpace';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 import { BudgetTypeSettings } from './BudgetTypeSettings';
 import { CurrencySettings } from './Currency';
@@ -21,6 +24,11 @@ export function BudgetSpaceSettings() {
   const { t } = useTranslation();
   const budgetSpace = useBudgetSpace();
   const queryClient = useQueryClient();
+  const dispatch = useDispatch();
+  const [fileId] = useMetadataPref('id');
+  const { data: budgetSpaces = [] } = useQuery(budgetSpaceQueries.list(fileId));
+  const canDeleteBudgetSpace =
+    budgetSpaces.filter(space => !space.tombstone).length > 1;
   const [name, setName] = useState(budgetSpace.name);
   const [isSavingName, setIsSavingName] = useState(false);
 
@@ -79,6 +87,35 @@ export function BudgetSpaceSettings() {
         </Setting>
         <CurrencySettings />
         <BudgetTypeSettings />
+        {canDeleteBudgetSpace && (
+          <Setting
+            primaryAction={
+              <Button
+                variant="primary"
+                onPress={() =>
+                  dispatch(
+                    pushModal({
+                      modal: {
+                        name: 'budget-space-delete',
+                        options: {
+                          budgetId: budgetSpace.id,
+                          budgetName: budgetSpace.name,
+                          currencyCode: budgetSpace.currency_code ?? '',
+                        },
+                      },
+                    }),
+                  )
+                }
+              >
+                <Trans>Delete budget space</Trans>
+              </Button>
+            }
+          >
+            <Text>
+              <Trans>Delete this budget space and all of its data.</Trans>
+            </Text>
+          </Setting>
+        )}
       </View>
     </Page>
   );

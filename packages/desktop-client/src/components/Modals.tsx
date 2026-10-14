@@ -32,6 +32,7 @@ import { BudgetPageMenuModal } from './modals/BudgetPageMenuModal';
 import {
   BudgetSpaceCurrencyRequiredModal,
   CreateBudgetSpaceModal,
+  DeleteBudgetSpaceModal,
 } from './modals/BudgetSpaceModals';
 import { CategoryAutocompleteModal } from './modals/CategoryAutocompleteModal';
 import { CategoryGroupAutocompleteModal } from './modals/CategoryGroupAutocompleteModal';
@@ -316,6 +317,9 @@ export function Modals() {
           return (
             <BudgetSpaceCurrencyRequiredModal key={key} {...modal.options} />
           );
+
+        case 'budget-space-delete':
+          return <DeleteBudgetSpaceModal key={key} {...modal.options} />;
 
         case 'new-category-group':
           return <NewCategoryGroupModal key={key} {...modal.options} />;

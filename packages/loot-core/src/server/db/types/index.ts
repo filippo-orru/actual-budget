@@ -228,6 +228,7 @@ export type DbReflectBudget = {
   carryover: number;
   goal: number;
   long_goal: number;
+  tombstone: 1 | 0;
 };
 
 export type DbZeroBudgetMonth = {
@@ -235,6 +236,7 @@ export type DbZeroBudgetMonth = {
   budget_id: string;
   month: string;
   buffered: number;
+  tombstone: 1 | 0;
 };
 
 export type DbZeroBudget = {
@@ -246,6 +248,7 @@ export type DbZeroBudget = {
   carryover: number;
   goal: number;
   long_goal: number;
+  tombstone: 1 | 0;
 };
 
 export type DbTransactionFilter = {

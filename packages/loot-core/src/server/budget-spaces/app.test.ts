@@ -507,6 +507,269 @@ describe('budget spaces', () => {
     ]);
   });
 
+  it('deletes a budget space and tombstones its owned and linked entities only', async () => {
+    const budget = await createBudget('To delete');
+    const accountId = 'delete-budget-account';
+    await db.insertAccount({
+      id: accountId,
+      budget_id: budget.id,
+      name: 'Delete me',
+    });
+    await db.insertTransaction({
+      id: 'delete-budget-transaction',
+      account: accountId,
+      amount: 12345,
+      date: '2024-01-01',
+    });
+    await db.insert('notes', {
+      id: `account-${accountId}`,
+      note: 'Account note to remove',
+    });
+
+    const ruleId = 'delete-budget-rule';
+    await db.insertWithSchema('rules', {
+      id: ruleId,
+      budget_id: budget.id,
+      stage: 'pre',
+      conditions: [],
+      actions: [],
+    });
+    await db.insertWithSchema('schedules', {
+      id: 'delete-budget-schedule',
+      budget_id: budget.id,
+      name: 'Delete schedule',
+      rule: ruleId,
+    });
+    db.runQuery(
+      `INSERT INTO schedules_next_date (id, schedule_id)
+       VALUES ('delete-budget-next-date', 'delete-budget-schedule')`,
+    );
+    db.runQuery(
+      `INSERT INTO account_groups (id, budget_id, name, sort_order)
+       VALUES ('delete-budget-account-group', ?, 'Group', 0)`,
+      [budget.id],
+    );
+    db.runQuery(
+      `INSERT INTO cleanup_groups (id, budget_id, name)
+       VALUES ('delete-budget-cleanup-group', ?, 'Cleanup')`,
+      [budget.id],
+    );
+    db.runQuery(
+      `INSERT INTO transaction_filters (id, budget_id, name, conditions)
+       VALUES ('delete-budget-filter', ?, 'Filter', '[]')`,
+      [budget.id],
+    );
+    db.runQuery(
+      `INSERT INTO custom_reports (id, budget_id, name)
+       VALUES ('delete-budget-report', ?, 'Report')`,
+      [budget.id],
+    );
+    db.runQuery(
+      `INSERT INTO zero_budgets (id, budget_id, month, category, amount)
+       VALUES ('delete-budgeted-amount', ?, 202401, 'category', 1000)`,
+      [budget.id],
+    );
+    db.runQuery(
+      `INSERT INTO reflect_budgets (id, budget_id, month, category, amount)
+       VALUES ('delete-reflected-amount', ?, 202401, 'category', 1000)`,
+      [budget.id],
+    );
+    db.runQuery(
+      `INSERT INTO zero_budget_months (id, budget_id, month, buffered)
+       VALUES ('delete-budget-month', ?, '2024-01', 1000)`,
+      [budget.id],
+    );
+    const category = await db.first<{ id: string; cat_group: string }>(
+      'SELECT id, cat_group FROM categories WHERE budget_id = ? LIMIT 1',
+      [budget.id],
+    );
+    const dashboardPage = await db.first<{ id: string }>(
+      'SELECT id FROM dashboard_pages WHERE budget_id = ?',
+      [budget.id],
+    );
+    const dashboardWidget = await db.first<{ id: string }>(
+      'SELECT id FROM dashboard WHERE dashboard_page_id = ? LIMIT 1',
+      [dashboardPage!.id],
+    );
+
+    await runHandler(handlers['budget-spaces/delete'], { id: budget.id });
+
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM budgets WHERE id = ?',
+        [budget.id],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM accounts WHERE id = ?',
+        [accountId],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ note: string }>('SELECT note FROM notes WHERE id = ?', [
+        `account-${accountId}`,
+      ]),
+    ).toEqual({ note: '' });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM transactions WHERE id = ?',
+        ['delete-budget-transaction'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM rules WHERE id = ?',
+        [ruleId],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM schedules WHERE id = ?',
+        ['delete-budget-schedule'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM account_groups WHERE id = ?',
+        ['delete-budget-account-group'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM cleanup_groups WHERE id = ?',
+        ['delete-budget-cleanup-group'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM transaction_filters WHERE id = ?',
+        ['delete-budget-filter'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM custom_reports WHERE id = ?',
+        ['delete-budget-report'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM categories WHERE id = ?',
+        [category!.id],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM category_groups WHERE id = ?',
+        [category!.cat_group],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM dashboard WHERE id = ?',
+        [dashboardWidget!.id],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM schedules_next_date WHERE id = ?',
+        ['delete-budget-next-date'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM zero_budgets WHERE id = ?',
+        ['delete-budgeted-amount'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM reflect_budgets WHERE id = ?',
+        ['delete-reflected-amount'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM zero_budget_months WHERE id = ?',
+        ['delete-budget-month'],
+      ),
+    ).toEqual({ tombstone: 1 });
+    expect(await resolveBudgetId()).toBe('default');
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM budgets WHERE id = ?',
+        ['default'],
+      ),
+    ).toEqual({ tombstone: 0 });
+  });
+
+  it('preserves shared payees referenced by another budget when deleting an account', async () => {
+    const budget = await createBudget('To delete');
+    const otherBudget = await createBudget('Keep');
+    const accountId = 'account-with-shared-payee';
+    const otherAccountId = 'other-budget-account';
+    await db.insertAccount({
+      id: accountId,
+      budget_id: budget.id,
+      name: 'Account to delete',
+    });
+    await db.insertAccount({
+      id: otherAccountId,
+      budget_id: otherBudget.id,
+      name: 'Account to keep',
+    });
+    const sharedPayeeId = await db.insertPayee({
+      id: 'shared-payee',
+      name: 'Shared transfer payee',
+      transfer_acct: accountId,
+    });
+    await db.insertTransaction({
+      id: 'other-budget-transaction',
+      account: otherAccountId,
+      payee: sharedPayeeId,
+      amount: 500,
+      date: '2024-01-01',
+    });
+
+    await runHandler(handlers['budget-spaces/delete'], { id: budget.id });
+
+    expect(
+      await db.first<{ tombstone: number; transfer_acct: string | null }>(
+        'SELECT tombstone, transfer_acct FROM payees WHERE id = ?',
+        [sharedPayeeId],
+      ),
+    ).toEqual({ tombstone: 0, transfer_acct: accountId });
+    expect(
+      await db.first<{ tombstone: number; payee: string }>(
+        'SELECT tombstone, payee FROM v_transactions WHERE id = ?',
+        ['other-budget-transaction'],
+      ),
+    ).toEqual({ tombstone: 0, payee: sharedPayeeId });
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM accounts WHERE id = ?',
+        [otherAccountId],
+      ),
+    ).toEqual({ tombstone: 0 });
+  });
+
+  it('rejects deleting the last active budget space without writing sync messages', async () => {
+    const messagesBefore = await db.all('SELECT * FROM messages_crdt');
+
+    await expect(
+      runHandler(handlers['budget-spaces/delete'], { id: 'default' }),
+    ).rejects.toThrow('The last budget space cannot be deleted');
+
+    expect(await db.all('SELECT * FROM messages_crdt')).toEqual(messagesBefore);
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM budgets WHERE id = ?',
+        ['default'],
+      ),
+    ).toEqual({ tombstone: 0 });
+  });
+
   it('resolves entity ownership and rejects ambiguous implicit budget selection', async () => {
     const first = await createBudget('First');
     const second = await createBudget('Second');

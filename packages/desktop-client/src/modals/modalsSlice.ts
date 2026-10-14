@@ -697,6 +697,14 @@ export type Modal =
   | {
       name: 'budget-space-currency-required';
       options: { budgetId: string; budgetName: string };
+    }
+  | {
+      name: 'budget-space-delete';
+      options: {
+        budgetId: string;
+        budgetName: string;
+        currencyCode: string;
+      };
     };
 
 type OpenAccountCloseModalPayload = {

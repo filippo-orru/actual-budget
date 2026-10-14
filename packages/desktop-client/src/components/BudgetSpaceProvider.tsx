@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Trans } from 'react-i18next';
 import { Navigate, useLocation } from 'react-router';
@@ -49,6 +49,33 @@ export function BudgetSpaceProvider({
     enabled: !!fileId,
   });
 
+  const lastValidRoute = useRef<{
+    fileId: string;
+    locationKey: string;
+    budgetId: string;
+  } | null>(null);
+  const explicitBudgetMatch = location.pathname.match(/^\/spaces\/([^/]+)/);
+  const explicitBudgetId = explicitBudgetMatch
+    ? decodeURIComponent(explicitBudgetMatch[1])
+    : null;
+
+  useEffect(() => {
+    if (
+      fileId &&
+      explicitBudgetId &&
+      budgetSpacesQuery.data?.some(
+        budgetSpace =>
+          budgetSpace.id === explicitBudgetId && !budgetSpace.tombstone,
+      )
+    ) {
+      lastValidRoute.current = {
+        fileId,
+        locationKey: location.key,
+        budgetId: explicitBudgetId,
+      };
+    }
+  }, [fileId, location.key, explicitBudgetId, budgetSpacesQuery.data]);
+
   if (!fileId) {
     return (
       <FeatureErrorFallback
@@ -79,15 +106,23 @@ export function BudgetSpaceProvider({
     );
   }
 
-  const explicitBudgetMatch = location.pathname.match(/^\/spaces\/([^/]+)/);
-  const explicitBudgetId = explicitBudgetMatch
-    ? decodeURIComponent(explicitBudgetMatch[1])
-    : null;
   const activeBudget = explicitBudgetId
     ? budgetSpaces.find(budgetSpace => budgetSpace.id === explicitBudgetId)
     : selectBudgetSpace(budgetSpaces, getLastSelectedBudgetSpaceId(fileId));
 
-  if (explicitBudgetId && !activeBudget) return <BudgetNotFound />;
+  if (explicitBudgetId && !activeBudget) {
+    // A budget can disappear before the deletion modal's navigation commits.
+    // Only redirect routes that were valid, not unknown budget URLs.
+    const previousRoute = lastValidRoute.current;
+    if (
+      previousRoute?.fileId === fileId &&
+      previousRoute.locationKey === location.key &&
+      previousRoute.budgetId === explicitBudgetId
+    ) {
+      return <Navigate to={budgetRoutes.spaces()} replace />;
+    }
+    return <BudgetNotFound />;
+  }
 
   const selectedBudget = activeBudget!;
   if (location.pathname === '/') {

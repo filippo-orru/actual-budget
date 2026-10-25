@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+import { useMatch } from 'react-router';
 
+import { Button } from '@actual-app/components/button';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
-import { spacing } from '@actual-app/components/tokens';
+import { radius, spacing } from '@actual-app/components/tokens';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
 import * as monthUtils from '@actual-app/core/shared/months';
@@ -31,6 +33,8 @@ import { useNavigate } from '#hooks/useNavigate';
 import { usePrivacyMode } from '#hooks/usePrivacyMode';
 import { budgetRoutes } from '#util/budget-routes';
 import { isTouchDevice } from '#util/isTouchDevice';
+
+import { CollapseChevron } from './redesign/CollapseChevron';
 
 function BudgetSpaceAmount({
   budget,
@@ -195,32 +199,34 @@ function BudgetSpaceRow({
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.sm,
+          gap: spacing.xs,
           minWidth: 0,
-          marginTop: -2,
-          marginBottom: 2,
-          paddingTop: 4,
-          paddingBottom: 4,
-          paddingRight: 15,
-          paddingLeft: 10,
-          borderLeft: `4px solid ${
-            selected ? theme.sidebarItemAccentSelected : 'transparent'
-          }`,
+          paddingBlock: spacing.xs,
+          paddingRight: spacing.sm,
+          paddingLeft: spacing.xs + spacing.lg + spacing.xs,
+          borderRadius: radius.sm,
+          marginBottom: 1,
           textDecoration: 'none',
           color: selected
             ? theme.sidebarItemTextSelected
             : theme.sidebarItemText,
+          backgroundColor: selected
+            ? theme.sidebarItemBackgroundSelected
+            : 'transparent',
           ':hover': { backgroundColor: theme.sidebarItemBackgroundHover },
           ...styles.smallText,
+          fontSize: 13,
         }}
-        activeStyle={{ color: theme.sidebarItemTextSelected }}
+        activeStyle={{
+          backgroundColor: theme.sidebarItemBackgroundSelected,
+          color: theme.sidebarItemTextSelected,
+        }}
       >
         <Text
           style={{
             flex: 1,
             minWidth: 0,
             ...styles.ellipsisText,
-            fontWeight: selected ? 600 : 'normal',
           }}
         >
           {budget.name}
@@ -237,12 +243,18 @@ function FormattedAmount({ amount }: { amount: number }) {
 }
 
 export function BudgetSpacesSection() {
+  const { t } = useTranslation();
   const selectedBudget = useBudgetSpace();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isSpacesSelected = useMatch({ path: budgetRoutes.spaces(), end: true });
   const [fileId] = useMetadataPref('id');
   const { data: budgetSpaces = [], isLoading: isBudgetListLoading } = useQuery(
     budgetSpaceQueries.list(fileId),
   );
   const activeBudgets = budgetSpaces.filter(budget => !budget.tombstone);
+  const visibleBudgets = isExpanded
+    ? activeBudgets
+    : activeBudgets.filter(budget => budget.id === selectedBudget.id);
   const {
     rows,
     isLoading: isOverviewLoading,
@@ -321,106 +333,156 @@ export function BudgetSpacesSection() {
   const isPrivate = usePrivacyMode();
 
   return (
-    <View
-      style={{
-        flexShrink: 0,
-        paddingBottom: 15,
-        borderBottom: `1px solid ${theme.sidebarBorder}`,
-        marginBottom: 15,
-      }}
-      data-testid="sidebar-budget-spaces"
-    >
+    <>
       <View
         style={{
-          marginTop: -2,
-          marginBottom: 2,
-          paddingTop: 4,
-          paddingBottom: 4,
-          paddingRight: 15,
-          paddingLeft: 10,
-          borderLeft: '4px solid transparent',
-          textDecoration: 'none',
-          fontWeight: 600,
-          color: theme.sidebarItemText,
-          ':hover': { backgroundColor: theme.sidebarItemBackgroundHover },
-          ...styles.smallText,
+          flexShrink: 0,
+          paddingTop: 6,
+          paddingInline: spacing.sm,
         }}
+        data-testid="sidebar-budget-spaces"
       >
-        <Link
-          variant="internal"
-          to={budgetRoutes.spaces()}
+        <View
           style={{
-            display: 'flex',
             flexDirection: 'row',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: spacing.sm,
-            borderBottom: `1.5px solid rgba(255,255,255,0.4)`,
-            paddingBottom: '3px',
-            textDecoration: 'none',
+            gap: spacing.xs,
+            paddingBlock: spacing.xs,
+            paddingLeft: spacing.xs,
+            paddingRight: spacing.sm,
+            borderRadius: radius.sm,
+            marginBottom: 1,
+            color: isSpacesSelected
+              ? theme.sidebarItemTextSelected
+              : theme.sidebarItemText,
+            backgroundColor: isSpacesSelected
+              ? theme.sidebarItemBackgroundSelected
+              : 'transparent',
+            ':hover': { backgroundColor: theme.sidebarItemBackgroundHover },
           }}
         >
-          <Text>
-            <Trans>Spaces</Trans>
-          </Text>
-          <Text style={{ color: theme.sidebarTextSubdued }}>
-            {isPrivate ? (
-              '••••••'
-            ) : isBudgetListLoading || isOverviewLoading ? (
-              <Trans>Loading…</Trans>
-            ) : total == null ? (
-              '—'
-            ) : (
-              <FormatConvertedAmount
-                convertedAmount={total}
-                currency={selectedBudget.currency_code ?? ''}
-              />
-            )}
-          </Text>
-        </Link>
-      </View>
-      {isBudgetListLoading ? (
-        <Text
-          style={{
-            padding: `${spacing.xs}px ${spacing.md}px`,
-            color: theme.sidebarTextSubdued,
-          }}
-        >
-          <Trans>Loading…</Trans>
-        </Text>
-      ) : (
-        activeBudgets.map(budget => {
-          const selected = budget.id === selectedBudget.id;
-          const balance =
-            isOverviewLoading || overviewError
-              ? null
-              : (balances?.[budget.id] ?? 0);
-          const sourceCode = budget.currency_code ?? '';
-          const quote = sourceCurrencies.includes(sourceCode)
-            ? rates[sourceCode]
-            : sourceCode === selectedBudget.currency_code
-              ? 1
-              : undefined;
+          <Button
+            variant="bare"
+            aria-expanded={isExpanded}
+            aria-label={
+              isExpanded
+                ? t('Collapse {{section}}', { section: t('Spaces') })
+                : t('Expand {{section}}', { section: t('Spaces') })
+            }
+            onPress={() => setIsExpanded(!isExpanded)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: spacing.lg,
+              height: spacing.lg,
+              padding: 0,
+              flexShrink: 0,
+              borderRadius: radius.sm,
+              color: 'inherit',
+            }}
+          >
+            <CollapseChevron isOpen={isExpanded} />
+          </Button>
+          <Link
+            variant="internal"
+            to={budgetRoutes.spaces()}
+            isExactPathMatch
+            activeStyle={{
+              color: theme.sidebarItemTextSelected,
+              fontWeight: 600,
+            }}
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: spacing.sm,
+              flex: 1,
+              minWidth: 0,
+              textDecoration: 'none',
+              color: 'inherit',
+              ...styles.smallText,
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            <Text>
+              <Trans>Spaces</Trans>
+            </Text>
+            <Text style={{ color: theme.sidebarTextSubdued }}>
+              {isPrivate ? (
+                '••••••'
+              ) : isBudgetListLoading || isOverviewLoading ? (
+                <Trans>Loading…</Trans>
+              ) : total == null ? (
+                '—'
+              ) : (
+                <FormatConvertedAmount
+                  convertedAmount={total}
+                  currency={selectedBudget.currency_code ?? ''}
+                />
+              )}
+            </Text>
+          </Link>
+        </View>
 
-          return (
-            <BudgetSpaceRow key={budget.id} budget={budget} selected={selected}>
-              <BudgetSpaceAmount
+        {isBudgetListLoading ? (
+          <Text
+            style={{
+              padding: `${spacing.xs}px ${spacing.md}px`,
+              color: theme.sidebarTextSubdued,
+            }}
+          >
+            <Trans>Loading…</Trans>
+          </Text>
+        ) : (
+          visibleBudgets.map(budget => {
+            const selected =
+              !isSpacesSelected && budget.id === selectedBudget.id;
+            const balance =
+              isOverviewLoading || overviewError
+                ? null
+                : (balances?.[budget.id] ?? 0);
+            const sourceCode = budget.currency_code ?? '';
+            const quote = sourceCurrencies.includes(sourceCode)
+              ? rates[sourceCode]
+              : sourceCode === selectedBudget.currency_code
+                ? 1
+                : undefined;
+
+            return (
+              <BudgetSpaceRow
+                key={budget.id}
                 budget={budget}
-                amount={balance}
-                targetCurrency={selectedBudget.currency_code ?? ''}
-                isSelected={selected}
-                shouldConvert={shouldConvert}
-                rate={quote}
-                isOffline={offlineCurrencies.includes(sourceCode)}
-                isRateError={failedCurrencies.includes(sourceCode)}
-                isOverviewError={overviewError != null}
-                today={today}
-              />
-            </BudgetSpaceRow>
-          );
-        })
-      )}
-    </View>
+                selected={selected}
+              >
+                <BudgetSpaceAmount
+                  budget={budget}
+                  amount={balance}
+                  targetCurrency={selectedBudget.currency_code ?? ''}
+                  isSelected={selected}
+                  shouldConvert={shouldConvert}
+                  rate={quote}
+                  isOffline={offlineCurrencies.includes(sourceCode)}
+                  isRateError={failedCurrencies.includes(sourceCode)}
+                  isOverviewError={overviewError != null}
+                  today={today}
+                />
+              </BudgetSpaceRow>
+            );
+          })
+        )}
+      </View>
+      <View
+        style={{
+          height: 1,
+          margin: `${spacing.sm}px ${spacing.md}px`,
+          backgroundColor: theme.sidebarBorder,
+          flexShrink: 0,
+        }}
+      />
+    </>
   );
 }
 

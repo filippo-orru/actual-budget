@@ -1,7 +1,7 @@
 import { MemoryRouter } from 'react-router';
 
 import type { BudgetSpaceEntity } from '@actual-app/core/types/models';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { budgetSpaceQueries } from '#budget-spaces/queries';
 import { useBudgetOverview } from '#hooks/useBudgetOverview';
@@ -42,6 +42,48 @@ function budget(
 }
 
 describe('BudgetSpacesSection', () => {
+  it('selects the Spaces row on the spaces overview', () => {
+    const home = budget('default', 'Home', 'EUR');
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(budgetSpaceQueries.list('file-1').queryKey, [
+      home,
+    ]);
+    const store = configureTestAppStore({ queryClient });
+    store.dispatch(
+      setPrefs({ local: { id: 'file-1' }, global: {}, synced: {} }),
+    );
+    vi.mocked(useBudgetOverview).mockReturnValue({
+      rows: [{ budgetId: 'default', balance: 18500 }],
+      isLoading: false,
+      error: null,
+    });
+    vi.mocked(useCurrencyRates).mockReturnValue({
+      rates: {},
+      offlineCurrencies: [],
+      failedCurrencies: [],
+      isLoading: false,
+    });
+
+    render(
+      <TestProviders store={store} queryClient={queryClient}>
+        <BudgetSpaceContext.Provider value={home}>
+          <MemoryRouter initialEntries={['/spaces']}>
+            <BudgetSpacesSection />
+          </MemoryRouter>
+        </BudgetSpaceContext.Provider>
+      </TestProviders>,
+    );
+
+    expect(screen.getByRole('link', { name: /Spaces/ })).toHaveAttribute(
+      'href',
+      '/spaces',
+    );
+    expect(screen.getByRole('link', { name: /Home/ })).toHaveAttribute(
+      'href',
+      '/spaces/default/budget',
+    );
+  });
+
   it('shows every budget total and links to the canonical budget routes', () => {
     const budgets = [
       budget('default', 'Home', 'EUR'),
@@ -97,6 +139,10 @@ describe('BudgetSpacesSection', () => {
     expect(
       screen.queryByRole('button', { name: 'Create budget space' }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Travel/ }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Spaces' }));
 
     const selected = screen.getByRole('link', { name: /Home/ });
     const travel = screen.getByRole('link', { name: /Travel/ });
